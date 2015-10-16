@@ -1,0 +1,11 @@
+make -j8
+cd arch/arm/boot
+cat zImage dts/at91sam9g20ek.dtb > zImage-with-dtb
+cp zImage zImage-without-dtb
+cp zImage-with-dtb zImage
+cd -
+make uImage
+cd -
+cp zImage-without-dtb zImage
+cd -
+
