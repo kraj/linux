@@ -24,6 +24,15 @@
 
 #define IMX_SIP_GET_SOC_INFO		0xc2000006
 
+#define IMX_SIP_NOC			0xc2000008
+#define IMX_SIP_NOC_LCDIF		0x0
+#define IMX_SIP_NOC_PRIORITY		0x1
+#define NOC_GPU_PRIORITY		0x10
+#define NOC_DCSS_PRIORITY		0x11
+#define NOC_VPU_PRIORITY		0x12
+#define NOC_CPU_PRIORITY		0x13
+#define NOC_MIX_PRIORITY		0x14
+
 #define OCOTP_UID_LOW			0x410
 #define OCOTP_UID_HIGH			0x420
 
@@ -204,6 +213,33 @@ static __maybe_unused const struct of_device_id imx8_soc_match[] = {
 	{ }
 };
 
+static void __init imx8mq_noc_init(void)
+{
+	struct device_node *np;
+	const char *status;
+	int statlen;
+	struct arm_smccc_res res;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mq-lcdif");
+	if (!np)
+		return;
+
+	status = of_get_property(np, "status", &statlen);
+	if (status == NULL)
+		return;
+
+	if (statlen > 0) {
+		if (!strcmp(status, "disabled"))
+			return;
+	}
+
+	pr_info("Config NOC for VPU and CPU\n");
+	arm_smccc_smc(IMX_SIP_NOC, IMX_SIP_NOC_LCDIF, 0,
+			0, 0, 0, 0, 0, &res);
+	if (res.a0)
+		pr_err("Config NOC for VPU and CPU fail!\n");
+}
+
 #define imx8_revision(dev, soc_rev) \
 	(soc_rev) ? \
 	devm_kasprintf((dev), GFP_KERNEL, "%d.%d", ((soc_rev) >> 4) & 0xf, (soc_rev) & 0xf) : \
@@ -309,6 +345,9 @@ static int imx8m_soc_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
+
+	if (of_machine_is_compatible("fsl,imx8mq"))
+		imx8mq_noc_init();
 
 	return 0;
 }
