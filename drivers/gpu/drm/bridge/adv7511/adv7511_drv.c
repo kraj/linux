@@ -10,6 +10,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/slab.h>
 
 #include <sound/pcm.h>
@@ -1204,6 +1205,10 @@ static int adv7511_probe(struct i2c_client *i2c)
 	struct adv7511_link_config link_config;
 	struct adv7511 *adv7511;
 	struct device *dev = &i2c->dev;
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+	struct device_node *remote_node = NULL, *endpoint = NULL;
+	struct of_changeset ocs;
+#endif
 	unsigned int val;
 	int ret;
 
@@ -1386,6 +1391,40 @@ uninit_regulators:
 	adv7511_uninit_regulators(adv7511);
 err_of_node_put:
 	of_node_put(adv7511->host_node);
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (endpoint)
+		remote_node = of_graph_get_remote_port_parent(endpoint);
+
+	if (!remote_node)
+		return ret;
+
+	/* Find remote's endpoint connected to us and detach it */
+	endpoint = NULL;
+	while ((endpoint = of_graph_get_next_endpoint(remote_node,
+						      endpoint))) {
+		struct device_node *us;
+
+		us = of_graph_get_remote_port_parent(endpoint);
+		if (us == dev->of_node)
+			break;
+	}
+	of_node_put(remote_node);
+
+	if (!endpoint)
+		return ret;
+
+	of_changeset_init(&ocs);
+	of_changeset_detach_node(&ocs, endpoint);
+	ret = of_changeset_apply(&ocs);
+	if (!ret)
+		dev_warn(dev,
+			 "Probe failed. Remote port '%s' disabled\n",
+			 remote_node->full_name);
+#endif
 
 	return ret;
 }
