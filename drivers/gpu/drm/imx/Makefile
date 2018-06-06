@@ -13,4 +13,5 @@ obj-$(CONFIG_DRM_IMX_IPUV3)	+= imx-ipuv3-crtc.o
 obj-$(CONFIG_DRM_IMX_HDMI) += dw_hdmi-imx.o
 obj-$(CONFIG_DRM_IMX8_DC) += dc/
 obj-$(CONFIG_DRM_IMX_DCSS) += dcss/
+obj-$(CONFIG_DRM_IMX8MM_LCDIF) += lcdif/
 obj-$(CONFIG_DRM_IMX_LCDC) += lcdc/
