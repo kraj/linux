@@ -20,8 +20,6 @@ static inline struct imx_crtc_state *to_imx_crtc_state(struct drm_crtc_state *s)
 	return container_of(s, struct imx_crtc_state, base);
 }
 
-extern struct platform_driver ipu_drm_driver;
-
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);
 
