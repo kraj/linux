@@ -384,3 +384,15 @@
 #include "imx8qxp-ss-hsio.dtsi"
 #include "imx8qxp-ss-lvds.dtsi"
 #include "imx8qxp-ss-gpu.dtsi"
+
+&A35_0 {
+	operating-points = <
+		/* kHz	uV*/
+		/* voltage is maintained by SCFW, so no need here */
+		1200000 0
+		 900000 0
+	>;
+	clocks = <&clk IMX_SC_R_A35 IMX_SC_PM_CLK_CPU>;
+	clock-latency = <61036>;
+	#cooling-cells = <2>;
+};
