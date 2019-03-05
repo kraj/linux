@@ -897,6 +897,9 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	if (!genpd->power_off)
 		goto out;
 
+	if (atomic_read(&genpd->sd_count) > 0)
+		return -EBUSY;
+
 	timed = timed && genpd->gd && !genpd->states[state_idx].fwnode;
 	if (!timed) {
 		ret = genpd->power_off(genpd);
@@ -1010,10 +1013,6 @@ static void genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	/* Default to shallowest state. */
 	if (!genpd->gov)
 		genpd->state_idx = 0;
-
-	/* Don't power off, if a child domain is waiting to power on. */
-	if (atomic_read(&genpd->sd_count) > 0)
-		return;
 
 	if (_genpd_power_off(genpd, true)) {
 		genpd->states[genpd->state_idx].rejected++;
@@ -1414,8 +1413,7 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 	if (!genpd_status_on(genpd) || genpd_is_always_on(genpd))
 		return;
 
-	if (genpd->suspended_count != genpd->device_count
-	    || atomic_read(&genpd->sd_count) > 0)
+	if (genpd->suspended_count != genpd->device_count)
 		return;
 
 	/* Check that the children are in their deepest (powered-off) state. */
