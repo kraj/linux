@@ -15,6 +15,7 @@ obj-$(CONFIG_RESET_BRCMSTB) += reset-brcmstb.o
 obj-$(CONFIG_RESET_BRCMSTB_RESCAL) += reset-brcmstb-rescal.o
 obj-$(CONFIG_RESET_EYEQ) += reset-eyeq.o
 obj-$(CONFIG_RESET_GPIO) += reset-gpio.o
+obj-$(CONFIG_RESET_DISPMIX) += reset-dispmix.o
 obj-$(CONFIG_RESET_HSDK) += reset-hsdk.o
 obj-$(CONFIG_RESET_IMX_SCU) += reset-imx-scu.o
 obj-$(CONFIG_RESET_IMX7) += reset-imx7.o
