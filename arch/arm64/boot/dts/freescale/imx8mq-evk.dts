@@ -149,6 +149,8 @@
 		cpudai: simple-audio-card,cpu {
 			sound-dai = <&sai2>;
 			system-clock-direction-out;
+			dai-tdm-slot-num = <2>;
+			dai-tdm-slot-width = <32>;
 		};
 
 		link_codec: simple-audio-card,codec {
