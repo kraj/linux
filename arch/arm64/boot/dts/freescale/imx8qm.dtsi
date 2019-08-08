@@ -653,5 +653,6 @@
 #include "imx8qm-ss-lvds.dtsi"
 #include "imx8qm-ss-mipi.dtsi"
 #include "imx8qm-ss-gpu.dtsi"
+#include "imx8qm-ss-ddr.dtsi"
 
 /delete-node/ &dsp;
