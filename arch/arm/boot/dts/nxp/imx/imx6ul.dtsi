@@ -585,6 +585,7 @@
 				fsl,magic-packet;
 				nvmem-cells = <&fec2_mac_addr>;
 				nvmem-cell-names = "mac-address";
+				fsl,wakeup_irq = <0>;
 				status = "disabled";
 			};
 
@@ -946,6 +947,7 @@
 				fsl,magic-packet;
 				nvmem-cells = <&fec1_mac_addr>;
 				nvmem-cell-names = "mac-address";
+				fsl,wakeup_irq = <0>;
 				status = "disabled";
 			};
 
