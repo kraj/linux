@@ -3797,6 +3797,16 @@ static int _regulator_do_set_suspend_voltage(struct regulator_dev *rdev,
 	return 0;
 }
 
+static bool _regulator_is_bypass(struct regulator_dev *rdev)
+{
+	bool bypassed = false;
+
+	if (rdev->desc->ops->get_bypass)
+		rdev->desc->ops->get_bypass(rdev, &bypassed);
+
+	return bypassed;
+}
+
 static int regulator_get_voltage_delta(struct regulator_dev *rdev, int uV)
 {
 	int current_uV = regulator_get_voltage_rdev(rdev);
@@ -3907,8 +3917,9 @@ int regulator_set_voltage_rdev(struct regulator_dev *rdev, int min_uV,
 	if (rdev->supply &&
 	    regulator_ops_is_valid(rdev->supply->rdev,
 				   REGULATOR_CHANGE_VOLTAGE) &&
-	    (rdev->desc->min_dropout_uV || !(rdev->desc->ops->get_voltage ||
-					   rdev->desc->ops->get_voltage_sel))) {
+	    (_regulator_is_bypass(rdev) || rdev->desc->min_dropout_uV ||
+	     !(rdev->desc->ops->get_voltage ||
+	     rdev->desc->ops->get_voltage_sel))) {
 		int current_supply_uV;
 		int selector;
 
