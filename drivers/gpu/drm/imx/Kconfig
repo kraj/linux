@@ -3,4 +3,5 @@
 source "drivers/gpu/drm/imx/dc/Kconfig"
 source "drivers/gpu/drm/imx/dcss/Kconfig"
 source "drivers/gpu/drm/imx/ipuv3/Kconfig"
+source "drivers/gpu/drm/imx/mhdp/Kconfig"
 source "drivers/gpu/drm/imx/lcdc/Kconfig"
