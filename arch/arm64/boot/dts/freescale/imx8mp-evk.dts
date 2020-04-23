@@ -613,11 +613,27 @@
 	 */
 };
 
+&hdmi_pavi {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmiphy {
+	status = "okay";
+};
+
 &lcdif1 {
 	status = "okay";
 };
 
 &lcdif2 {
+	status = "okay";
+};
+
+&lcdif3 {
 	status = "okay";
 };
 
@@ -904,7 +920,10 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
+			MX8MP_IOMUXC_HDMI_DDC_SCL__HDMIMIX_HDMI_SCL	0x400001c3
+			MX8MP_IOMUXC_HDMI_DDC_SDA__HDMIMIX_HDMI_SDA	0x400001c3
 			MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD		0x40000010
+			MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC		0x40000010
 		>;
 	};
 
