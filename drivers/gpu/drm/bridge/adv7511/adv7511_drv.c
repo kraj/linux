@@ -976,9 +976,23 @@ static int adv7511_bridge_hdmi_write_infoframe(struct drm_bridge *bridge,
 	return 0;
 }
 
+static void adv7511_bridge_detach(struct drm_bridge *bridge)
+{
+	struct adv7511 *adv = bridge_to_adv7511(bridge);
+
+	if (adv->i2c_main->irq)
+		regmap_write(adv->regmap, ADV7511_REG_INT_ENABLE(0), 0);
+
+	if (adv->info->has_dsi) {
+		mipi_dsi_detach(adv->dsi);
+		mipi_dsi_device_unregister(adv->dsi);
+	}
+}
+
 static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.mode_valid = adv7511_bridge_mode_valid,
 	.attach = adv7511_bridge_attach,
+	.detach = adv7511_bridge_detach,
 	.detect = adv7511_bridge_detect,
 	.edid_read = adv7511_bridge_edid_read,
 
