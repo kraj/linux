@@ -1007,6 +1007,9 @@ struct dwc3_scratchpad_array {
 	__le64	dma_adr[DWC3_MAX_HIBER_SCRATCHBUFS];
 };
 
+struct dwc3_platform_data {
+};
+
 /**
  * struct dwc3_glue_ops - The ops indicate the notifications that
  *				need to be passed on to glue layer
