@@ -50,7 +50,7 @@ static void dcss_kms_setup_opipe_gamut(u32 colorspace,
 		*nl = NL_REC2084;
 		return;
 	case DRM_MODE_COLORIMETRY_OPRGB:
-		*g = G_ADOBE_ARGB;
+		*g = G_REC709;
 		*nl = NL_SRGB;
 		return;
 	default:
@@ -64,7 +64,7 @@ static void dcss_kms_setup_opipe_gamut(u32 colorspace,
 	/* non-CEA mode, sRGB is used */
 	vic = drm_match_cea_mode(mode);
 	if (vic == 0) {
-		*g = G_ADOBE_ARGB;
+		*g = G_REC709;
 		*nl = NL_SRGB;
 		return;
 	}
