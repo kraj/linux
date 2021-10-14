@@ -294,6 +294,8 @@
 		#sound-dai-cells = <0>;
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
+		clocks = <&wm8960_mclk>;
+		clock-names = "mclk";
 		wlf,shared-lrclk;
 		wlf,hp-cfg = <3 2 3>;
 		wlf,gpio-cfg = <1 3>;
