@@ -57,6 +57,14 @@
 	>;
 };
 
+&i2c_rpbus_0 {
+	fxls8974@18 {
+		compatible = "nxp,fxls8974cf", "nxp,fxls8962af";
+		reg = <0x18>;
+		drive-open-drain;
+	};
+};
+
 &sai6 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_sai6>;
