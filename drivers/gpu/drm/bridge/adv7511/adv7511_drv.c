@@ -867,6 +867,9 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 			return ret;
 	}
 
+	if (adv->info->has_dsi)
+		ret = adv7533_attach_dsi(adv);
+
 	if (adv->i2c_main->irq)
 		regmap_write(adv->regmap, ADV7511_REG_INT_ENABLE(0),
 			     ADV7511_INT0_HPD);
@@ -1406,19 +1409,12 @@ static int adv7511_probe(struct i2c_client *i2c)
 						dev_name(dev),
 						adv7511);
 		if (ret)
-			goto err_unregister_audio;
-	}
-
-	if (adv7511->info->has_dsi) {
-		ret = adv7533_attach_dsi(adv7511);
-		if (ret)
-			goto err_unregister_audio;
+			goto err_unregister_cec;
 	}
 
 	return 0;
 
-err_unregister_audio:
-	drm_bridge_remove(&adv7511->bridge);
+err_unregister_cec:
 	i2c_unregister_device(adv7511->i2c_cec);
 	clk_disable_unprepare(adv7511->cec_clk);
 err_i2c_unregister_packet:
