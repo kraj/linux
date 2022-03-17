@@ -354,7 +354,8 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk.dtb \
 			  imx93-11x11-evk-inmate.dtb imx93-11x11-evk-root.dtb imx93-11x11-evk-flexio-i2c.dtb \
 			  imx93-11x11-evk-lpspi.dtb imx93-11x11-evk-lpspi-slave.dtb \
 			  imx93-11x11-evk-i3c.dtb imx93-11x11-evk-lpuart.dtb \
-			  imx93-11x11-evk-mqs.dtb imx93-11x11-evk-aud-hat.dtb
+			  imx93-11x11-evk-mqs.dtb imx93-11x11-evk-aud-hat.dtb \
+			  imx93-11x11-evk-rm67199.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-14x14-evk.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-kontron-bl-osm-s.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-phyboard-nash.dtb
