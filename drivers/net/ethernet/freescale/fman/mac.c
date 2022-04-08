@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-or-later
 /*
  * Copyright 2008 - 2015 Freescale Semiconductor Inc.
+ * Copyright 2020 Puresoftware Ltd.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -108,15 +110,22 @@ static const struct of_device_id mac_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mac_match);
 
-static int mac_probe(struct platform_device *_of_dev)
+#if IS_ENABLED(CONFIG_ACPI)
+static const struct acpi_device_id mac_acpi_match[] = {
+	{ .id = "NXP0025",
+	  .driver_data = (kernel_ulong_t)memac_initialization },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, mac_acpi_match);
+#endif
+
+static int mac_probe(struct platform_device *pdev)
 {
 	int			 err, i, nph;
-	int (*init)(struct mac_device *mac_dev, struct device_node *mac_node,
-		    struct fman_mac_params *params);
-	struct device		*dev;
-	struct device_node	*mac_node, *dev_node;
+	int (*init)(struct mac_device *mac_dev, struct fman_mac_params *params);
+	struct device		*dev, *fman_dev;
+	struct fwnode_handle	*mac_fwnode, *fman_fwnode;
 	struct mac_device	*mac_dev;
-	struct platform_device	*of_dev;
 	struct mac_priv_s	*priv;
 	struct fman_mac_params	 params;
 	u32			 val;
@@ -124,10 +133,10 @@ static int mac_probe(struct platform_device *_of_dev)
 	phy_interface_t          phy_if;
 	const char		*managed;
 
+	dev = &pdev->dev;
 	phy_if = PHY_INTERFACE_MODE_NA;
-	dev = &_of_dev->dev;
-	mac_node = dev->of_node;
-	init = of_device_get_match_data(dev);
+	mac_fwnode = dev_fwnode(dev);
+	init = device_get_match_data(dev);
 
 	mac_dev = devm_kzalloc(dev, sizeof(*mac_dev), GFP_KERNEL);
 	if (!mac_dev)
@@ -135,66 +144,69 @@ static int mac_probe(struct platform_device *_of_dev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	platform_set_drvdata(_of_dev, mac_dev);
+	platform_set_drvdata(pdev, mac_dev);
 
 	/* Save private information */
 	mac_dev->priv = priv;
 	mac_dev->dev = dev;
 
 	/* Get the FM node */
-	dev_node = of_get_parent(mac_node);
-	if (!dev_node) {
-		dev_err(dev, "of_get_parent(%pOF) failed\n",
-			mac_node);
+	fman_fwnode = fwnode_get_parent(mac_fwnode);
+	if (!fman_fwnode) {
+		dev_err(dev, "fwnode_get_parent(%pfw) failed\n",
+			mac_fwnode);
 		return -EINVAL;
 	}
 
-	of_dev = of_find_device_by_node(dev_node);
-	if (!of_dev) {
-		dev_err(dev, "of_find_device_by_node(%pOF) failed\n", dev_node);
+	fman_dev = bus_find_device_by_fwnode(&platform_bus_type, fman_fwnode);
+	if (!fman_dev) {
+		dev_err(dev, "bus_find_device_by_fwnode(%pfw) failed\n",
+			fman_fwnode);
 		err = -EINVAL;
-		goto _return_of_node_put;
+		goto _return_fwnode_put;
 	}
-	mac_dev->fman_dev = &of_dev->dev;
+	mac_dev->fman_dev = fman_dev;
 
 	/* Get the FMan cell-index */
-	err = of_property_read_u32(dev_node, "cell-index", &val);
+	err = fwnode_property_read_u32(fman_fwnode, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "failed to read cell-index for %pOF\n", dev_node);
+		dev_err(dev, "failed to read cell-index for %pfw\n", fman_fwnode);
 		err = -EINVAL;
 		goto _return_dev_put;
 	}
 	/* cell-index 0 => FMan id 1 */
 	fman_id = (u8)(val + 1);
 
-	priv->fman = fman_bind(mac_dev->fman_dev);
+	priv->fman = fman_bind(fman_dev);
 	if (!priv->fman) {
-		dev_err(dev, "fman_bind(%pOF) failed\n", dev_node);
+		dev_err(dev, "fman_bind(%pfw) failed\n", fman_fwnode);
 		err = -ENODEV;
 		goto _return_dev_put;
 	}
 
-	/* Two references have been taken in of_find_device_by_node()
+	/* Two references have been taken in bus_find_device_by_fwnode()
 	 * and fman_bind(). Release one of them here. The second one
 	 * will be released in mac_remove().
 	 */
-	put_device(mac_dev->fman_dev);
-	of_node_put(dev_node);
-	dev_node = NULL;
+	put_device(fman_dev);
+	fwnode_handle_put(fman_fwnode);
+	fman_fwnode = NULL;
 
 	/* Get the address of the memory mapped registers */
-	mac_dev->res = platform_get_mem_or_io(_of_dev, 0);
+	mac_dev->res = platform_get_mem_or_io(pdev, 0);
 	if (!mac_dev->res) {
 		dev_err(dev, "could not get registers\n");
 		err = -EINVAL;
 		goto _return_dev_put;
 	}
 
-	err = devm_request_resource(dev, fman_get_mem_region(priv->fman),
-				    mac_dev->res);
-	if (err) {
-		dev_err_probe(dev, err, "could not request resource\n");
-		goto _return_dev_put;
+	if (is_of_node(mac_fwnode)) {
+		err = devm_request_resource(dev, fman_get_mem_region(priv->fman),
+					    mac_dev->res);
+		if (err) {
+			dev_err_probe(dev, err, "could not request resource\n");
+			goto _return_dev_put;
+		}
 	}
 
 	mac_dev->vaddr = devm_ioremap(dev, mac_dev->res->start,
@@ -205,80 +217,83 @@ static int mac_probe(struct platform_device *_of_dev)
 		goto _return_dev_put;
 	}
 
-	if (!of_device_is_available(mac_node)) {
+	if (!fwnode_device_is_available(mac_fwnode)) {
 		err = -ENODEV;
 		goto _return_dev_put;
 	}
 
 	/* Get the cell-index */
-	err = of_property_read_u32(mac_node, "cell-index", &val);
+	err = device_property_read_u32(dev, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "failed to read cell-index for %pOF\n", mac_node);
+		dev_err(dev, "failed to read cell-index for %pfw\n", mac_fwnode);
 		err = -EINVAL;
 		goto _return_dev_put;
 	}
 	if (val >= MAX_NUM_OF_MACS) {
-		dev_err(dev, "cell-index value is too big for %pOF\n", mac_node);
+		dev_err(dev, "cell-index value is too big for %pfw\n", mac_fwnode);
 		err = -EINVAL;
 		goto _return_dev_put;
 	}
 	priv->cell_index = (u8)val;
 
 	/* Get the MAC address */
-	err = of_get_mac_address(mac_node, mac_dev->addr);
+	err = device_get_mac_address(dev, mac_dev->addr);
 	if (err)
-		dev_warn(dev, "of_get_mac_address(%pOF) failed\n", mac_node);
+		dev_warn(dev, "device_get_mac_address(%pfw) failed\n", mac_fwnode);
 
 	/* Get the port handles */
-	nph = of_count_phandle_with_args(mac_node, "fsl,fman-ports", NULL);
+	nph = device_property_count_u32(dev, "fsl,fman-ports");
 	if (unlikely(nph < 0)) {
-		dev_err(dev, "of_count_phandle_with_args(%pOF, fsl,fman-ports) failed\n",
-			mac_node);
+		dev_err(dev, "device_property_count_u32(%pfw, fsl,fman-ports) failed\n",
+			mac_fwnode);
 		err = nph;
 		goto _return_dev_put;
 	}
 
 	if (nph != ARRAY_SIZE(mac_dev->port)) {
-		dev_err(dev, "Not supported number of fman-ports handles of mac node %pOF from device tree\n",
-			mac_node);
+		dev_err(dev, "Not supported number of fman-ports handles of mac node %pfw from device tree\n",
+			mac_fwnode);
 		err = -EINVAL;
 		goto _return_dev_put;
 	}
 
 	/* PORT_NUM determines the size of the port array */
 	for (i = 0; i < PORT_NUM; i++) {
+		struct fwnode_handle *port_fwnode;
+		struct device *port_dev;
+
 		/* Find the port node */
-		dev_node = of_parse_phandle(mac_node, "fsl,fman-ports", i);
-		if (!dev_node) {
-			dev_err(dev, "of_parse_phandle(%pOF, fsl,fman-ports) failed\n",
-				mac_node);
+		port_fwnode = fwnode_find_reference(mac_fwnode, "fsl,fman-ports", i);
+		if (!port_fwnode) {
+			dev_err(dev, "fwnode_find_reference(%pfw, fsl,fman-ports) failed\n",
+				mac_fwnode);
 			err = -EINVAL;
 			goto _return_dev_arr_put;
 		}
 
-		of_dev = of_find_device_by_node(dev_node);
-		if (!of_dev) {
-			dev_err(dev, "of_find_device_by_node(%pOF) failed\n",
-				dev_node);
+		port_dev = bus_find_device_by_fwnode(&platform_bus_type, port_fwnode);
+		if (!port_dev) {
+			dev_err(dev, "bus_find_device_by_fwnode(%pfw) failed\n",
+				port_fwnode);
 			err = -EINVAL;
 			goto _return_dev_arr_put;
 		}
-		mac_dev->fman_port_devs[i] = &of_dev->dev;
+		mac_dev->fman_port_devs[i] = port_dev;
 
 		mac_dev->port[i] = fman_port_bind(mac_dev->fman_port_devs[i]);
 		if (!mac_dev->port[i]) {
-			dev_err(dev, "dev_get_drvdata(%pOF) failed\n",
-				dev_node);
+			dev_err(dev, "dev_get_drvdata(%pfw) failed\n",
+				port_fwnode);
 			err = -EINVAL;
 			goto _return_dev_arr_put;
 		}
-		/* Two references have been taken in of_find_device_by_node()
+		/* Two references have been taken in bus_find_device_by_fwnode()
 		 * and fman_port_bind(). Release one of them here. The second
 		 * one will be released in mac_remove().
 		 */
 		put_device(mac_dev->fman_port_devs[i]);
-		of_node_put(dev_node);
-		dev_node = NULL;
+		fwnode_handle_put(port_fwnode);
+		port_fwnode = NULL;
 	}
 
 	/* Get the PHY connection type, except for C73 managed links where we
@@ -291,14 +306,16 @@ static int mac_probe(struct platform_device *_of_dev)
 	 * trees with this phy-connection-type value, yet we still deliberately
 	 * ignore it.
 	 */
-	if (of_property_read_string(mac_node, "managed", &managed) != 0 ||
+	if (fwnode_property_read_string(mac_fwnode, "managed", &managed) != 0 ||
 	    strcmp(managed, "c73") != 0) {
-		err = of_get_phy_mode(mac_node, &phy_if);
-		if (err) {
+		err = fwnode_get_phy_mode(mac_fwnode);
+		if (err < 0) {
 			dev_warn(dev,
-				 "of_get_phy_mode() for %pOF failed. Defaulting to SGMII\n",
-				 mac_node);
+				 "fwnode_get_phy_mode() for %pfw failed. Defaulting to SGMII\n",
+				 mac_fwnode);
 			phy_if = PHY_INTERFACE_MODE_SGMII;
+		} else {
+			phy_if = err;
 		}
 	}
 	mac_dev->phy_if = phy_if;
@@ -308,7 +325,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	params.exception_cb	= mac_exception;
 	params.event_cb		= mac_exception;
 
-	err = init(mac_dev, mac_node, &params);
+	err = init(mac_dev, &params);
 	if (err < 0)
 		goto _return_dev_arr_put;
 
@@ -331,8 +348,8 @@ _return_dev_arr_put:
 		put_device(mac_dev->fman_port_devs[i]);
 _return_dev_put:
 	put_device(mac_dev->fman_dev);
-_return_of_node_put:
-	of_node_put(dev_node);
+_return_fwnode_put:
+	fwnode_handle_put(mac_fwnode);
 	return err;
 }
 
@@ -352,6 +369,7 @@ static struct platform_driver mac_driver = {
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= mac_match,
+		.acpi_match_table = ACPI_PTR(mac_acpi_match),
 	},
 	.probe		= mac_probe,
 	.remove		= mac_remove,
