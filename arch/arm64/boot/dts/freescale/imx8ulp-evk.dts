@@ -285,11 +285,6 @@
 		reg = <0x60>;
 	};
 
-	lsm6dsm@6a {
-		compatible = "st,lsm6dso";
-		reg = <0x6a>;
-	};
-
 	wm8960: wm8960@1a {
 		#sound-dai-cells = <0>;
 		compatible = "wlf,wm8960";
