@@ -177,6 +177,10 @@
 	remote-endpoint = <&dsi_to_lcdif>;
 };
 
+&lcdif_to_ldb {
+	remote-endpoint = <&ldb_ch0>;
+};
+
 &media_blk_ctrl {
 	dphy: dphy {
 		compatible = "fsl,imx93-mipi-dphy";
@@ -193,6 +197,36 @@
 };
 
 &soc {
+	ldb: ldb@4ac10020 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,imx93-ldb-nxp";
+		clocks = <&clk IMX93_CLK_LVDS_GATE>;
+		clock-names = "ldb";
+		assigned-clocks = <&clk IMX93_CLK_MEDIA_LDB>;
+		assigned-clock-parents = <&clk IMX93_CLK_VIDEO_PLL>;
+		gpr = <&media_blk_ctrl>;
+		power-domains = <&mediamix>;
+		status = "disabled";
+
+		lvds-channel@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			phys = <&ldb_phy1>;
+			phy-names = "ldb_phy";
+			status = "disabled";
+
+			port@0 {
+				reg = <0>;
+
+				ldb_ch0: endpoint {
+					remote-endpoint = <&lcdif_to_ldb>;
+				};
+			};
+		};
+	};
+
 	ldb_phy: phy@4ac10024 {
 		compatible = "fsl,imx93-lvds-phy";
 		#address-cells = <1>;
