@@ -12,6 +12,7 @@ obj-$(CONFIG_DRM_IMX8QM_LDB_NXP) += imx8qm-ldb-nxp.o
 imx8qxp-ldb-nxp-objs := imx8qxp-ldb.o
 obj-$(CONFIG_DRM_IMX8QXP_LDB_NXP) += imx8qxp-ldb-nxp.o
 obj-$(CONFIG_DRM_IMX8MP_LDB) += imx8mp-ldb.o
+obj-$(CONFIG_DRM_IMX93_LDB) += imx93-ldb.o
 
 imx-ipuv3-crtc-objs  := ipuv3-crtc.o ipuv3-plane.o
 obj-$(CONFIG_DRM_IMX_IPUV3)	+= imx-ipuv3-crtc.o
