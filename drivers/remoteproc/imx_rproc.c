@@ -107,6 +107,7 @@ struct imx_rproc {
 	const struct imx_rproc_dcfg	*dcfg;
 	struct imx_rproc_mem		mem[IMX_RPROC_MEM_MAX];
 	struct clk			*clk;
+	struct clk			*clk_audio;
 	struct mbox_client		cl;
 	struct mbox_chan		*tx_ch;
 	struct mbox_chan		*rx_ch;
@@ -292,7 +293,13 @@ static const struct imx_rproc_att imx_rproc_att_imx6sx[] = {
 
 static int imx_rproc_arm_smc_start(struct rproc *rproc)
 {
+	struct imx_rproc *priv = rproc->priv;
 	struct arm_smccc_res res;
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk_audio);
+	if (ret)
+		dev_err(priv->dev, "Failed to enable audio clk!\n");
 
 	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, rproc->bootaddr, 0, 0, 0, 0, 0, &res);
 
@@ -349,6 +356,7 @@ static int imx_rproc_arm_smc_stop(struct rproc *rproc)
 	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
 	if (res.a1)
 		dev_info(priv->dev, "Not in wfi, force stopped\n");
+	clk_disable_unprepare(priv->clk_audio);
 
 	return res.a0;
 }
@@ -1136,6 +1144,16 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	 * clocks are not managed by system firmware.
 	 */
 	if (dcfg->flags & IMX_RPROC_NEED_CLKS) {
+		if (priv->rproc->state != RPROC_DETACHED) {
+			priv->clk_audio = devm_clk_get_optional(dev, "audio");
+			if (IS_ERR(priv->clk_audio)) {
+				dev_err(dev, "Failed to get audio clock\n");
+				return PTR_ERR(priv->clk_audio);
+			}
+		} else {
+			priv->clk_audio = NULL;
+		}
+
 		priv->clk = devm_clk_get_enabled(dev, NULL);
 		if (IS_ERR(priv->clk))
 			return dev_err_probe(dev, PTR_ERR(priv->clk), "Failed to enable clock\n");
