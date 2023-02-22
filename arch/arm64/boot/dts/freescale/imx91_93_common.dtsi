@@ -1245,4 +1245,11 @@
 			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
+
+	ele_fw2: secure-enclave {
+		compatible = "fsl,imx93-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&s4muap 0 0>,
+			<&s4muap 1 0>;
+	};
 };
