@@ -14,6 +14,9 @@ nxp-netc-lib-$(CONFIG_DEBUG_FS) += netc_debugfs_lib.o
 obj-$(CONFIG_FSL_ENETC) += fsl-enetc.o
 fsl-enetc-y := enetc_pf.o
 fsl-enetc-$(CONFIG_FSL_ENETC_QOS) += enetc_qos.o
+ifdef CONFIG_TSN
+fsl-enetc-$(CONFIG_FSL_ENETC_QOS) += enetc_tsn.o
+endif
 
 obj-$(CONFIG_NXP_ENETC4) += nxp-enetc4.o
 nxp-enetc4-y := enetc4_pf.o enetc4_tc.o enetc4_devlink.o

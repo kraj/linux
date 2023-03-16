@@ -32,8 +32,8 @@ void enetc_port_mac_wr(struct enetc_si *si, u32 reg, u32 val)
 }
 EXPORT_SYMBOL_GPL(enetc_port_mac_wr);
 
-static void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
-					 u8 preemptible_tcs)
+void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
+				  u8 preemptible_tcs)
 {
 	if (!(priv->si->hw_features & ENETC_SI_F_QBU))
 		return;
@@ -41,6 +41,7 @@ static void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
 	priv->preemptible_tcs = preemptible_tcs;
 	enetc_mm_commit_preemptible_tcs(priv);
 }
+EXPORT_SYMBOL_GPL(enetc_change_preemptible_tcs);
 
 static int enetc_mac_addr_hash_idx(const u8 *addr)
 {

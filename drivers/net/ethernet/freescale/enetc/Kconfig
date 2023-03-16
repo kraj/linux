@@ -30,6 +30,7 @@ config FSL_ENETC
 	tristate "ENETC PF driver"
 	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on PCI_MSI
+	depends on TSN || TSN=n
 	select FSL_ENETC_CORE
 	select FSL_ENETC_IERB
 	select FSL_ENETC_MDIO

@@ -13,6 +13,7 @@
 #include <linux/phylink.h>
 #include <linux/dim.h>
 #include <net/xdp.h>
+#include <net/tsn.h>
 
 #include "enetc_hw.h"
 #include "enetc4_hw.h"
@@ -266,6 +267,26 @@ static inline union enetc_rx_bd *enetc_rxbd_ext(union enetc_rx_bd *rxbd)
 	return ++rxbd;
 }
 
+/* Credit-Based Shaper parameters */
+struct enetc_cbs_tc_cfg {
+	u8 tc;
+	bool enable;
+	u8 bw;
+	u32 hi_credit;
+	u32 lo_credit;
+	u32 idle_slope;
+	u32 send_slope;
+	u32 tc_max_sized_frame;
+	u32 max_interference_size;
+};
+
+struct enetc_cbs {
+	u32 port_transmit_rate;
+	u32 port_max_size_frame;
+	u8 tc_nums;
+	struct enetc_cbs_tc_cfg tc_cfg[];
+};
+
 #define ENETC_REV1	0x1
 #define ENETC_REV4	0x4
 
@@ -360,6 +381,7 @@ struct enetc_si {
 
 	DECLARE_BITMAP(vlan_ht_filter, ENETC_VLAN_HT_SIZE);
 	DECLARE_BITMAP(active_vlans, VLAN_N_VID);
+	struct enetc_cbs *ecbs;
 };
 
 #define ENETC_SI_ALIGN	32
@@ -567,6 +589,8 @@ int enetc_hwtstamp_get(struct net_device *ndev,
 int enetc_hwtstamp_set(struct net_device *ndev,
 		       struct kernel_hwtstamp_config *config,
 		       struct netlink_ext_ack *extack);
+void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
+				  u8 preemptible_tcs);
 
 int enetc_suspend(struct net_device *ndev, bool wol);
 int enetc_resume(struct net_device *ndev, bool wol);
@@ -736,4 +760,21 @@ static inline int enetc_set_psfp(struct net_device *ndev, bool en)
 {
 	return 0;
 }
+#endif
+
+#if IS_ENABLED(CONFIG_TSN)
+
+void enetc_tsn_pf_init(struct net_device *netdev, struct pci_dev *pdev);
+void enetc_tsn_pf_deinit(struct net_device *netdev);
+
+#else
+
+static inline void enetc_tsn_pf_init(struct net_device *netdev, struct pci_dev *pdev)
+{
+}
+
+static inline void enetc_tsn_pf_deinit(struct net_device *netdev)
+{
+}
+
 #endif
