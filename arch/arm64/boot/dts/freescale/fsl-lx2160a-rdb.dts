@@ -72,11 +72,15 @@
 };
 
 &dpmac5 {
-	phy-handle = <&inphi_phy>;
+	sfp = <&sfp2>;
+	managed = "in-band-status";
+	phys = <&serdes_1_lane_f>;
 };
 
 &dpmac6 {
-	phy-handle = <&inphi_phy>;
+	sfp = <&sfp3>;
+	managed = "in-band-status";
+	phys = <&serdes_1_lane_e>;
 };
 
 &dpmac17 {
@@ -306,6 +310,14 @@
 };
 
 &pcs_mdio4 {
+	status = "okay";
+};
+
+&pcs_mdio5 {
+	status = "okay";
+};
+
+&pcs_mdio6 {
 	status = "okay";
 };
 
