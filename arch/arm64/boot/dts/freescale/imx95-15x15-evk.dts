@@ -225,6 +225,11 @@
 			reg = <0 0xa0000000 0 0x100000>;
 			no-map;
 		};
+
+		mali_protected: mali_protected {
+			reg = <0 0xa0100000 0 0x1000000>;
+			no-map;
+		};
 	};
 
 	cm7: imx95-cm7 {
@@ -261,6 +266,10 @@
 		};
 	};
 
+	mali_pma: protected-memory-allocator {
+		 compatible = "arm,protected-memory-allocator";
+		 memory-region = <&mali_protected>;
+	};
 	sound-micfil {
 		compatible = "fsl,imx-audio-card";
 		model = "micfil-audio";
@@ -1192,6 +1201,10 @@
 
 &wdog3 {
 	status = "okay";
+};
+
+&mali {
+	protected-memory-allocator = <&mali_pma>;
 };
 
 &xcvr {
