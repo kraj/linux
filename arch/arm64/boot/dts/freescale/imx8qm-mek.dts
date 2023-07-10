@@ -493,6 +493,46 @@
 		fsl,entry-address = <0x38fe0000>;
 	};
 
+	/*
+	 * this dummy i2c mux.
+	 * gpio actually will not impact selection.
+	 * at actual boards, only 1 devices connectted.
+	 * I2C client driver will check ID when probe.
+	 * Only matched ID's driver probe successfully.
+	 */
+	i2cvmux: i2cmux {
+		compatible = "i2c-mux-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		mux-gpios = <&lsio_gpio5 1 GPIO_ACTIVE_HIGH>; /* use an unused gpio */
+		i2c-parent = <&i2c0>;
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			fxos8700@1e {
+				compatible = "nxp,fxos8700";
+				reg = <0x1e>;
+				interrupt-open-drain;
+			};
+		};
+
+		i2c@0 { /* Rev D */
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lsm303arg@1e {
+				compatible = "st,lsm303agr-magn";
+				reg = <0x1e>;
+				st,drdy-int-pin = <1>;
+				interrupt-parent = <&lsio_gpio4>;
+				interrupt-open-drain;
+				interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+			};
+		};
+	};
+
 };
 
 &adc0 {
