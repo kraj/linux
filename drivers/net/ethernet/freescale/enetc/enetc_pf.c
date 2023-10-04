@@ -34,7 +34,7 @@ static void enetc_pf_set_primary_mac_addr(struct enetc_hw *hw, int si,
 static struct phylink_pcs *enetc_pf_create_pcs(struct enetc_pf *pf,
 					       struct mii_bus *bus)
 {
-	return lynx_pcs_create_mdiodev(bus, 0);
+	return lynx_pcs_create_mdiodev(bus, 0, NULL, 0);
 }
 
 static void enetc_pf_destroy_pcs(struct phylink_pcs *pcs)
