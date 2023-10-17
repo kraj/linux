@@ -188,12 +188,11 @@ static int mxc_isi_crossbar_init_state(struct v4l2_subdev *sd,
 	 * Create a 1:1 mapping between pixel link inputs and outputs to
 	 * pipelines by default.
 	 */
-	routing.num_routes = min(xbar->num_sinks - 1, xbar->num_sources);
-	routes = kcalloc(routing.num_routes, sizeof(*routes), GFP_KERNEL);
+	routes = kcalloc(xbar->num_sinks - 1, sizeof(*routes), GFP_KERNEL);
 	if (!routes)
 		return -ENOMEM;
 
-	for (i = 0; i < routing.num_routes; ++i) {
+	for (i = 0; i < xbar->num_sinks - 1; ++i) {
 		struct v4l2_subdev_route *route = &routes[i];
 
 		route->sink_pad = i;
@@ -201,6 +200,7 @@ static int mxc_isi_crossbar_init_state(struct v4l2_subdev *sd,
 		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
 	}
 
+	routing.num_routes = xbar->num_sinks - 1;
 	routing.routes = routes;
 
 	ret = __mxc_isi_crossbar_set_routing(sd, state, &routing);
