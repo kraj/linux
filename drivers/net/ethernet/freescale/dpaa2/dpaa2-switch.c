@@ -8,7 +8,6 @@
  */
 
 #include <linux/module.h>
-
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
@@ -1463,6 +1462,8 @@ static int dpaa2_switch_port_connect_mac(struct ethsw_port_priv *port_priv)
 		goto out_put_device;
 	}
 
+	dpaa2_mac_driver_detach(dpmac_dev);
+
 	mac = kzalloc(sizeof(*mac), GFP_KERNEL);
 	if (!mac) {
 		err = -ENOMEM;
@@ -1518,6 +1519,7 @@ static void dpaa2_switch_port_disconnect_mac(struct ethsw_port_priv *port_priv)
 		dpaa2_mac_disconnect(mac);
 
 	dpaa2_mac_close(mac);
+	dpaa2_mac_driver_attach(mac->mc_dev);
 	kfree(mac);
 }
 
