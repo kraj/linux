@@ -6,7 +6,7 @@
 
 #include <dt-bindings/firmware/imx/rsrc.h>
 
-&img_subsys {
+/ {
 	hdmi_rx_dig_pll: clock-hdmi-rx-dig-pll {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -20,7 +20,9 @@
 		clock-frequency = <200000000>;
 		clock-output-names = "hdmi_rx_ipg_clk";
 	};
+};
 
+&img_subsys {
 	irqsteer_hdmi_rx: irqsteer@58260000 {
 		compatible = "fsl,imx-irqsteer";
 		reg = <0x58260000 0x1000>;
