@@ -329,6 +329,15 @@
 		interrupt-name = "irq_busfreq_0", "irq_busfreq_1", "irq_busfreq_2", "irq_busfreq_3";
 	};
 
+	irq_sec_vio: caam_secvio {
+		compatible = "fsl,imx6q-caam-secvio";
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		jtag-tamper = "disabled";
+		watchdog-tamper = "enabled";
+		internal-boot-tamper = "enabled";
+		external-pin-tamper = "disabled";
+	};
+
 	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -652,15 +661,6 @@
 				compatible = "fsl,imx8mm-anatop";
 				reg = <0x30360000 0x10000>;
 				#clock-cells = <1>;
-			};
-
-			irq_sec_vio: caam_secvio {
-				compatible = "fsl,imx6q-caam-secvio";
-				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-				jtag-tamper = "disabled";
-				watchdog-tamper = "enabled";
-				internal-boot-tamper = "enabled";
-				external-pin-tamper = "disabled";
 			};
 
 			caam_snvs: caam-snvs@30370000 {

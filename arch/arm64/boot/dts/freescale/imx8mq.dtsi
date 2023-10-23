@@ -98,6 +98,15 @@
 		clock-output-names = "clk_ext4";
 	};
 
+	irq_sec_vio: caam_secvio {
+		compatible = "fsl,imx6q-caam-secvio";
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		jtag-tamper = "disabled";
+		watchdog-tamper = "enabled";
+		internal-boot-tamper = "enabled";
+		external-pin-tamper = "disabled";
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -657,15 +666,6 @@
 				reg = <0x30360000 0x10000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				#clock-cells = <1>;
-			};
-
-			irq_sec_vio: caam_secvio {
-				compatible = "fsl,imx6q-caam-secvio";
-				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-				jtag-tamper = "disabled";
-				watchdog-tamper = "enabled";
-				internal-boot-tamper = "enabled";
-				external-pin-tamper = "disabled";
 			};
 
 			caam_snvs: caam-snvs@30370000 {
@@ -1867,11 +1867,6 @@
 			power-domains = <&pgc_vpu>;
 			status = "disabled";
 		};
-
-		vpu_v4l2: vpu_v4l2 {
-			compatible = "nxp,imx8mq-vsiv4l2";
-			status = "disabled";
-		};
 	};
 
 	imx8_gpu_ss: imx8_gpu_ss {
@@ -1882,5 +1877,10 @@
 
 		throttle,max_state = <1>;
 		#cooling-cells = <2>;
+	};
+
+	vpu_v4l2: vpu_v4l2 {
+		compatible = "nxp,imx8mq-vsiv4l2";
+		status = "disabled";
 	};
 };

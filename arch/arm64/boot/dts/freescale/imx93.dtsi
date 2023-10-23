@@ -44,6 +44,52 @@
 			};
 		};
 	};
+
+	ldb: ldb-display-controller {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,imx93-ldb-nxp";
+		clocks = <&clk IMX93_CLK_LVDS_GATE>;
+		clock-names = "ldb";
+		assigned-clocks = <&clk IMX93_CLK_MEDIA_LDB>;
+		assigned-clock-parents = <&clk IMX93_CLK_VIDEO_PLL>;
+		gpr = <&media_blk_ctrl>;
+		power-domains = <&mediamix>;
+		status = "disabled";
+
+		lvds-channel@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			phys = <&ldb_phy1>;
+			phy-names = "ldb_phy";
+			status = "disabled";
+
+			port@0 {
+				reg = <0>;
+
+				ldb_ch0: endpoint {
+					remote-endpoint = <&lcdif_to_ldb>;
+				};
+			};
+		};
+	};
+
+	ldb_phy: ldb-phy {
+		compatible = "fsl,imx93-lvds-phy";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpr = <&media_blk_ctrl>;
+		clocks = <&clk IMX93_CLK_MEDIA_APB>;
+		clock-names = "apb";
+		power-domains = <&mediamix>;
+		status = "disabled";
+
+		ldb_phy1: port@0 {
+			reg = <0>;
+			#phy-cells = <0>;
+		};
+	};
 };
 
 &aips1 {
@@ -239,52 +285,6 @@
 };
 
 &soc {
-	ldb: ldb-display-controller {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "fsl,imx93-ldb-nxp";
-		clocks = <&clk IMX93_CLK_LVDS_GATE>;
-		clock-names = "ldb";
-		assigned-clocks = <&clk IMX93_CLK_MEDIA_LDB>;
-		assigned-clock-parents = <&clk IMX93_CLK_VIDEO_PLL>;
-		gpr = <&media_blk_ctrl>;
-		power-domains = <&mediamix>;
-		status = "disabled";
-
-		lvds-channel@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-			phys = <&ldb_phy1>;
-			phy-names = "ldb_phy";
-			status = "disabled";
-
-			port@0 {
-				reg = <0>;
-
-				ldb_ch0: endpoint {
-					remote-endpoint = <&lcdif_to_ldb>;
-				};
-			};
-		};
-	};
-
-	ldb_phy: ldb-phy {
-		compatible = "fsl,imx93-lvds-phy";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		gpr = <&media_blk_ctrl>;
-		clocks = <&clk IMX93_CLK_MEDIA_APB>;
-		clock-names = "apb";
-		power-domains = <&mediamix>;
-		status = "disabled";
-
-		ldb_phy1: port@0 {
-			reg = <0>;
-			#phy-cells = <0>;
-		};
-	};
-
 	dsi: dsi@4ae10000 {
 		compatible = "fsl,imx93-mipi-dsi";
 		reg = <0x4ae10000 0x4000>;
