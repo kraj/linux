@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include <dt-bindings/usb/pd.h>
 #include "imx95.dtsi"
 
@@ -94,11 +95,11 @@
 		standby-gpios = <&i2c4_gpio_expander_21 3 GPIO_ACTIVE_LOW>;
 	};
 
-	reg_vref_1v8: regulator-1p8v {
+	reg_vref_1v8: regulator-adc-vref {
 		compatible = "regulator-fixed";
 		regulator-max-microvolt = <1800000>;
 		regulator-min-microvolt = <1800000>;
-		regulator-name = "+V1.8_SW";
+		regulator-name = "vref_1v8";
 	};
 
 	reg_3p3v: regulator-3p3v {
@@ -162,6 +163,13 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&i2c7_pcal6524 14 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "+V1.8_SW";
 	};
 
 	reg_usdhc2_vmmc: regulator-usdhc2 {
@@ -267,7 +275,7 @@
 	pinctrl-0 = <&pinctrl_flexspi1>;
 	status = "okay";
 
-	flash@0 {
+	mt35xu01gbba: flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		pinctrl-names = "default";
@@ -488,6 +496,12 @@
 	pinctrl-0 = <&pinctrl_lpspi7>;
 	cs-gpios = <&gpio2 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	spidev0: spi@0 {
+		reg = <0>;
+		compatible = "lwn,bk4";
+		spi-max-frequency = <1000000>;
+	};
 };
 
 &micfil {
@@ -914,6 +928,12 @@
 			IMX95_PAD_DAP_TDI__LPUART5_RX			0x31e
 			IMX95_PAD_DAP_TMS_SWDIO__LPUART5_RTS_B		0x31e
 			IMX95_PAD_DAP_TCLK_SWCLK__LPUART5_CTS_B		0x31e
+		>;
+	};
+
+	pinctrl_mipi_dsi_csi: mipidsigrp {
+		fsl,pins = <
+			IMX95_PAD_CCM_CLKO2__GPIO3_IO_BIT27			0x31e
 		>;
 	};
 
