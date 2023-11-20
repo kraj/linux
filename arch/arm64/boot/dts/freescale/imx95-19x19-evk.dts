@@ -25,6 +25,7 @@
 
 	aliases {
 		ethernet0 = &enetc_port0;
+		ethernet1 = &enetc_port2;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -273,6 +274,44 @@
 				"AMIC", "MICBIAS",
 				"IN3R", "AMIC",
 				"IN1R", "AMIC";
+	};
+
+	reg_aqr_stby: regulator-aqr-stby {
+		compatible = "regulator-fixed";
+		regulator-name = "aqr-stby";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&i2c5_pcal6408 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	reg_aqr_en: regulator-aqr-en {
+		compatible = "regulator-fixed";
+		regulator-name = "aqr-en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_aqr_stby>;
+		gpio = <&i2c5_pcal6408 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_serdes_stby: regulator-mac-stby {
+		compatible = "regulator-fixed";
+		regulator-name = "mac-stby";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&i2c7_pcal6524 13 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
+	};
+
+	reg_serdes_en: regulator-mac-en {
+		compatible = "regulator-fixed";
+		regulator-name = "mac-en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_serdes_stby>;
+		gpio = <&i2c5_pcal6408 3 GPIO_ACTIVE_LOW>;
 	};
 
 	cm7: imx95-cm7 {
@@ -591,6 +630,7 @@
 &netc_emdio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_emdio>;
+	phy-supply = <&reg_aqr_en>;
 	status = "okay";
 
 	ethphy0: ethernet-phy@1 {
@@ -600,6 +640,19 @@
 		reset-deassert-us = <80000>;
 		realtek,clkout-disable;
 	};
+
+	ethphy2: ethernet-phy@8 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <8>;
+	};
+};
+
+&enetc_port2 {
+	phy-handle = <&ethphy2>;
+	phy-mode = "10gbase-r";
+	serdes-supply = <&reg_serdes_en>;
+	managed = "in-band-status";
+	status = "okay";
 };
 
 &netc_timer {
