@@ -109,6 +109,7 @@ struct dw_xpcs {
 	struct dw_xpcs_info info;
 	const struct dw_xpcs_desc *desc;
 	struct mdio_device *mdiodev;
+	struct mdio_device *phydev;
 	struct clk_bulk_data clks[DW_XPCS_NUM_CLKS];
 	struct phylink_pcs pcs;
 	phy_interface_t interface;
@@ -116,12 +117,20 @@ struct dw_xpcs {
 	u8 eee_mult_fact;
 };
 
+#define phylink_pcs_to_xpcs(pl_pcs) container_of((pl_pcs), struct dw_xpcs, pcs)
+
 int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg);
 int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val);
 int xpcs_modify(struct dw_xpcs *xpcs, int dev, u32 reg, u16 mask, u16 set);
+int xpcs_phy_read(struct dw_xpcs *xpcs, int dev, u32 reg);
+int xpcs_phy_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val);
 int xpcs_read_vpcs(struct dw_xpcs *xpcs, int reg);
 int xpcs_write_vpcs(struct dw_xpcs *xpcs, int reg, u16 val);
 int nxp_sja1105_sgmii_pma_config(struct dw_xpcs *xpcs);
 int nxp_sja1110_sgmii_pma_config(struct dw_xpcs *xpcs);
 int nxp_sja1110_2500basex_pma_config(struct dw_xpcs *xpcs);
 int txgbe_xpcs_switch_mode(struct dw_xpcs *xpcs, phy_interface_t interface);
+void xpcs_phy_reg_lock(struct dw_xpcs *xpcs);
+int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs);
+u32 xpcs_phy_get_id(struct dw_xpcs *xpcs);
+int xpcs_phy_check_id(u32 id);

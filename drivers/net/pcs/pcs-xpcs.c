@@ -107,6 +107,29 @@ static const int xpcs_2500basex_features[] = {
 	__ETHTOOL_LINK_MODE_MASK_NBITS,
 };
 
+static const int xpcs_mx95_10g_features[] = {
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_Autoneg_BIT,
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
+enum {
+	DW_XPCS_USXGMII,
+	DW_XPCS_10GKR,
+	DW_XPCS_XLGMII,
+	DW_XPCS_10GBASER,
+	DW_XPCS_SGMII,
+	DW_XPCS_1000BASEX,
+	DW_XPCS_2500BASEX,
+	DW_XPCS_INTERFACE_MAX,
+};
+
 struct dw_xpcs_compat {
 	phy_interface_t interface;
 	const int *supported;
@@ -164,6 +187,22 @@ static bool __xpcs_linkmode_supported(const struct dw_xpcs_compat *compat,
 
 #define xpcs_linkmode_supported(compat, mode) \
 	__xpcs_linkmode_supported(compat, ETHTOOL_LINK_MODE_ ## mode ## _BIT)
+
+int xpcs_phy_read(struct dw_xpcs *xpcs, int dev, u32 reg)
+{
+	struct mii_bus *bus = xpcs->phydev->bus;
+	int addr = xpcs->phydev->addr;
+
+	return mdiobus_c45_read(bus, addr, dev, reg);
+}
+
+int xpcs_phy_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
+{
+	struct mii_bus *bus = xpcs->phydev->bus;
+	int addr = xpcs->phydev->addr;
+
+	return mdiobus_c45_write(bus, addr, dev, reg, val);
+}
 
 int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg)
 {
@@ -1081,6 +1120,7 @@ static void xpcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 	const struct dw_xpcs_compat *compat;
+	int stat1;
 	int ret;
 
 	compat = xpcs_find_compat(xpcs, state->interface);
@@ -1089,6 +1129,16 @@ static void xpcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 
 	switch (compat->an_mode) {
 	case DW_10GBASER:
+		stat1 = xpcs_read(xpcs, MDIO_MMD_PCS, MDIO_STAT1);
+		if (stat1 < 0) {
+			state->link = false;
+			break;
+		}
+
+		if (stat1 & MDIO_STAT1_FAULT)
+			xpcs_do_config(xpcs, state->interface, NULL,
+				       PHYLINK_PCS_NEG_NONE);
+
 		phylink_mii_c45_pcs_get_state(xpcs->mdiodev, state);
 		break;
 	case DW_AN_C73:
@@ -1361,6 +1411,16 @@ static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[] = {
 	}
 };
 
+static const struct dw_xpcs_compat nxp_mx95_xpcs_compat[] = {
+	{
+		.supported = xpcs_mx95_10g_features,
+		.interface = PHY_INTERFACE_MODE_10GBASER,
+		.an_mode = DW_10GBASER,
+		.pma_config = xpcs_phy_usxgmii_pma_config,
+	}, {
+	}
+};
+
 static const struct dw_xpcs_desc xpcs_desc_list[] = {
 	{
 		.id = DW_XPCS_ID,
@@ -1374,6 +1434,10 @@ static const struct dw_xpcs_desc xpcs_desc_list[] = {
 		.id = NXP_SJA1110_XPCS_ID,
 		.mask = DW_XPCS_ID_MASK,
 		.compat = nxp_sja1110_xpcs_compat,
+	}, {
+		.id = NXP_MX95_XPCS_ID,
+		.mask = DW_XPCS_ID_MASK,
+		.compat = nxp_mx95_xpcs_compat,
 	},
 };
 
@@ -1389,11 +1453,32 @@ static const struct phylink_pcs_ops xpcs_phylink_ops = {
 	.pcs_enable_eee = xpcs_enable_eee,
 };
 
+static int xpcs_register_phy(struct dw_xpcs *xpcs, struct mii_bus *bus)
+{
+	u32 xpcs_phy_id;
+	int ret = 0;
+
+	xpcs_phy_reg_lock(xpcs);
+
+	xpcs_phy_id = xpcs_phy_get_id(xpcs);
+	ret = xpcs_phy_check_id(xpcs_phy_id);
+	if (!ret)
+		return -ENODEV;
+
+	xpcs->info.pcs = xpcs_phy_id;
+	xpcs->info.pma = xpcs_phy_id;
+
+	return 0;
+}
+
 static int xpcs_identify(struct dw_xpcs *xpcs)
 {
 	int i, ret;
 
-	ret = xpcs_read_ids(xpcs);
+	if (xpcs->phydev)
+		ret = xpcs_register_phy(xpcs, xpcs->mdiodev->bus);
+	else
+		ret = xpcs_read_ids(xpcs);
 	if (ret < 0)
 		return ret;
 
@@ -1409,7 +1494,8 @@ static int xpcs_identify(struct dw_xpcs *xpcs)
 	return -ENODEV;
 }
 
-static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
+static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev,
+					struct mdio_device *phydev)
 {
 	struct dw_xpcs *xpcs;
 
@@ -1419,6 +1505,10 @@ static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
 
 	mdio_device_get(mdiodev);
 	xpcs->mdiodev = mdiodev;
+	if (phydev) {
+		mdio_device_get(phydev);
+		xpcs->phydev = phydev;
+	}
 	xpcs->pcs.ops = &xpcs_phylink_ops;
 	xpcs->pcs.poll = true;
 
@@ -1428,6 +1518,8 @@ static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
 static void xpcs_free_data(struct dw_xpcs *xpcs)
 {
 	mdio_device_put(xpcs->mdiodev);
+	if (xpcs->phydev)
+		mdio_device_put(xpcs->phydev);
 	kfree(xpcs);
 }
 
@@ -1476,12 +1568,13 @@ static int xpcs_init_id(struct dw_xpcs *xpcs)
 	return xpcs_identify(xpcs);
 }
 
-static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev)
+static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
+				   struct mdio_device *phydev)
 {
 	struct dw_xpcs *xpcs;
 	int ret;
 
-	xpcs = xpcs_create_data(mdiodev);
+	xpcs = xpcs_create_data(mdiodev, phydev);
 	if (IS_ERR(xpcs))
 		return xpcs;
 
@@ -1529,7 +1622,7 @@ struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr)
 	if (IS_ERR(mdiodev))
 		return ERR_CAST(mdiodev);
 
-	xpcs = xpcs_create(mdiodev);
+	xpcs = xpcs_create(mdiodev, NULL);
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio
@@ -1577,7 +1670,7 @@ struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode)
 	if (!mdiodev)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	xpcs = xpcs_create(mdiodev);
+	xpcs = xpcs_create(mdiodev, NULL);
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio
@@ -1590,6 +1683,62 @@ struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode)
 	return xpcs;
 }
 EXPORT_SYMBOL_GPL(xpcs_create_fwnode);
+
+struct phylink_pcs *xpcs_create_mdiodev_with_phy(struct mii_bus *bus,
+						 int mdioaddr, int phyaddr,
+						 phy_interface_t interface)
+{
+	struct mdio_device *mdiodev, *phydev;
+	struct dw_xpcs *xpcs;
+	void *err_ptr;
+
+	mdiodev = mdio_device_create(bus, mdioaddr);
+	if (IS_ERR(mdiodev))
+		return ERR_CAST(mdiodev);
+
+	phydev = mdio_device_create(bus, phyaddr);
+	if (IS_ERR(phydev)) {
+		err_ptr = ERR_CAST(phydev);
+		goto err_phydev;
+	}
+
+	xpcs = xpcs_create(mdiodev, phydev);
+	if (IS_ERR(xpcs)) {
+		err_ptr = ERR_CAST(xpcs);
+		goto err_xpcs;
+	}
+
+	/* xpcs_create() has taken a refcount on the mdiodev if it was
+	 * successful. If xpcs_create() fails, this will free the mdio
+	 * device here. In any case, we don't need to hold our reference
+	 * anymore, and putting it here will allow mdio_device_put() in
+	 * xpcs_destroy() to automatically free the mdio device.
+	 */
+	mdio_device_put(mdiodev);
+	mdio_device_put(phydev);
+
+	return &xpcs->pcs;
+
+err_xpcs:
+	mdio_device_free(phydev);
+err_phydev:
+	mdio_device_free(mdiodev);
+
+	return err_ptr;
+}
+EXPORT_SYMBOL_GPL(xpcs_create_mdiodev_with_phy);
+
+void xpcs_pcs_destroy(struct phylink_pcs *pcs)
+{
+	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
+
+	if (!xpcs)
+		return;
+
+	xpcs_clear_clks(xpcs);
+	xpcs_free_data(xpcs);
+}
+EXPORT_SYMBOL_GPL(xpcs_pcs_destroy);
 
 void xpcs_destroy(struct dw_xpcs *xpcs)
 {
