@@ -421,6 +421,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-it6263-lvds-two-disp.dtb
 imx95-19x19-evk-it6263-lvds-dual-dtbs := imx95-19x19-evk.dtb imx95-19x19-evk-it6263-lvds-dual.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-it6263-lvds-dual.dtb
 
+imx95-19x19-evk-jdi-wuxga-lvds-panel-dtbs := imx95-19x19-evk.dtb imx95-19x19-evk-jdi-wuxga-lvds-panel.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-jdi-wuxga-lvds-panel.dtb
+
 imx8mm-kontron-dl-dtbs			:= imx8mm-kontron-bl.dtb imx8mm-kontron-dl.dtbo
 imx8mm-kontron-bl-lte-dtbs		:= imx8mm-kontron-bl.dtb imx8mm-kontron-bl-lte.dtbo
 
