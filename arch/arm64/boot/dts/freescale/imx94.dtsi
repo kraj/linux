@@ -216,6 +216,49 @@
 						      <&gic GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			edma3: dma-controller@42210000 {
+				compatible = "fsl,imx95-edma5";
+				reg = <0x42210000 0x210000>;
+				clocks = <&scmi_clk IMX94_CLK_BUSWAKEUP>;
+				clock-names = "dma";
+				#dma-cells = <3>;
+				dma-channels = <64>;
+				interrupts-extended = <&a55_irqsteer 256>, <&a55_irqsteer 257>,
+					<&a55_irqsteer 258>, <&a55_irqsteer 259>,
+					<&a55_irqsteer 260>, <&a55_irqsteer 261>,
+					<&a55_irqsteer 262>, <&a55_irqsteer 263>,
+					<&a55_irqsteer 264>, <&a55_irqsteer 265>,
+					<&a55_irqsteer 266>, <&a55_irqsteer 267>,
+					<&a55_irqsteer 268>, <&a55_irqsteer 269>,
+					<&a55_irqsteer 270>, <&a55_irqsteer 271>,
+					<&a55_irqsteer 272>, <&a55_irqsteer 273>,
+					<&a55_irqsteer 274>, <&a55_irqsteer 275>,
+					<&a55_irqsteer 276>, <&a55_irqsteer 277>,
+					<&a55_irqsteer 278>, <&a55_irqsteer 279>,
+					<&a55_irqsteer 280>, <&a55_irqsteer 281>,
+					<&a55_irqsteer 282>, <&a55_irqsteer 283>,
+					<&a55_irqsteer 284>, <&a55_irqsteer 285>,
+					<&a55_irqsteer 286>, <&a55_irqsteer 287>,
+					<&a55_irqsteer 320>, <&a55_irqsteer 321>,
+					<&a55_irqsteer 322>, <&a55_irqsteer 323>,
+					<&a55_irqsteer 324>, <&a55_irqsteer 325>,
+					<&a55_irqsteer 326>, <&a55_irqsteer 327>,
+					<&a55_irqsteer 328>, <&a55_irqsteer 329>,
+					<&a55_irqsteer 330>, <&a55_irqsteer 331>,
+					<&a55_irqsteer 332>, <&a55_irqsteer 333>,
+					<&a55_irqsteer 334>, <&a55_irqsteer 335>,
+					<&a55_irqsteer 336>, <&a55_irqsteer 337>,
+					<&a55_irqsteer 338>, <&a55_irqsteer 339>,
+					<&a55_irqsteer 340>, <&a55_irqsteer 341>,
+					<&a55_irqsteer 342>, <&a55_irqsteer 343>,
+					<&a55_irqsteer 344>, <&a55_irqsteer 345>,
+					<&a55_irqsteer 346>, <&a55_irqsteer 347>,
+					<&a55_irqsteer 348>, <&a55_irqsteer 349>,
+					<&a55_irqsteer 350>, <&a55_irqsteer 351>,
+					<&gic GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
 			mu10: mailbox@42430000 {
 				compatible = "fsl,imx94-mu", "fsl,imx95-mu";
 				reg = <0x42430000 0x10000>;
@@ -629,7 +672,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0 0x42800000 0 0x800000>;
 			ranges = <0x42800000 0x0 0x42800000 0x800000>,
-				 <0x28000000 0x0 0x28000000 0x1000000>;
+				 <0x24000000 0x0 0x24000000 0xC000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
@@ -1189,6 +1232,12 @@
 				fsl,ext-reset-output;
 				status = "disabled";
 			};
+		};
+
+		ddr-pmu@4e090dc0 {
+			compatible = "fsl,imx94-ddr-pmu", "fsl,imx93-ddr-pmu";
+			reg = <0x0 0x4e090dc0 0x0 0x200>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 };
