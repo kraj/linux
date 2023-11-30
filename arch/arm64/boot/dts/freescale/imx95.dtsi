@@ -546,16 +546,16 @@
 		#phy-cells = <0>;
 	};
 
+	imx95_soc: imx95-soc {
+		compatible = "fsl,imx95-soc";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x0 0x0 0x0 0x0 0x0 0x80000000>,
 			 <0x0 0x28000000 0x0 0x28000000 0x0 0x10000000>;
-
-		imx95_soc: imx95-soc {
-			compatible = "fsl,imx95-soc";
-		};
 
 		etm0: etm@40840000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
