@@ -129,8 +129,14 @@ static u8 scmi_clk_get_parent(struct clk_hw *hw)
 static int scmi_clk_enable(struct clk_hw *hw)
 {
 	struct scmi_clk *clk = to_scmi_clk(hw);
+	int ret;
 
-	return scmi_proto_clk_ops->enable(clk->ph, clk->id, NOT_ATOMIC);
+	ret = scmi_proto_clk_ops->enable(clk->ph, clk->id, NOT_ATOMIC);
+
+	if (ret == -EACCES && clk->info->state_ctrl_forbidden)
+		return 0;
+
+	return ret;
 }
 
 static void scmi_clk_disable(struct clk_hw *hw)
