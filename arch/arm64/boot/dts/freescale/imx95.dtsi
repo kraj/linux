@@ -2983,6 +2983,8 @@
 					reg = <0x000000 0 0 0 0>;
 					clocks = <&scmi_clk IMX95_CLK_ENETREF>;
 					clock-names = "ref";
+					nvmem-cells = <&eth_mac0>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
@@ -2991,12 +2993,16 @@
 					reg = <0x004000 0 0 0 0>;
 					clocks = <&scmi_clk IMX95_CLK_ENETREF>;
 					clock-names = "ref";
+					nvmem-cells = <&eth_mac1>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
 				enetc_port2: ethernet@10,0 {
 					compatible = "pci1131,e101";
 					reg = <0x008000 0 0 0 0>;
+					nvmem-cells = <&eth_mac2>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
