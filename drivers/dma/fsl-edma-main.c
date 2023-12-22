@@ -684,9 +684,8 @@ static int fsl_edma3_attach_pd(struct platform_device *pdev, struct fsl_edma_eng
 
 		fsl_chan->pd_dev = pd_chan;
 
-		pm_runtime_use_autosuspend(fsl_chan->pd_dev);
-		pm_runtime_set_autosuspend_delay(fsl_chan->pd_dev, 200);
 		pm_runtime_set_active(fsl_chan->pd_dev);
+		pm_runtime_put_sync_suspend(fsl_chan->pd_dev);
 	}
 
 	return 0;
@@ -930,18 +929,31 @@ static int fsl_edma_suspend_late(struct device *dev)
 		fsl_chan = &fsl_edma->chans[i];
 		if (fsl_edma->chan_masked & BIT(i))
 			continue;
-		if (!(fsl_edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) &&
-		    FSL_EDMA_DRV_SPLIT_REG && !fsl_chan->srcid)
+		if (((fsl_edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) &&
+		     pm_runtime_status_suspended(fsl_chan->pd_dev)) ||
+		    (!(fsl_edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) &&
+		     (fsl_edma->drvdata->flags & FSL_EDMA_DRV_SPLIT_REG) &&
+		     !fsl_chan->srcid))
 			continue;
-		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
-		/* Make sure chan is idle or will force disable. */
-		if (unlikely(fsl_chan->status == DMA_IN_PROGRESS)) {
-			dev_warn(dev, "WARN: There is non-idle channel.\n");
-			fsl_edma_disable_request(fsl_chan);
-			fsl_edma_chan_mux(fsl_chan, 0, false);
-		}
 
-		fsl_chan->pm_state = SUSPENDED;
+		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+		if (fsl_edma->drvdata->flags & FSL_EDMA_DRV_SPLIT_REG) {
+			fsl_edma->edma_save_regs[i].csr = edma_readl_chreg(fsl_chan, ch_csr);
+			fsl_edma->edma_save_regs[i].sbr = edma_readl_chreg(fsl_chan, ch_sbr);
+			if (unlikely(fsl_chan->status == DMA_IN_PROGRESS)) {
+				dev_warn(dev, "WARN: There is non-idle channel.\n");
+				fsl_edma_disable_request(fsl_chan);
+			}
+		} else {
+			/* Make sure chan is idle or will force disable. */
+			if (unlikely(fsl_chan->status == DMA_IN_PROGRESS)) {
+				dev_warn(dev, "WARN: There is non-idle channel.\n");
+				fsl_edma_disable_request(fsl_chan);
+				if (fsl_chan->srcid != 0)
+					fsl_edma_chan_mux(fsl_chan, 0, false);
+			}
+			fsl_chan->pm_state = SUSPENDED;
+		}
 		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 	}
 	return 0;
@@ -952,19 +964,35 @@ static int fsl_edma_resume_early(struct device *dev)
 	struct fsl_edma_engine *fsl_edma = dev_get_drvdata(dev);
 	struct fsl_edma_chan *fsl_chan;
 	struct edma_regs *regs = &fsl_edma->regs;
+	unsigned long flags;
 	int i;
 
 	for (i = 0; i < fsl_edma->n_chans; i++) {
 		fsl_chan = &fsl_edma->chans[i];
 		if (fsl_edma->chan_masked & BIT(i))
 			continue;
-		if (!(fsl_edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) &&
-		    FSL_EDMA_DRV_SPLIT_REG && !fsl_chan->srcid)
+
+		if (((fsl_edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) &&
+		     pm_runtime_status_suspended(fsl_chan->pd_dev)) ||
+		    (!(fsl_edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) &&
+		     (fsl_edma->drvdata->flags & FSL_EDMA_DRV_SPLIT_REG) &&
+		     !fsl_chan->srcid))
 			continue;
-		fsl_chan->pm_state = RUNNING;
-		edma_write_tcdreg(fsl_chan, 0, csr);
-		if (fsl_chan->srcid != 0)
-			fsl_edma_chan_mux(fsl_chan, fsl_chan->srcid, true);
+
+		if (fsl_edma->drvdata->flags & FSL_EDMA_DRV_SPLIT_REG) {
+			spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+			edma_writel_chreg(fsl_chan, fsl_edma->edma_save_regs[i].csr, ch_csr);
+			edma_writel_chreg(fsl_chan, fsl_edma->edma_save_regs[i].sbr, ch_sbr);
+			 /* restore tcd if this channel not terminated before suspend */
+			if (fsl_chan->edesc)
+				fsl_edma_set_tcd_regs(fsl_chan, fsl_chan->edesc->tcd[0].vtcd);
+			spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+		} else {
+			fsl_chan->pm_state = RUNNING;
+			edma_write_tcdreg(fsl_chan, 0, csr);
+			if (fsl_chan->srcid != 0)
+				fsl_edma_chan_mux(fsl_chan, fsl_chan->srcid, true);
+		}
 	}
 
 	if (!(fsl_edma->drvdata->flags & FSL_EDMA_DRV_SPLIT_REG))
