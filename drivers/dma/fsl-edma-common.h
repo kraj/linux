@@ -267,6 +267,7 @@ struct fsl_edma_engine {
 	int			txirq;
 	int			txirq_16_31;
 	int			errirq;
+	int                     txirq_count;
 	#define MAX_CHAN_NUM    64
 	bool			big_endian;
 	struct edma_regs	regs;

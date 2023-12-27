@@ -407,6 +407,15 @@ static int fsl_edma3_irq_init(struct platform_device *pdev, struct fsl_edma_engi
 			fsl_chan->errirq = fsl_chan->txirq;
 			fsl_chan->errirq_handler = fsl_edma3_err_handler_per_chan;
 		}
+
+		if (fsl_chan->edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD) {
+			pm_runtime_get_sync(fsl_chan->pd_dev);
+			/* clear meaningless pending irq anyway */
+			if (edma_readl_chreg(fsl_chan, ch_int))
+				edma_writel_chreg(fsl_chan, 1, ch_int);
+		}
+		if (fsl_chan->edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD)
+			pm_runtime_put_sync_suspend(fsl_chan->pd_dev);
 	}
 
 	/* All channel err use one irq number */
@@ -486,11 +495,10 @@ fsl_edma2_irq_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Interrupts in DTS not correct.\n");
 		return -EINVAL;
 	}
+
 	/*
 	 * 16 channel independent interrupts + 1 error interrupt on i.mx7ulp.
 	 * 2 channel share one interrupt, for example, ch0/ch16, ch1/ch17...
-	 * For now, just simply request irq without IRQF_SHARED flag, since 16
-	 * channels are enough on i.mx7ulp whose M4 domain own some peripherals.
 	 */
 	for (i = 0; i < count; i++) {
 		irq = platform_get_irq(pdev, i);
@@ -519,6 +527,8 @@ fsl_edma2_irq_init(struct platform_device *pdev,
 static void fsl_edma_irq_exit(
 		struct platform_device *pdev, struct fsl_edma_engine *fsl_edma)
 {
+	int i;
+
 	if (fsl_edma->txirq == fsl_edma->errirq) {
 		if (fsl_edma->txirq >= 0)
 			devm_free_irq(&pdev->dev, fsl_edma->txirq, fsl_edma);
@@ -527,6 +537,34 @@ static void fsl_edma_irq_exit(
 			devm_free_irq(&pdev->dev, fsl_edma->txirq, fsl_edma);
 		if (fsl_edma->errirq >= 0)
 			devm_free_irq(&pdev->dev, fsl_edma->errirq, fsl_edma);
+	}
+
+	if (fsl_edma->txirq_count == fsl_edma->n_chans + 1) {
+		for (i = 0; i < fsl_edma->n_chans; i++) {
+
+			struct fsl_edma_chan *fsl_chan = &fsl_edma->chans[i];
+
+			devm_free_irq(&fsl_chan->pdev->dev, fsl_chan->txirq, fsl_chan);
+		}
+	}
+
+	if (fsl_edma->drvdata->flags & (FSL_EDMA_DRV_EDMA3 | FSL_EDMA_DRV_EDMA4)) {
+		for (i = 0; i < fsl_edma->n_chans; i++) {
+
+			struct fsl_edma_chan *fsl_chan = &fsl_edma->chans[i];
+
+			if (fsl_edma->chan_masked & BIT(i))
+				continue;
+			if (fsl_chan->edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD)
+				pm_runtime_get_sync(fsl_chan->pd_dev);
+
+			devm_free_irq(&fsl_chan->pdev->dev, fsl_chan->txirq, fsl_chan);
+			/* Clear interrupt before power off */
+			if (edma_readl_chreg(fsl_chan, ch_int))
+				edma_writel_chreg(fsl_chan, 1, ch_int);
+			if (fsl_chan->edma->drvdata->flags & FSL_EDMA_DRV_HAS_PD)
+				pm_runtime_put_sync_suspend(fsl_chan->pd_dev);
+		}
 	}
 }
 
