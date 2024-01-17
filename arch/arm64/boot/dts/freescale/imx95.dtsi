@@ -425,7 +425,6 @@
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;
 			thermal-sensors = <&scmi_sensor 1>;
-
 			trips {
 				cpu_alert0: trip0 {
 					temperature = <105000>;
