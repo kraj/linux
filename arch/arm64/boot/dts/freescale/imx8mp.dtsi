@@ -1960,6 +1960,7 @@
 
 					m2m_device{
 						compatible = "imx-isi-m2m";
+						fsl,gpr = <&media_blk_ctrl>;
 						status = "disabled";
 					};
 				};
