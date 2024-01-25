@@ -19,6 +19,9 @@
 	#size-cells = <2>;
 
 	aliases {
+		can0 = &flexcan1;
+		can1 = &flexcan2;
+		can2 = &flexcan3;
 		ethernet0 = &fec1;
 		ethernet1 = &eqos;
 		gpio0 = &lsio_gpio0;
@@ -29,11 +32,20 @@
 		gpio5 = &lsio_gpio5;
 		gpio6 = &lsio_gpio6;
 		gpio7 = &lsio_gpio7;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		mmc0 = &usdhc1;
+		mmc1 = &usdhc2;
 		mu1 = &lsio_mu1;
 		spi0 = &lpspi0;
 		spi1 = &lpspi1;
 		spi2 = &lpspi2;
 		spi3 = &lpspi3;
+		serial0 = &lpuart0;
+		serial1 = &lpuart1;
+		serial2 = &lpuart2;
+		serial3 = &lpuart3;
+		serial4 = &cm40_lpuart;
 	};
 
 	cpus: cpus {
