@@ -637,6 +637,7 @@
 	#include "imx8-ss-conn.dtsi"
 	#include "imx8-ss-lsio.dtsi"
 	#include "imx8-ss-hsio.dtsi"
+	#include "imx8-ss-gpu1.dtsi"
 };
 
 #include "imx8qm-ss-img.dtsi"
@@ -648,5 +649,6 @@
 #include "imx8qm-ss-lvds.dtsi"
 #include "imx8qm-ss-mipi.dtsi"
 #include "imx8qm-ss-hsio.dtsi"
+#include "imx8qm-ss-gpu.dtsi"
 
 /delete-node/ &dsp;
