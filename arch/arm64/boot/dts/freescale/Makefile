@@ -115,6 +115,17 @@ dtb-$(CONFIG_ARCH_MXC) += imx8dxp-tqma8xdps-mb-smarc-2.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-beacon-kit.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-data-modul-edm-sbc.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-ddr4-evk.dtb
+
+dtb-$(CONFIG_ARCH_MXC) += imx8dxl-ddr3l-evk-rpmsg.dtb \
+			  imx8dxl-ddr3l-evk.dtb imx8dxl-evk-enet0-tja1100.dtb \
+			  imx8dxl-evk-enet0.dtb imx8dxl-evk-lcdif.dtb \
+			  imx8dxl-evk-lcdif.dtb imx8dxl-evk-lpspi-slave.dtb \
+			  imx8dxl-evk-rpmsg.dtb \
+			  imx8dxl-orangebox-sd.dtb imx8dxl-orangebox.dtb
+
+imx8dxl-evk-pcie-ep-rpmsg-dtbs += imx8dxl-evk-rpmsg.dtb imx-pcie0-ep.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx8dxl-evk-pcie-ep-rpmsg.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-emcon-avari.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-emtop-baseboard.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-evk.dtb
