@@ -1549,6 +1549,18 @@
 		>;
 	};
 
+	pinctrl_modem_reset: modemresetgrp {
+		fsl,pins = <
+			IMX8QM_QSPI1A_DQS_LSIO_GPIO4_IO22		0x06000021
+		>;
+	};
+
+	pinctrl_modem_reset_sleep: modemreset_sleepgrp {
+		fsl,pins = <
+			IMX8QM_QSPI1A_DQS_LSIO_GPIO4_IO22		0x07800021
+		>;
+	};
+
 	pinctrl_pwm_lvds0: pwmlvds0grp {
 		fsl,pins = <
 			IMX8QM_LVDS0_GPIO00_LVDS0_PWM0_OUT		0x00000020
