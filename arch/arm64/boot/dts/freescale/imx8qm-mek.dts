@@ -135,6 +135,11 @@
 			linux,cma-default;
 			reusable;
 		};
+
+		gpu_reserved: memory@8800000000 {
+			no-map;
+			reg = <0x8 0x80000000 0 0x10000000>;
+		};
 	};
 
 	i2c-mux {
@@ -200,7 +205,6 @@
 				SPKVDD2-supply = <&reg_audio_5v>;
 			};
 		};
-
 	};
 
 	mux-controller {
@@ -674,6 +678,10 @@
 	status = "okay";
 };
 
+&gpu_3d1{
+	status = "okay";
+};
+
 &hsio_phy {
 	fsl,hsio-cfg = "pciea-pcieb-sata";
 	fsl,refclk-pad-mode = "input";
@@ -859,6 +867,11 @@
 			};
 		};
 	};
+};
+
+&imx8_gpu_ss {
+	memory-region=<&gpu_reserved>;
+	status = "okay";
 };
 
 &flexcan1 {
