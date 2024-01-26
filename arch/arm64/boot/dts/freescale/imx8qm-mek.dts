@@ -502,6 +502,12 @@
 	status = "okay";
 };
 
+&emvsim0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sim0>;
+	status = "okay";
+};
+
 &esai0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esai0>;
@@ -1200,6 +1206,16 @@
 			IMX8QM_SAI1_TXFS_AUD_SAI1_TXFS				0x06000040
 			IMX8QM_SAI1_TXD_AUD_SAI1_TXD				0x06000060
 			IMX8QM_SAI1_TXC_AUD_SAI1_TXC				0x06000040
+		>;
+	};
+
+	pinctrl_sim0: sim0grp {
+		fsl,pins = <
+			IMX8QM_SIM0_CLK_DMA_SIM0_CLK		0xc0000021
+			IMX8QM_SIM0_IO_DMA_SIM0_IO		0xc2000021
+			IMX8QM_SIM0_PD_DMA_SIM0_PD		0xc0000021
+			IMX8QM_SIM0_POWER_EN_DMA_SIM0_POWER_EN	0xc0000021
+			IMX8QM_SIM0_RST_DMA_SIM0_RST		0xc0000021
 		>;
 	};
 
