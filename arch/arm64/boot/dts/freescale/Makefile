@@ -503,6 +503,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-titan-adv7535-ap1302.dtb
 imx95-19x19-titan-os08a20-dtbs := imx95-19x19-titan.dtb imx95-19x19-titan-os08a20.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-titan-os08a20.dtb
 
+imx95-19x19-titan-rm692c9-dtbs := imx95-19x19-titan.dtb imx95-19x19-titan-rm692c9.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-titan-rm692c9.dtb
+
 imx8mm-kontron-dl-dtbs			:= imx8mm-kontron-bl.dtb imx8mm-kontron-dl.dtbo
 imx8mm-kontron-bl-lte-dtbs		:= imx8mm-kontron-bl.dtb imx8mm-kontron-bl-lte.dtbo
 
