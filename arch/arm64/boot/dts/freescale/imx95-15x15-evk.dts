@@ -221,6 +221,18 @@
 		};
 	};
 
+	cm7: imx95-cm7 {
+		compatible = "fsl,imx95-cm7";
+		mbox-names = "tx", "rx", "rxdb";
+		mboxes = <&mu7 0 1
+			  &mu7 1 1
+			  &mu7 3 1>;
+		memory-region = <&vdevbuffer>, <&vdev0vring0>, <&vdev0vring1>,
+				<&vdev1vring0>, <&vdev1vring1>, <&rsc_table>;
+		fsl,startup-delay-ms = <50>;
+		status = "okay";
+	};
+
 	sound-bt-sco {
 		compatible = "simple-audio-card";
 		simple-audio-card,bitclock-inversion;
@@ -295,6 +307,14 @@
 
 &adc1 {
 	vref-supply = <&reg_vref_1v8>;
+	status = "okay";
+};
+
+&displaymix_irqsteer {
+	status = "okay";
+};
+
+&dpu {
 	status = "okay";
 };
 
@@ -1061,6 +1081,7 @@
 &tpm6 {
 	pinctrl-0 = <&pinctrl_tpm6>;
 	pinctrl-names = "default";
+	pwm-rst;
 	status = "okay";
 };
 
@@ -1149,6 +1170,11 @@
 	vmmc-supply = <&reg_usdhc3_vmmc>;
 	wakeup-source;
 	status = "okay";
+};
+
+&vpuctrl {
+	boot = <&vpu_boot>;
+	sram = <&sram1>;
 };
 
 &wdog3 {
