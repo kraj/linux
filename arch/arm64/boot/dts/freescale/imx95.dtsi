@@ -342,6 +342,16 @@
 		clock-output-names = "ldb_pll_div7";
 	};
 
+	mqs1: mqs1 {
+		compatible = "fsl,imx95-aonmix-mqs";
+		status = "disabled";
+	};
+
+	mqs2: mqs2 {
+		compatible = "fsl,imx95-netcmix-mqs";
+		status = "disabled";
+	};
+
 	sram1: sram@204c0000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0x204c0000 0x0 0x18000>;
