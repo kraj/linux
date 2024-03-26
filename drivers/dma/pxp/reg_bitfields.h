@@ -263,4 +263,11 @@ struct fetch_shift_width {
 	uint32_t width3			: 4;
 	uint32_t rsvd0			: 16;
 };
+
+struct ps_lrc {
+	uint32_t height			: 14;
+	uint32_t rsvd0			: 2;
+	uint32_t width			: 14;
+	uint32_t rsvd1			: 2;
+};
 #endif

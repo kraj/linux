@@ -971,6 +971,7 @@ enum pxp_devtype {
 	PXP_V3P,	/* minor changes over V3, use WFE_B to replace WFE_A */
 	PXP_V3_8ULP,	/* PXP V3 version for iMX8ULP */
 	PXP_V3_IMX93,	/* PXP V3 version for iMX93 */
+	PXP_V4,		/* PXP V4 version for iMX94 */
 };
 
 #define pxp_is_v3(pxp) ((pxp->devdata->version == PXP_V3) || \
@@ -1043,6 +1044,22 @@ static const struct pxp_devdata pxp_devdata[] = {
 		 */
 		.input_fetch_arbit_en = true,
 	},
+	[PXP_V4] = {
+		.pxp_wfe_a_configure = NULL,
+		.pxp_wfe_a_process = NULL,
+		.pxp_lut_status_set = NULL,
+		.pxp_lut_status_clr = NULL,
+		.pxp_lut_cleanup_multiple = NULL,
+		.pxp_dithering_configure = NULL,
+		.pxp_data_path_config = NULL,
+		.pxp_restart = imx93_pxp_software_restart,
+		.version = PXP_V4,
+		/*
+		 * Due to iMX93 only connect one AXI bus to PXP, so need to
+		 * enable arbitration when use two PXP input fetch channels
+		 */
+		.input_fetch_arbit_en = true,
+	},
 };
 
 /*
@@ -1109,8 +1126,8 @@ static void dump_pxp_reg(struct pxps *pxp)
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		if (pxp->devdata &&
-		    pxp->devdata->version == PXP_V3_IMX93 &&
-		    regs[i].opt)
+		   (pxp->devdata->version == PXP_V3_IMX93 ||
+		    pxp->devdata->version == PXP_V4) && regs[i].opt)
 			continue;
 
 		val = __raw_readl(pxp->base + regs[i].offset);
@@ -2471,14 +2488,17 @@ static uint32_t ps_calc_scaling(struct pxp_pixmap *input,
 	return *(uint32_t *)&scale;
 }
 
-static int pxp_ps_config(struct pxp_pixmap *input,
+static int pxp_ps_config(struct pxps *pxp,
+			 struct pxp_pixmap *input,
 			 struct pxp_pixmap *output)
 {
 	uint32_t offset, U, V;
 	struct ps_ctrl ctrl;
+	struct ps_lrc lrc;
 	struct coordinate out_ps_ulc, out_ps_lrc;
 
 	memset((void*)&ctrl, 0x0, sizeof(ctrl));
+	memset((void *)&lrc, 0x0, sizeof(lrc));
 
 	ctrl.format = pxp_parse_ps_fmt(input->format);
 
@@ -2511,6 +2531,12 @@ static int pxp_ps_config(struct pxp_pixmap *input,
 		pr_err("PxP only support rotate 0 90 180 270\n");
 		return -EINVAL;
 		break;
+	}
+
+	if (pxp->devdata->version == PXP_V4) {
+		lrc.width = input->width - 1;
+		lrc.height = input->height - 1;
+		pxp_writel(*(uint32_t *)&lrc, HW_PXP_PS_LRC);
 	}
 
 	if ((input->format == PXP_PIX_FMT_YUYV) ||
@@ -2592,7 +2618,8 @@ static int pxp_ps_config(struct pxp_pixmap *input,
 	return 0;
 }
 
-static int pxp_as_config(struct pxp_pixmap *input,
+static int pxp_as_config(struct pxps *pxp,
+			 struct pxp_pixmap *input,
 			 struct pxp_pixmap *output)
 {
 	uint32_t offset;
@@ -3164,7 +3191,8 @@ static void pxp_lut_config(struct pxp_op_info *op)
 	pxp->lut_state = lut_op;
 }
 
-static int pxp_2d_task_config(struct pxp_pixmap *input,
+static int pxp_2d_task_config(struct pxps *pxp,
+			      struct pxp_pixmap *input,
 			      struct pxp_pixmap *output,
 			      struct pxp_op_info *op,
 			      size_t nodes_used)
@@ -3179,10 +3207,10 @@ static int pxp_2d_task_config(struct pxp_pixmap *input,
 
 		switch (position) {
 		case PXP_2D_PS:
-			pxp_ps_config(input, output);
+			pxp_ps_config(pxp, input, output);
 			break;
 		case PXP_2D_AS:
-			pxp_as_config(input, output);
+			pxp_as_config(pxp, input, output);
 			break;
 		case PXP_2D_INPUT_FETCH0:
 		case PXP_2D_INPUT_FETCH1:
@@ -3362,7 +3390,7 @@ reparse:
 			return -EINVAL;
 
 		nodes_used = 1 << PXP_2D_INPUT_STORE0;
-		pxp_2d_task_config(NULL, output, op, nodes_used);
+		pxp_2d_task_config(pxp, NULL, output, op, nodes_used);
 		break;
 	case 1:
 		/* No Composite */
@@ -3480,7 +3508,7 @@ reparse:
 		pxp_2d_calc_mux(nodes_in_path, &path_ctrl0);
 		pr_debug("%s: path_ctrl0 = 0x%x\n",
 			 __func__, *(uint32_t *)&path_ctrl0);
-		pxp_2d_task_config(input, output, op, nodes_used);
+		pxp_2d_task_config(pxp, input, output, op, nodes_used);
 
 		if (is_yuv(input->format) && is_yuv(output->format)) {
 			val = readl(pxp_reg_base + HW_PXP_CSC1_COEF0);
@@ -3674,8 +3702,8 @@ config:
 			set_bit(PXP_2D_ROTATION0, (unsigned long *)&nodes_used_s0);
 		}
 
-		pxp_2d_task_config(input_s0, output, op, nodes_used_s0);
-		pxp_2d_task_config(input_s1, output, op, nodes_used_s1);
+		pxp_2d_task_config(pxp, input_s0, output, op, nodes_used_s0);
+		pxp_2d_task_config(pxp, input_s1, output, op, nodes_used_s1);
 		break;
 	default:
 		break;
@@ -7750,6 +7778,9 @@ static struct platform_device_id imx_pxpdma_devtype[] = {
 		.name = "imx93-pxp-dma",
 		.driver_data = PXP_V3_IMX93,
 	}, {
+		.name = "imx94-pxp-dma",
+		.driver_data = PXP_V4,
+	}, {
 		/* sentinel */
 	}
 };
@@ -7760,6 +7791,7 @@ static const struct of_device_id imx_pxpdma_dt_ids[] = {
 	{ .compatible = "fsl,imx6ull-pxp-dma", .data = &imx_pxpdma_devtype[1], },
 	{ .compatible = "fsl,imx8ulp-pxp-dma", .data = &imx_pxpdma_devtype[2], },
 	{ .compatible = "fsl,imx93-pxp-dma", .data = &imx_pxpdma_devtype[3], },
+	{ .compatible = "fsl,imx94-pxp-dma", .data = &imx_pxpdma_devtype[4], },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_pxpdma_dt_ids);
