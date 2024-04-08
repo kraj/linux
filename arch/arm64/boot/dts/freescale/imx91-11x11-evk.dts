@@ -463,6 +463,7 @@
 		#pwm-cells = <3>;
 		gpio-reserved-ranges = <5 1>;
 
+		/* EXP_SEL selects pins between board and RPi */
 		exp-sel-hog {
 			gpio-hog;
 			gpios = <4 GPIO_ACTIVE_HIGH>;
