@@ -427,6 +427,12 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+
+		m2-pcm-level-shifter-hog {
+			gpio-hog;
+			gpios = <19 GPIO_ACTIVE_HIGH>;
+			output-high;
+		};
 	};
 
 	pmic@25 {
@@ -611,7 +617,6 @@
 
 &lpuart5 {
 	pinctrl-names = "default";
-	pinctrl-assert-gpios = <&pcal6524 19 GPIO_ACTIVE_HIGH>;
 	pinctrl-0 = <&pinctrl_uart5>;
 	status = "okay";
 
