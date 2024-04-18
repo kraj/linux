@@ -1837,11 +1837,6 @@
 			#clock-cells = <1>;
 			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
 			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
-			assigned-clocks = <&scmi_clk IMX95_CLK_CAMAXI>,
-					  <&scmi_clk IMX95_CLK_CAMAPB>;
-			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1>,
-						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
-			assigned-clock-rates = <800000000>, <133333333>;
 
 			csi_pixel_formatter_0: formatter@20 {
 				compatible = "fsl,imx95-csi-formatter";
@@ -2034,11 +2029,6 @@
 			reg = <0x0 0x4add0000 0x0 0x10000>;
 			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
 			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
-			assigned-clocks = <&scmi_clk IMX95_CLK_CAMAXI>,
-					  <&scmi_clk IMX95_CLK_CAMAPB>;
-			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1>,
-						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
-			assigned-clock-rates = <800000000>, <133333333>;
 		};
 
 		ocram_c: ocram@4af80000 {
@@ -2163,9 +2153,6 @@
 			clocks = <&cameramix_csr IMX95_CLK_CAMBLK_CSI2_FOR0>,
 				 <&scmi_clk IMX95_CLK_CAMAPB>;
 			clock-names = "per", "pixel";
-			assigned-clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
-			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
-			assigned-clock-rates = <133330000>;
 			phys = <&dphy_rx>;
 			phy-names = "dphy-rx";
 			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
@@ -2192,9 +2179,6 @@
 			clocks = <&cameramix_csr IMX95_CLK_CAMBLK_CSI2_FOR1>,
 				 <&scmi_clk IMX95_CLK_CAMAPB>;
 			clock-names = "per", "pixel";
-			assigned-clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
-			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
-			assigned-clock-rates = <133330000>;
 			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
 			status = "disabled";
 
@@ -2225,9 +2209,6 @@
 				     <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk IMX95_CLK_CAMISI>;
 			clock-names = "axi";
-			assigned-clocks = <&scmi_clk IMX95_CLK_CAMISI>;
-			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD2>;
-			assigned-clock-rates = <667000000>;
 			fsl,blk-ctrl = <&cameramix_csr>;
 			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
 			status = "disabled";
