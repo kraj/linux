@@ -450,6 +450,11 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-ap1302_rpi.dtb
 imx95-15x15-evk-rm692c9-dtbs := imx95-15x15-evk.dtb imx95-15x15-evk-rm692c9.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-rm692c9.dtb
 
+imx95-15x15-evk-adv7535-ap1302-dtbs := imx95-15x15-evk.dtb \
+				       imx95-15x15-evk-adv7535.dtbo \
+				       imx95-15x15-evk-ap1302.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-adv7535-ap1302.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk.dtb imx95-19x19-evk-root.dtb imx95-19x19-evk-inmate.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-sof.dtb
 
