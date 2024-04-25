@@ -525,6 +525,8 @@ struct ub960_rxport {
 	/* lock for aliased_addrs and associated registers */
 	struct mutex aliased_addrs_lock;
 	u16 aliased_addrs[UB960_MAX_PORT_ALIASES];
+
+	u32 bc_gpio;
 };
 
 struct ub960_asd {
@@ -2472,6 +2474,11 @@ static int ub960_init_rx_port_ub960(struct ub960_data *priv,
 	/* Configure EQ related settings */
 	ub960_rxport_config_eq(priv, nport);
 
+	/* Back channel GPIOx Select FrameSync signal */
+	ub960_rxport_write(priv, nport,
+			   UB960_RR_BC_GPIO_CTL(rxport->bc_gpio / 2),
+			   (rxport->bc_gpio & BIT(0)) ? 0xa0 : 0x0a, &ret);
+
 	/* Enable RX port */
 	ub960_update_bits(priv, UB960_SR_RX_PORT_CTL, BIT(nport), BIT(nport),
 			  &ret);
@@ -4397,6 +4404,7 @@ ub960_parse_dt_rxport_link_properties(struct ub960_data *priv,
 	u32 eq_level;
 	u32 ser_i2c_alias;
 	u32 ser_i2c_addr;
+	u32 bc_gpio;
 	int ret;
 
 	cdr_mode = RXPORT_CDR_FPD3;
@@ -4501,6 +4509,14 @@ ub960_parse_dt_rxport_link_properties(struct ub960_data *priv,
 		return ret;
 	}
 	rxport->ser.alias = ser_i2c_alias;
+
+	ret = fwnode_property_read_u32(link_fwnode, "ti,bc-gpio", &bc_gpio);
+	if (ret) {
+		dev_err(dev, "rx%u: failed to read '%s': %d\n", nport,
+			"ti,bc-gpio", ret);
+		return ret;
+	}
+	rxport->bc_gpio = bc_gpio;
 
 	rxport->ser.fwnode = fwnode_get_named_child_node(link_fwnode, "serializer");
 	if (!rxport->ser.fwnode) {

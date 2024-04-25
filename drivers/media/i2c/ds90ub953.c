@@ -290,11 +290,13 @@ static int ub953_gpio_direction_out(struct gpio_chip *gc, unsigned int offset,
 	struct ub953_data *priv = gpiochip_get_data(gc);
 	int ret;
 
+	/*
+	 * Enable remote deserializer GPIO data on local GPIO by
+	 * default when user set the GPIO as output
+	 */
 	ret = regmap_update_bits(priv->regmap, UB953_REG_LOCAL_GPIO_DATA,
-				 UB953_REG_LOCAL_GPIO_DATA_GPIO_OUT_SRC(offset),
-				 value ? UB953_REG_LOCAL_GPIO_DATA_GPIO_OUT_SRC(offset) :
-					 0);
-
+				 UB953_REG_LOCAL_GPIO_DATA_GPIO_RMTEN(offset),
+				 UB953_REG_LOCAL_GPIO_DATA_GPIO_RMTEN(offset));
 	if (ret)
 		return ret;
 
@@ -322,7 +324,8 @@ static int ub953_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 	struct ub953_data *priv = gpiochip_get_data(gc);
 
 	return regmap_update_bits(priv->regmap, UB953_REG_LOCAL_GPIO_DATA,
-				  UB953_REG_LOCAL_GPIO_DATA_GPIO_OUT_SRC(offset),
+				  UB953_REG_LOCAL_GPIO_DATA_GPIO_OUT_SRC(offset) |
+				  UB953_REG_LOCAL_GPIO_DATA_GPIO_RMTEN(offset),
 				  value ? UB953_REG_LOCAL_GPIO_DATA_GPIO_OUT_SRC(offset) : 0);
 }
 
