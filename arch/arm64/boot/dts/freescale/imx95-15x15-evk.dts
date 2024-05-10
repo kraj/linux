@@ -1158,6 +1158,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-3 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
+	fsl,cd-gpio-wakeup-disable;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	fsl,tuning-step = <1>;
 	status = "okay";
