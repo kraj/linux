@@ -1315,7 +1315,7 @@ freeirq:
 	return err;
 }
 
-static int pxp_remove(struct platform_device *pdev)
+static void pxp_remove(struct platform_device *pdev)
 {
 	struct pxps *pxp = platform_get_drvdata(pdev);
 	struct v4l2_device *v4l2_dev = pxp->vdev->v4l2_dev;
@@ -1328,8 +1328,6 @@ static int pxp_remove(struct platform_device *pdev)
 	free_dma_buf(pxp, &pxp->outbuf);
 
 	kfree(pxp);
-
-	return 0;
 }
 
 static struct platform_driver pxp_driver = {

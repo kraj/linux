@@ -2917,7 +2917,7 @@ ealloc:
 	return ret;
 }
 
-static int mxc_hdmi_remove(struct platform_device *pdev)
+static void mxc_hdmi_remove(struct platform_device *pdev)
 {
 	struct mxc_hdmi *hdmi = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -2935,8 +2935,6 @@ static int mxc_hdmi_remove(struct platform_device *pdev)
 		regulator_disable(hdmi_regulator);
 
 	g_hdmi = NULL;
-
-	return 0;
 }
 
 static struct platform_driver mxc_hdmi_driver = {

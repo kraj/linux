@@ -1153,12 +1153,12 @@ clean_md:
 	return ret;
 }
 
-static int mxc_md_remove(struct platform_device *pdev)
+static void mxc_md_remove(struct platform_device *pdev)
 {
 	struct mxc_md *mxc_md = platform_get_drvdata(pdev);
 
 	if (!mxc_md)
-		return 0;
+		return;
 
 	v4l2_async_nf_unregister(&mxc_md->subdev_notifier);
 	v4l2_async_nf_cleanup(&mxc_md->subdev_notifier);
@@ -1167,8 +1167,6 @@ static int mxc_md_remove(struct platform_device *pdev)
 	mxc_md_unregister_entities(mxc_md);
 	media_device_unregister(&mxc_md->media_dev);
 	media_device_cleanup(&mxc_md->media_dev);
-
-	return 0;
 }
 
 static const struct of_device_id mxc_md_of_match[] = {
