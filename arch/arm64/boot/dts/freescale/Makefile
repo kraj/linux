@@ -540,6 +540,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-ox05b1s-combo.dtb
 imx95-19x19-evk-ti-serdes-dtbs := imx95-19x19-evk.dtb imx95-19x19-evk-ti-serdes.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-ti-serdes.dtb
 
+imx95-19x19-evk-ti-serdes-combo-dtbs := imx95-19x19-evk.dtb imx95-19x19-evk-ti-serdes-combo.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-ti-serdes-combo.dtb
+
 imx95-19x19-evk-os08a20-combo-dtbs := imx95-19x19-evk.dtb imx95-19x19-evk-os08a20-combo.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-os08a20-combo.dtb
 
