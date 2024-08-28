@@ -420,6 +420,7 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 	plat_dat->exit = imx_dwmac_exit;
 	plat_dat->clks_config = imx_dwmac_clks_config;
 	plat_dat->bsp_priv = dwmac;
+	plat_dat->flags |= STMMAC_FLAG_RX_CLK_RUNS_IN_LPI;
 	dwmac->plat_dat = plat_dat;
 	dwmac->base_addr = stmmac_res.addr;
 	dwmac->clk_en_cnt = 0;
