@@ -369,6 +369,8 @@
 			#size-cells = <0>;
 			arm,max-rx-timeout-ms = <5000>;
 
+			max-rx-timeout-ms = <5000>;
+
 			scmi_devpd: protocol@11 {
 				reg = <0x11>;
 				#power-domain-cells = <1>;
