@@ -114,6 +114,16 @@
 		regulator-always-on;
 	};
 
+	m2_spi0_sel: fixedregulator-102 {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "m2_spi0_sel";
+		gpio = <&pca6416_1 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
 	mux3_en: regulator-0 {
 		compatible = "regulator-fixed";
 		regulator-min-microvolt = <3300000>;
