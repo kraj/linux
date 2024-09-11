@@ -24,7 +24,7 @@
 		stdout-path = &lpuart0;
 	};
 
-	imx8dxl-cm4 {
+	imx8dxl_cm4: imx8dxl-cm4 {
 		compatible = "fsl,imx8qxp-cm4";
 		clocks = <&clk_dummy>;
 		mbox-names = "tx", "rx", "rxdb";
