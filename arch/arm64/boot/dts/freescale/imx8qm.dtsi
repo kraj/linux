@@ -7,6 +7,7 @@
 #include <dt-bindings/clock/imx8-lpcg.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/pads-imx8qm.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -353,6 +354,12 @@
 			#clock-cells = <2>;
 		};
 
+		scu_key: keys {
+			compatible = "fsl,imx8qm-sc-key", "fsl,imx-sc-key";
+			linux,keycodes = <KEY_POWER>;
+			wakeup-source;
+		};
+
 		iomuxc: pinctrl {
 			compatible = "fsl,imx8qm-iomuxc";
 		};
@@ -389,6 +396,11 @@
 		watchdog {
 			compatible = "fsl,imx8qm-sc-wdt", "fsl,imx-sc-wdt";
 			timeout-sec = <60>;
+		};
+
+		secvio: secvio {
+			compatible = "fsl,imx-sc-secvio";
+			nvmem = <&ocotp>;
 		};
 	};
 
