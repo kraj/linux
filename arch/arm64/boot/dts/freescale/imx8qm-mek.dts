@@ -463,7 +463,7 @@
 				"IN3R", "AMIC";
 	};
 
-	imx8qm-cm4-0 {
+	imx8qm_cm40: imx8qm-cm4-0 {
 		compatible = "fsl,imx8qm-cm4";
 		clocks = <&clk_dummy>;
 		mbox-names = "tx", "rx", "rxdb";
@@ -478,7 +478,7 @@
 		fsl,entry-address = <0x34fe0000>;
 	};
 
-	imx8qm-cm4-1 {
+	imx8qm_cm41: imx8qm-cm4-1 {
 		compatible = "fsl,imx8qm-cm4";
 		clocks = <&clk_dummy>;
 		mbox-names = "tx", "rx", "rxdb";
