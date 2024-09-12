@@ -131,22 +131,6 @@
 		};
 	};
 
-	lvds_backlight0: backlight-lvds0 {
-		compatible = "pwm-backlight";
-		pwms = <&qm_pwm_lvds0 0 100000 0>;
-		brightness-levels = <0 100>;
-		num-interpolated-steps = <100>;
-		default-brightness-level = <80>;
-	};
-
-	lvds_backlight1: backlight-lvds1 {
-		compatible = "pwm-backlight";
-		pwms = <&pwm_lvds1 0 100000 0>;
-		brightness-levels = <0 100>;
-		num-interpolated-steps = <100>;
-		default-brightness-level = <80>;
-	};
-
 	i2c-mux {
 		compatible = "i2c-mux-gpio";
 		mux-gpios = <&lsio_gpio5 3 GPIO_ACTIVE_HIGH>; /* needs to be an unused GPIO */
@@ -640,34 +624,6 @@
 	status = "okay";
 };
 
-&i2c1_lvds0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_lvds0_lpi2c1>;
-	clock-frequency = <100000>;
-	status = "okay";
-};
-
-&i2c1_lvds1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_lvds1_lpi2c1>;
-	clock-frequency = <100000>;
-	status = "okay";
-};
-
-&i2c0_mipi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_mipi0_lpi2c0>;
-	clock-frequency = <100000>;
-	status = "okay";
-};
-
-&i2c0_mipi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_mipi1_lpi2c0>;
-	clock-frequency = <100000>;
-	status = "okay";
-};
-
 &flexcan1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan1>;
@@ -806,18 +762,6 @@
 	pinctrl-names = "default";
 	reset-gpio = <&lsio_gpio5 0 GPIO_ACTIVE_LOW>;
 	status = "disabled";
-};
-
-&qm_pwm_lvds0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm_lvds0>;
-	status = "okay";
-};
-
-&pwm_lvds1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm_lvds1>;
-	status = "okay";
 };
 
 &usdhc1 {
