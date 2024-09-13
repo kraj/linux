@@ -558,9 +558,38 @@
 			#size-cells = <0>;
 			reg = <2>;
 
+			fxos8700@1e {
+				compatible = "nxp,fxos8700";
+				reg = <0x1e>;
+				interrupt-open-drain;
+			};
+
+			fxas21002c@21 {
+				compatible = "nxp,fxas21002c";
+				reg = <0x21>;
+				interrupt-open-drain;
+			};
+
 			pressure-sensor@60 {
 				compatible = "fsl,mpl3115";
 				reg = <0x60>;
+				interrupt-open-drain;
+			};
+
+			/* WCPU boards SCH-54536 */
+			ms5611@77 {
+				compatible = "meas,ms5611";
+				reg = <0x77>;
+			};
+
+			icm20602@68 {
+				compatible = "invensense,icm20602";
+				reg = <0x68>;
+			};
+
+			iam20380@69 {
+				compatible = "invensense,iam20380";
+				reg = <0x69>;
 			};
 		};
 
@@ -590,6 +619,12 @@
 				reg = <0x44>;
 				interrupt-parent = <&lsio_gpio1>;
 				interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			};
+
+			/* WCPU boards SCH-54536 */
+			vcnl4035@60 {
+				compatible = "vishay,vcnl4035";
+				reg = <0x60>;
 			};
 		};
 	};
