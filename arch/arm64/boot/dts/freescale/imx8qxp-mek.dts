@@ -17,6 +17,14 @@
 		#sound-dai-cells = <1>;
 	};
 
+	brcmfmac: brcmfmac {
+		compatible = "cypress,brcmfmac";
+		pinctrl-names = "init", "idle", "default";
+		pinctrl-0 = <&pinctrl_wifi_init>;
+		pinctrl-1 = <&pinctrl_wifi_init>;
+		pinctrl-2 = <&pinctrl_wifi>;
+	};
+
 	chosen {
 		stdout-path = &lpuart0;
 	};
@@ -1099,6 +1107,18 @@
 			IMX8QXP_USDHC1_DATA2_CONN_USDHC1_DATA2			0x00000021
 			IMX8QXP_USDHC1_DATA3_CONN_USDHC1_DATA3			0x00000021
 			IMX8QXP_USDHC1_VSELECT_CONN_USDHC1_VSELECT		0x00000021
+		>;
+	};
+
+	pinctrl_wifi: wifigrp{
+		fsl,pins = <
+			IMX8QXP_SCU_BOOT_MODE3_SCU_DSC_RTC_CLOCK_OUTPUT_32K	0x20
+		>;
+	};
+
+	pinctrl_wifi_init: wifi_initgrp{
+		fsl,pins = <
+			/* reserve pin init/idle_state to support multiple wlan cards */
 		>;
 	};
 };
