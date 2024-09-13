@@ -614,6 +614,10 @@
 	};
 };
 
+&amix {
+	status = "okay";
+};
+
 &cm40_intmux {
 	status = "okay";
 };
@@ -977,6 +981,7 @@
 	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai0>;
+	fsl,txm-rxs;
 	status = "okay";
 };
 
@@ -1000,6 +1005,7 @@
 	assigned-clock-parents = <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>;
 	assigned-clock-rates = <0>, <786432000>, <98304000>, <12288000>, <98304000>;
 	fsl,sai-asynchronous;
+	fsl,txm-rxs;
 	status = "okay";
 };
 
@@ -1012,6 +1018,7 @@
 	assigned-clock-parents = <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>;
 	assigned-clock-rates = <0>, <786432000>, <98304000>, <12288000>, <98304000>;
 	fsl,sai-asynchronous;
+	fsl,txm-rxs;
 	status = "okay";
 };
 
