@@ -1192,6 +1192,12 @@
 };
 
 &iomuxc {
+	pinctrl_hog: hoggrp {
+		fsl,pins = <
+			IMX8QXP_MCLK_OUT0_ADMA_ACM_MCLK_OUT0       0x0600004c
+//			IMX8QXP_COMP_CTL_GPIO_1V8_3V3_GPIORHB_PAD  0x000514a0
+		>;
+	};
 
 	pinctrl_cm40_i2c: cm40i2cgrp {
 		fsl,pins = <
