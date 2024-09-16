@@ -9,7 +9,12 @@
 /delete-node/ &adc1_lpcg;
 /delete-node/ &amix;
 /delete-node/ &amix_lpcg;
+/delete-node/ &dsp;
+/delete-node/ &dsp_lpcg;
+/delete-node/ &dsp_ram_lpcg;
 /delete-node/ &edma1;
+/delete-node/ &emvsim0;
+/delete-node/ &emvsim0_lpcg;
 /delete-node/ &esai0;
 /delete-node/ &esai0_lpcg;
 /delete-node/ &sai4;
