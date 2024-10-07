@@ -138,7 +138,8 @@
 		regulator-name = "fec1_supply";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&pca6416_1 11 GPIO_ACTIVE_LOW>;
+		gpio = <&pca6416_1 11 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 		regulator-always-on;
 		status = "disabled";
 	};
