@@ -1234,6 +1234,9 @@ pcam_i2c: &cm40_i2c {
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			IMX8QXP_MCLK_OUT0_ADMA_ACM_MCLK_OUT0       0x0600004c
