@@ -176,6 +176,7 @@ struct mxc_isi_plat_data {
 	bool buf_active_reverse;
 	bool has_36bit_dma;
 	bool raw32_chan_cfg;
+	bool buf_max_size;
 };
 
 struct mxc_isi_dma_buffer {
@@ -406,6 +407,9 @@ void mxc_isi_channel_set_inbuf(struct mxc_isi_pipe *pipe, dma_addr_t dma_addr);
 void mxc_isi_channel_set_outbuf(struct mxc_isi_pipe *pipe,
 				const dma_addr_t dma_addrs[3],
 				enum mxc_isi_buf_id buf_id);
+void mxc_isi_channel_set_max_size(struct mxc_isi_pipe *pipe,
+				  const struct v4l2_pix_format_mplane *pix,
+				  const bool buf_max_size);
 
 u32 mxc_isi_channel_irq_status(struct mxc_isi_pipe *pipe, bool clear);
 void mxc_isi_channel_irq_clear(struct mxc_isi_pipe *pipe);
