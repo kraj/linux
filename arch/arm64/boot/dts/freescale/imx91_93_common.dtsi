@@ -1109,7 +1109,7 @@
 
 		media_blk_ctrl: system-controller@4ac10000 {
 			compatible = "fsl,imx93-media-blk-ctrl", "syscon", "simple-mfd";
-			reg = <0x4ac10000 0x10000>;
+			reg = <0x4ac10000 0x70>;
 			power-domains = <&mediamix>;
 			clocks = <&clk IMX93_CLK_MEDIA_APB>,
 				 <&clk IMX93_CLK_MEDIA_AXI>,
