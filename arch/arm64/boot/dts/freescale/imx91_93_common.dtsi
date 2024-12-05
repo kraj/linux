@@ -1315,6 +1315,7 @@
 			      "a55_core", "ml_axi", "sys_pll_pfd0", "sys_pll_pfd0_div2",
 			      "sys_pll_pfd1", "sys_pll_pfd1_div2", "sys_pll_pfd2",
 			      "sys_pll_pfd2_div2";
+		#cooling-cells = <2>;
 		status = "disabled";
 	};
 
