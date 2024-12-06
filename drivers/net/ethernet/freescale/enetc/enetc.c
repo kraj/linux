@@ -1545,13 +1545,15 @@ static void enetc_add_rx_buff_to_skb(struct enetc_bdr *rx_ring, int i,
 
 static bool enetc_check_bd_errors_and_consume(struct enetc_bdr *rx_ring,
 					      u32 bd_status,
-					      union enetc_rx_bd **rxbd, int *i)
+					      union enetc_rx_bd **rxbd, int *i,
+					      int *cleaned_cnt)
 {
 	if (likely(!(bd_status & ENETC_RXBD_LSTATUS(ENETC_RXBD_ERR_MASK))))
 		return false;
 
 	enetc_put_rx_buff(rx_ring, &rx_ring->rx_swbd[*i]);
 	enetc_rxbd_next(rx_ring, rxbd, i);
+	(*cleaned_cnt)++;
 
 	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
 		dma_rmb();
@@ -1559,6 +1561,7 @@ static bool enetc_check_bd_errors_and_consume(struct enetc_bdr *rx_ring,
 
 		enetc_put_rx_buff(rx_ring, &rx_ring->rx_swbd[*i]);
 		enetc_rxbd_next(rx_ring, rxbd, i);
+		(*cleaned_cnt)++;
 	}
 
 	rx_ring->ndev->stats.rx_dropped++;
@@ -1640,8 +1643,8 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 		dma_rmb(); /* for reading other rxbd fields */
 
 		if (enetc_check_bd_errors_and_consume(rx_ring, bd_status,
-						      &rxbd, &i))
-			break;
+						      &rxbd, &i, &cleaned_cnt))
+			continue;
 
 		skb = enetc_build_skb(rx_ring, bd_status, &rxbd, &i,
 				      &cleaned_cnt, ENETC_RXB_DMA_SIZE);
@@ -1977,8 +1980,8 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 		dma_rmb(); /* for reading other rxbd fields */
 
 		if (enetc_check_bd_errors_and_consume(rx_ring, bd_status,
-						      &rxbd, &i))
-			break;
+						      &rxbd, &i, &cleaned_cnt))
+			continue;
 
 		orig_rxbd = rxbd;
 		orig_i = i;
