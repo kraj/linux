@@ -22,8 +22,115 @@
 #define DPAA2_MAC_FEATURE_PROTOCOL_CHANGE	BIT(0)
 #define DPAA2_MAC_FEATURE_STATS_BUNDLE		BIT(1)
 
-static void dpaa2_mac_setup_stats(struct dpaa2_mac *mac);
-static void dpaa2_mac_clear_stats(struct dpaa2_mac *mac);
+struct dpmac_counter {
+	enum dpmac_counter_id id;
+	const char *name;
+};
+
+#define DPMAC_UNSTRUCTURED_COUNTER(counter_id, counter_name)	\
+	{							\
+		.id = counter_id,				\
+		.name = counter_name,				\
+	}
+
+static const struct dpmac_counter dpaa2_mac_ethtool_stats[] = {
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_ALL_FRAME,  "[mac] rx all frames"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_GOOD_FRAME,  "[mac] rx frames ok"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_ERR_FRAME, "[mac] rx frame errors"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_DISCARD, "[mac] rx frame discards"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_UCAST_FRAME, "[mac] rx u-cast"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_BCAST_FRAME, "[mac] rx b-cast"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_MCAST_FRAME, "[mac] rx m-cast"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_64, "[mac] rx 64 bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_127, "[mac] rx 65-127 bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_255, "[mac] rx 128-255 bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_511, "[mac] rx 256-511 bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_1023, "[mac] rx 512-1023 bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_1518, "[mac] rx 1024-1518 bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAME_1519_MAX, "[mac] rx 1519-max bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_FRAG, "[mac] rx frags"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_JABBER, "[mac] rx jabber"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_ALIGN_ERR, "[mac] rx align errors"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_OVERSIZED, "[mac] rx oversized"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_VALID_PAUSE_FRAME, "[mac] rx pause"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_ING_BYTE, "[mac] rx bytes"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_GOOD_FRAME, "[mac] tx frames ok"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_UCAST_FRAME, "[mac] tx u-cast"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_MCAST_FRAME, "[mac] tx m-cast"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_BCAST_FRAME, "[mac] tx b-cast"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_ERR_FRAME, "[mac] tx frame errors"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_UNDERSIZED, "[mac] tx undersized"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_VALID_PAUSE_FRAME, "[mac] tx b-pause"),
+	DPMAC_UNSTRUCTURED_COUNTER(DPMAC_CNT_EGR_BYTE, "[mac] tx bytes"),
+};
+
+#define DPAA2_MAC_NUM_ETHTOOL_STATS	ARRAY_SIZE(dpaa2_mac_ethtool_stats)
+
+static void dpaa2_mac_setup_stats(struct dpaa2_mac *mac, struct dpaa2_mac_stats *stats,
+				  size_t num_stats, const struct dpmac_counter *counters)
+{
+	struct device *dev = mac->net_dev->dev.parent;
+	u32 *cnt_idx;
+
+	stats->idx_dma_mem = kcalloc(num_stats, sizeof(u32), GFP_KERNEL);
+	if (!stats->idx_dma_mem)
+		goto out;
+
+	stats->values_dma_mem = kcalloc(num_stats, sizeof(u64), GFP_KERNEL);
+	if (!stats->values_dma_mem)
+		goto err_alloc_values;
+
+	cnt_idx = stats->idx_dma_mem;
+	for (size_t i = 0; i < num_stats; i++)
+		*cnt_idx++ = cpu_to_le32((u32)(counters[i].id));
+
+	stats->idx_iova = dma_map_single(dev, stats->idx_dma_mem,
+					 num_stats * sizeof(u32),
+					 DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, stats->idx_iova))
+		goto err_dma_map_idx;
+
+	stats->values_iova = dma_map_single(dev, stats->values_dma_mem,
+					    num_stats * sizeof(u64),
+					    DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, stats->values_iova))
+		goto err_dma_map_values;
+
+	return;
+
+err_dma_map_values:
+	dma_unmap_single(dev, stats->idx_iova, num_stats * sizeof(u32),
+			 DMA_TO_DEVICE);
+err_dma_map_idx:
+	kfree(stats->values_dma_mem);
+err_alloc_values:
+	kfree(stats->idx_dma_mem);
+out:
+	stats->idx_dma_mem = NULL;
+	stats->values_dma_mem = NULL;
+}
+
+static void dpaa2_mac_clear_stats(struct dpaa2_mac *mac, struct dpaa2_mac_stats *stats,
+				  size_t num_stats)
+{
+	struct device *dev = mac->net_dev->dev.parent;
+
+	if (stats->idx_dma_mem) {
+		dma_unmap_single(dev, stats->idx_iova,
+				 num_stats * sizeof(u32),
+				 DMA_TO_DEVICE);
+		kfree(stats->idx_dma_mem);
+		stats->idx_dma_mem = NULL;
+	}
+
+	if (stats->values_dma_mem) {
+		dma_unmap_single(dev, stats->values_iova,
+				 num_stats * sizeof(u64),
+				 DMA_FROM_DEVICE);
+		kfree(stats->values_dma_mem);
+		stats->values_dma_mem = NULL;
+	}
+}
 
 static int dpaa2_mac_cmp_ver(struct dpaa2_mac *mac,
 			     u16 ver_major, u16 ver_minor)
@@ -559,7 +666,9 @@ int dpaa2_mac_open(struct dpaa2_mac *mac)
 	mac->fw_node = fw_node;
 	net_dev->dev.of_node = to_of_node(mac->fw_node);
 
-	dpaa2_mac_setup_stats(mac);
+	if (mac->features & DPAA2_MAC_FEATURE_STATS_BUNDLE)
+		dpaa2_mac_setup_stats(mac, &mac->ethtool_stats,
+				      DPAA2_MAC_NUM_ETHTOOL_STATS, dpaa2_mac_ethtool_stats);
 
 	return 0;
 
@@ -572,131 +681,25 @@ void dpaa2_mac_close(struct dpaa2_mac *mac)
 {
 	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
 
-	dpaa2_mac_clear_stats(mac);
+	if (mac->features & DPAA2_MAC_FEATURE_STATS_BUNDLE)
+		dpaa2_mac_clear_stats(mac, &mac->ethtool_stats, DPAA2_MAC_NUM_ETHTOOL_STATS);
 
 	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
 	if (mac->fw_node)
 		fwnode_handle_put(mac->fw_node);
 }
 
-static char dpaa2_mac_ethtool_stats[][ETH_GSTRING_LEN] = {
-	[DPMAC_CNT_ING_ALL_FRAME]		= "[mac] rx all frames",
-	[DPMAC_CNT_ING_GOOD_FRAME]		= "[mac] rx frames ok",
-	[DPMAC_CNT_ING_ERR_FRAME]		= "[mac] rx frame errors",
-	[DPMAC_CNT_ING_FRAME_DISCARD]		= "[mac] rx frame discards",
-	[DPMAC_CNT_ING_UCAST_FRAME]		= "[mac] rx u-cast",
-	[DPMAC_CNT_ING_BCAST_FRAME]		= "[mac] rx b-cast",
-	[DPMAC_CNT_ING_MCAST_FRAME]		= "[mac] rx m-cast",
-	[DPMAC_CNT_ING_FRAME_64]		= "[mac] rx 64 bytes",
-	[DPMAC_CNT_ING_FRAME_127]		= "[mac] rx 65-127 bytes",
-	[DPMAC_CNT_ING_FRAME_255]		= "[mac] rx 128-255 bytes",
-	[DPMAC_CNT_ING_FRAME_511]		= "[mac] rx 256-511 bytes",
-	[DPMAC_CNT_ING_FRAME_1023]		= "[mac] rx 512-1023 bytes",
-	[DPMAC_CNT_ING_FRAME_1518]		= "[mac] rx 1024-1518 bytes",
-	[DPMAC_CNT_ING_FRAME_1519_MAX]		= "[mac] rx 1519-max bytes",
-	[DPMAC_CNT_ING_FRAG]			= "[mac] rx frags",
-	[DPMAC_CNT_ING_JABBER]			= "[mac] rx jabber",
-	[DPMAC_CNT_ING_ALIGN_ERR]		= "[mac] rx align errors",
-	[DPMAC_CNT_ING_OVERSIZED]		= "[mac] rx oversized",
-	[DPMAC_CNT_ING_VALID_PAUSE_FRAME]	= "[mac] rx pause",
-	[DPMAC_CNT_ING_BYTE]			= "[mac] rx bytes",
-	[DPMAC_CNT_EGR_GOOD_FRAME]		= "[mac] tx frames ok",
-	[DPMAC_CNT_EGR_UCAST_FRAME]		= "[mac] tx u-cast",
-	[DPMAC_CNT_EGR_MCAST_FRAME]		= "[mac] tx m-cast",
-	[DPMAC_CNT_EGR_BCAST_FRAME]		= "[mac] tx b-cast",
-	[DPMAC_CNT_EGR_ERR_FRAME]		= "[mac] tx frame errors",
-	[DPMAC_CNT_EGR_UNDERSIZED]		= "[mac] tx undersized",
-	[DPMAC_CNT_EGR_VALID_PAUSE_FRAME]	= "[mac] tx b-pause",
-	[DPMAC_CNT_EGR_BYTE]			= "[mac] tx bytes",
-};
-
-#define DPAA2_MAC_NUM_STATS	ARRAY_SIZE(dpaa2_mac_ethtool_stats)
-
-#define DPAA2_MAC_STATS_INDEX_DMA_SIZE (DPAA2_MAC_NUM_STATS * sizeof(u32))
-#define DPAA2_MAC_STATS_VALUE_DMA_SIZE (DPAA2_MAC_NUM_STATS * sizeof(u64))
-
-static void dpaa2_mac_setup_stats(struct dpaa2_mac *mac)
-{
-	struct device *dev = mac->net_dev->dev.parent;
-	u32 *cnt_idx;
-	int i;
-
-	if (!(mac->features & DPAA2_MAC_FEATURE_STATS_BUNDLE))
-		return;
-
-	mac->cnt_idx_dma_mem = kzalloc(DPAA2_MAC_STATS_INDEX_DMA_SIZE, GFP_KERNEL);
-	if (!mac->cnt_idx_dma_mem)
-		goto out;
-
-	mac->cnt_values_dma_mem = kzalloc(DPAA2_MAC_STATS_VALUE_DMA_SIZE, GFP_KERNEL);
-	if (!mac->cnt_values_dma_mem)
-		goto err_alloc_values;
-
-	cnt_idx = mac->cnt_idx_dma_mem;
-	for (i = 0; i < DPAA2_MAC_NUM_STATS; i++)
-		*cnt_idx++ = cpu_to_le32((u32)i);
-
-	mac->cnt_idx_iova = dma_map_single(dev, mac->cnt_idx_dma_mem,
-					   DPAA2_MAC_STATS_INDEX_DMA_SIZE,
-					   DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, mac->cnt_idx_iova))
-		goto err_dma_map_idx;
-
-	mac->cnt_values_iova = dma_map_single(dev, mac->cnt_values_dma_mem,
-					      DPAA2_MAC_STATS_VALUE_DMA_SIZE,
-					      DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, mac->cnt_values_iova))
-		goto err_dma_map_values;
-
-	return;
-
-err_dma_map_values:
-	dma_unmap_single(dev, mac->cnt_idx_iova, DPAA2_MAC_STATS_INDEX_DMA_SIZE,
-			 DMA_TO_DEVICE);
-err_dma_map_idx:
-	kfree(mac->cnt_values_dma_mem);
-err_alloc_values:
-	kfree(mac->cnt_idx_dma_mem);
-out:
-	mac->cnt_idx_dma_mem = NULL;
-	mac->cnt_values_dma_mem = NULL;
-}
-
-static void dpaa2_mac_clear_stats(struct dpaa2_mac *mac)
-{
-	struct device *dev = mac->net_dev->dev.parent;
-
-	if (!(mac->features & DPAA2_MAC_FEATURE_STATS_BUNDLE))
-		return;
-
-	if (mac->cnt_idx_dma_mem) {
-		dma_unmap_single(dev, mac->cnt_idx_iova,
-				 DPAA2_MAC_STATS_INDEX_DMA_SIZE,
-				 DMA_TO_DEVICE);
-		kfree(mac->cnt_idx_dma_mem);
-		mac->cnt_idx_dma_mem = NULL;
-	}
-
-	if (mac->cnt_values_dma_mem) {
-		dma_unmap_single(dev, mac->cnt_values_iova,
-				 DPAA2_MAC_STATS_VALUE_DMA_SIZE,
-				 DMA_FROM_DEVICE);
-		kfree(mac->cnt_values_dma_mem);
-		mac->cnt_values_dma_mem = NULL;
-	}
-}
-
 int dpaa2_mac_get_sset_count(void)
 {
-	return DPAA2_MAC_NUM_STATS;
+	return DPAA2_MAC_NUM_ETHTOOL_STATS;
 }
 
 void dpaa2_mac_get_strings(u8 **data)
 {
 	int i;
 
-	for (i = 0; i < DPAA2_MAC_NUM_STATS; i++)
-		ethtool_puts(data, dpaa2_mac_ethtool_stats[i]);
+	for (i = 0; i < DPAA2_MAC_NUM_ETHTOOL_STATS; i++)
+		ethtool_puts(data, dpaa2_mac_ethtool_stats[i].name);
 }
 
 void dpaa2_mac_get_ethtool_stats(struct dpaa2_mac *mac, u64 *data)
@@ -710,21 +713,21 @@ void dpaa2_mac_get_ethtool_stats(struct dpaa2_mac *mac, u64 *data)
 	if (!(mac->features & DPAA2_MAC_FEATURE_STATS_BUNDLE))
 		goto fallback;
 
-	if (!mac->cnt_idx_dma_mem || !mac->cnt_values_dma_mem)
+	if (!mac->ethtool_stats.idx_dma_mem || !mac->ethtool_stats.values_dma_mem)
 		goto fallback;
 
 	err = dpmac_get_statistics(mac->mc_io, 0, dpmac_dev->mc_handle,
-				   mac->cnt_idx_iova, mac->cnt_values_iova,
-				   DPAA2_MAC_NUM_STATS);
+				   mac->ethtool_stats.idx_iova, mac->ethtool_stats.values_iova,
+				   DPAA2_MAC_NUM_ETHTOOL_STATS);
 	if (err)
 		goto fallback;
 
-	dma_sync_single_for_cpu(dev, mac->cnt_values_iova,
-				DPAA2_MAC_STATS_VALUE_DMA_SIZE,
+	dma_sync_single_for_cpu(dev, mac->ethtool_stats.values_iova,
+				DPAA2_MAC_NUM_ETHTOOL_STATS * sizeof(u64),
 				DMA_FROM_DEVICE);
 
-	cnt_values = mac->cnt_values_dma_mem;
-	for (i = 0; i < DPAA2_MAC_NUM_STATS; i++)
+	cnt_values = mac->ethtool_stats.values_dma_mem;
+	for (i = 0; i < DPAA2_MAC_NUM_ETHTOOL_STATS; i++)
 		*(data + i) = le64_to_cpu(*cnt_values++);
 
 	return;
@@ -732,7 +735,7 @@ void dpaa2_mac_get_ethtool_stats(struct dpaa2_mac *mac, u64 *data)
 fallback:
 
 	/* Fallback and retrieve each counter one by one */
-	for (i = 0; i < DPAA2_MAC_NUM_STATS; i++) {
+	for (i = 0; i < DPAA2_MAC_NUM_ETHTOOL_STATS; i++) {
 		err = dpmac_get_counter(mac->mc_io, 0, dpmac_dev->mc_handle,
 					i, &value);
 		if (err) {
