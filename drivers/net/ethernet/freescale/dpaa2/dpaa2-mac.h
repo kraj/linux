@@ -40,6 +40,7 @@ struct dpaa2_mac {
 	int phy_req_state;
 
 	struct dpaa2_mac_stats ethtool_stats;
+	struct dpaa2_mac_stats rmon_stats;
 };
 
 static inline bool dpaa2_mac_is_type_phy(struct dpaa2_mac *mac)
@@ -64,6 +65,9 @@ int dpaa2_mac_get_sset_count(void);
 void dpaa2_mac_get_strings(u8 **data);
 
 void dpaa2_mac_get_ethtool_stats(struct dpaa2_mac *mac, u64 *data);
+
+void dpaa2_mac_get_rmon_stats(struct dpaa2_mac *mac, struct ethtool_rmon_stats *s,
+			      const struct ethtool_rmon_hist_range **ranges);
 
 void dpaa2_mac_start(struct dpaa2_mac *mac);
 

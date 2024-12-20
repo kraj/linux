@@ -19,13 +19,24 @@
 #define DPMAC_STATS_BUNDLE_VER_MAJOR		4
 #define DPMAC_STATS_BUNDLE_VER_MINOR		10
 
+#define DPMAC_RMON_STATS_VER_MAJOR		4
+#define DPMAC_RMON_STATS_VER_MINOR		11
+
 #define DPAA2_MAC_FEATURE_PROTOCOL_CHANGE	BIT(0)
 #define DPAA2_MAC_FEATURE_STATS_BUNDLE		BIT(1)
+#define DPAA2_MAC_FEATURE_RMON_STATS		BIT(2)
 
 struct dpmac_counter {
 	enum dpmac_counter_id id;
+	size_t offset;
 	const char *name;
 };
+
+#define DPMAC_COUNTER(counter_id, struct_name, struct_offset)	\
+	{							\
+		.id = counter_id,				\
+		.offset = offsetof(struct_name, struct_offset),	\
+	}
 
 #define DPMAC_UNSTRUCTURED_COUNTER(counter_id, counter_name)	\
 	{							\
@@ -65,6 +76,29 @@ static const struct dpmac_counter dpaa2_mac_ethtool_stats[] = {
 };
 
 #define DPAA2_MAC_NUM_ETHTOOL_STATS	ARRAY_SIZE(dpaa2_mac_ethtool_stats)
+
+static const struct dpmac_counter dpaa2_mac_rmon_stats[] = {
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_64, struct ethtool_rmon_stats, hist[0]),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_127, struct ethtool_rmon_stats, hist[1]),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_255, struct ethtool_rmon_stats, hist[2]),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_511, struct ethtool_rmon_stats, hist[3]),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_1023, struct ethtool_rmon_stats, hist[4]),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_1518, struct ethtool_rmon_stats, hist[5]),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAME_1519_MAX, struct ethtool_rmon_stats, hist[6]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_64, struct ethtool_rmon_stats, hist_tx[0]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_127, struct ethtool_rmon_stats, hist_tx[1]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_255, struct ethtool_rmon_stats, hist_tx[2]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_511, struct ethtool_rmon_stats, hist_tx[3]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_1023, struct ethtool_rmon_stats, hist_tx[4]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_1518, struct ethtool_rmon_stats, hist_tx[5]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_FRAME_1519_MAX, struct ethtool_rmon_stats, hist_tx[6]),
+	DPMAC_COUNTER(DPMAC_CNT_EGR_UNDERSIZED, struct ethtool_rmon_stats, undersize_pkts),
+	DPMAC_COUNTER(DPMAC_CNT_ING_OVERSIZED, struct ethtool_rmon_stats, oversize_pkts),
+	DPMAC_COUNTER(DPMAC_CNT_ING_FRAG, struct ethtool_rmon_stats, fragments),
+	DPMAC_COUNTER(DPMAC_CNT_ING_JABBER, struct ethtool_rmon_stats, jabbers),
+};
+
+#define DPAA2_MAC_NUM_RMON_STATS	ARRAY_SIZE(dpaa2_mac_rmon_stats)
 
 static void dpaa2_mac_setup_stats(struct dpaa2_mac *mac, struct dpaa2_mac_stats *stats,
 				  size_t num_stats, const struct dpmac_counter *counters)
@@ -151,6 +185,10 @@ static void dpaa2_mac_detect_features(struct dpaa2_mac *mac)
 	if (dpaa2_mac_cmp_ver(mac, DPMAC_STATS_BUNDLE_VER_MAJOR,
 			      DPMAC_STATS_BUNDLE_VER_MINOR) >= 0)
 		mac->features |= DPAA2_MAC_FEATURE_STATS_BUNDLE;
+
+	if (dpaa2_mac_cmp_ver(mac, DPMAC_RMON_STATS_VER_MAJOR,
+			      DPMAC_RMON_STATS_VER_MINOR) >= 0)
+		mac->features |= DPAA2_MAC_FEATURE_RMON_STATS;
 }
 
 static int phy_mode(enum dpmac_eth_if eth_if, phy_interface_t *if_mode)
@@ -670,6 +708,10 @@ int dpaa2_mac_open(struct dpaa2_mac *mac)
 		dpaa2_mac_setup_stats(mac, &mac->ethtool_stats,
 				      DPAA2_MAC_NUM_ETHTOOL_STATS, dpaa2_mac_ethtool_stats);
 
+	if (mac->features & DPAA2_MAC_FEATURE_RMON_STATS)
+		dpaa2_mac_setup_stats(mac, &mac->rmon_stats,
+				      DPAA2_MAC_NUM_RMON_STATS, dpaa2_mac_rmon_stats);
+
 	return 0;
 
 err_close_dpmac:
@@ -684,9 +726,69 @@ void dpaa2_mac_close(struct dpaa2_mac *mac)
 	if (mac->features & DPAA2_MAC_FEATURE_STATS_BUNDLE)
 		dpaa2_mac_clear_stats(mac, &mac->ethtool_stats, DPAA2_MAC_NUM_ETHTOOL_STATS);
 
+	if (mac->features & DPAA2_MAC_FEATURE_RMON_STATS)
+		dpaa2_mac_clear_stats(mac, &mac->rmon_stats, DPAA2_MAC_NUM_RMON_STATS);
+
 	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
 	if (mac->fw_node)
 		fwnode_handle_put(mac->fw_node);
+}
+
+static void dpaa2_mac_transfer_stats(const struct dpmac_counter *counters,
+				     size_t num_counters, void *s,
+				     u64 *cnt_values)
+{
+	for (size_t i = 0; i < num_counters; i++) {
+		u64 *p = s + dpaa2_mac_rmon_stats[i].offset;
+
+		*p = le64_to_cpu(cnt_values[i]);
+	}
+}
+
+static const struct ethtool_rmon_hist_range dpaa2_mac_rmon_ranges[] = {
+	{   64,   64 },
+	{   65,  127 },
+	{  128,  255 },
+	{  256,  511 },
+	{  512, 1023 },
+	{ 1024, 1518 },
+	{ 1519, DPAA2_ETH_MFL },
+	{},
+};
+
+void dpaa2_mac_get_rmon_stats(struct dpaa2_mac *mac, struct ethtool_rmon_stats *s,
+			      const struct ethtool_rmon_hist_range **ranges)
+{
+	struct device *dev = mac->net_dev->dev.parent;
+	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
+	int err;
+
+	if (!(mac->features & DPAA2_MAC_FEATURE_RMON_STATS))
+		return;
+
+	if (!mac->rmon_stats.idx_dma_mem || !mac->rmon_stats.values_dma_mem)
+		return;
+
+	if (s->src != ETHTOOL_MAC_STATS_SRC_AGGREGATE)
+		return;
+
+	*ranges = dpaa2_mac_rmon_ranges;
+
+	err = dpmac_get_statistics(mac->mc_io, 0, dpmac_dev->mc_handle,
+				   mac->rmon_stats.idx_iova, mac->rmon_stats.values_iova,
+				   DPAA2_MAC_NUM_RMON_STATS);
+	if (err) {
+		netdev_err(mac->net_dev, "%s: dpmac_get_statistics() = %d\n",
+			   __func__, err);
+		return;
+	}
+
+	dma_sync_single_for_cpu(dev, mac->rmon_stats.values_iova,
+				DPAA2_MAC_NUM_RMON_STATS * sizeof(u64),
+				DMA_FROM_DEVICE);
+
+	dpaa2_mac_transfer_stats(dpaa2_mac_rmon_stats, DPAA2_MAC_NUM_RMON_STATS,
+				 s, mac->rmon_stats.values_dma_mem);
 }
 
 int dpaa2_mac_get_sset_count(void)
