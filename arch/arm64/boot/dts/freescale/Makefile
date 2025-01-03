@@ -462,6 +462,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-ab2.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-i2c-spi-slave.dtb
 DTC_FLAGS_imx95-15x15-evk-boe-wxga-lvds0-panel := -@
 DTC_FLAGS_imx95-15x15-evk-boe-wxga-lvds1-panel := -@
+DTC_FLAGS_imx95-15x15-evk-boe-wxga-lvds-two-panels := -@
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-boe-wxga-lvds0-panel.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-boe-wxga-lvds1-panel.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-boe-wxga-lvds-two-panels.dtb
