@@ -280,14 +280,21 @@ void vsi_dec_getvui(struct vsi_v4l2_ctx *ctx, struct v4l2_format *fmt)
 		  pix->ycbcr_enc, pix->quantization);
 }
 
-void vsi_dec_updatevui(struct v4l2_daemon_dec_info *src, struct v4l2_daemon_dec_info *dst)
+int vsi_dec_updatevui(struct v4l2_daemon_dec_info *src, struct v4l2_daemon_dec_info *dst)
 {
+	int vui_change = 0;
+
 	v4l2_klog(LOGLVL_CONFIG, "%s:%d:%d:%d", __func__,
 		src->colour_primaries, src->transfer_characteristics, src->matrix_coefficients);
-	dst->colour_description_present_flag = 1;
-	dst->colour_primaries = src->colour_primaries;
-	dst->transfer_characteristics = src->transfer_characteristics;
-	dst->matrix_coefficients = src->matrix_coefficients;
+
+	VSI_TEST_SET(dst->colour_description_present_flag,
+		     src->colour_description_present_flag, vui_change);
+	VSI_TEST_SET(dst->colour_primaries, src->colour_primaries, vui_change);
+	VSI_TEST_SET(dst->transfer_characteristics, src->transfer_characteristics, vui_change);
+	VSI_TEST_SET(dst->matrix_coefficients, src->matrix_coefficients, vui_change);
+	VSI_TEST_SET(dst->video_range, src->video_range, vui_change);
+
+	return vui_change;
 }
 
 static void vsi_enum_decfsize(struct v4l2_frmsizeenum *f, u32 pixel_format)
