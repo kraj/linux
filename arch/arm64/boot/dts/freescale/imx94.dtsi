@@ -195,6 +195,10 @@
 		};
 	};
 
+	imx94_soc: imx94-soc {
+		compatible = "fsl,imx94-soc";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		ranges;
