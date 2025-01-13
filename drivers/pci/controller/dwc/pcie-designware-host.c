@@ -1212,7 +1212,7 @@ int dw_pcie_suspend_noirq(struct dw_pcie *pci)
 		if (ret) {
 			/* Only log message when LTSSM isn't in DETECT or POLL */
 			dev_err(pci->dev, "Timeout waiting for L2 entry! LTSSM: 0x%x\n", val);
-			return ret;
+			ret = 0;
 		}
 	}
 
