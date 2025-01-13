@@ -1015,12 +1015,17 @@ static void phylink_mac_config(struct phylink *pl,
 	pl->mac_ops->mac_config(pl->config, pl->act_link_an_mode, &st);
 }
 
+static bool phylink_pcs_handles_an(phy_interface_t iface, unsigned int mode)
+{
+	return phy_interface_mode_is_8023z(iface) && phylink_autoneg_inband(mode);
+}
+
 static void phylink_pcs_an_restart(struct phylink *pl)
 {
 	if (pl->pcs && linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 					 pl->link_config.advertising) &&
-	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
-	    phylink_autoneg_inband(pl->act_link_an_mode))
+	    phylink_pcs_handles_an(pl->link_config.interface,
+				   pl->act_link_an_mode))
 		pl->pcs->ops->pcs_an_restart(pl->pcs);
 }
 
@@ -1952,8 +1957,8 @@ EXPORT_SYMBOL_GPL(phylink_destroy);
 bool phylink_expects_phy(struct phylink *pl)
 {
 	if (pl->cfg_link_an_mode == MLO_AN_FIXED ||
-	    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
-	     phy_interface_mode_is_8023z(pl->link_interface)))
+	    phylink_pcs_handles_an(pl->link_interface,
+				   pl->cfg_link_an_mode))
 		return false;
 	return true;
 }
@@ -2193,8 +2198,8 @@ static int phylink_attach_phy(struct phylink *pl, struct phy_device *phy,
 	u32 flags = 0;
 
 	if (WARN_ON(pl->cfg_link_an_mode == MLO_AN_FIXED ||
-		    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
-		     phy_interface_mode_is_8023z(interface) && !pl->sfp_bus)))
+		    (phylink_pcs_handles_an(interface, pl->cfg_link_an_mode) &&
+		     !pl->sfp_bus)))
 		return -EINVAL;
 
 	if (pl->phydev)
@@ -2281,10 +2286,11 @@ int phylink_fwnode_phy_connect(struct phylink *pl,
 	struct phy_device *phy_dev;
 	int ret;
 
-	/* Fixed links and 802.3z are handled without needing a PHY */
+	/* Fixed links and the modes where the PCS can handle autoneg with the
+	 * far end do not need a PHY.
+	 */
 	if (pl->cfg_link_an_mode == MLO_AN_FIXED ||
-	    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
-	     phy_interface_mode_is_8023z(pl->link_interface)))
+	    phylink_pcs_handles_an(pl->link_interface, pl->cfg_link_an_mode))
 		return 0;
 
 	phy_fwnode = fwnode_get_phy_node(fwnode);
