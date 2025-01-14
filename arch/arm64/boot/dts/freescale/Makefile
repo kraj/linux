@@ -671,11 +671,12 @@ imx95-19x19-evk-dual-os08a20-isp-it6263-lvds0-dtbs := imx95-19x19-evk-neoisp.dtb
 						      imx95-19x19-evk-it6263-lvds0.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-dual-os08a20-isp-it6263-lvds0.dtb
 
-imx95-19x19-evk-os08a20-isp-lvds-dual-dtbs := imx95-19x19-evk-neoisp.dtb \
+imx95-19x19-evk-os08a20-isp-lvds-two-disp-dtbs := imx95-19x19-evk-neoisp.dtb \
 							  imx95-19x19-evk-os08a20.dtbo \
 							  imx95-19x19-evk-os08a20-combo.dtbo \
-							  imx95-19x19-evk-it6263-lvds-dual.dtbo
-dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-os08a20-isp-lvds-dual.dtb
+							  imx95-19x19-evk-it6263-lvds0.dtbo \
+							  imx95-19x19-evk-it6263-lvds1.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-os08a20-isp-lvds-two-disp.dtb
 
 imx95-19x19-evk-ox03c10-isp-it6263-lvds0-dtbs := imx95-19x19-evk-neoisp.dtb imx95-19x19-evk-ox03c10.dtbo \
                         imx95-19x19-evk-it6263-lvds0.dtbo
@@ -685,10 +686,11 @@ imx95-19x19-evk-ox05b1s-isp-it6263-lvds0-dtbs := imx95-19x19-evk-neoisp.dtb imx9
 						 imx95-19x19-evk-it6263-lvds0.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-ox05b1s-isp-it6263-lvds0.dtb
 
-imx95-19x19-evk-ox05b1s-isp-lvds-dual-dtbs := imx95-19x19-evk-neoisp.dtb imx95-19x19-evk-ox05b1s.dtbo \
+imx95-19x19-evk-ox05b1s-isp-lvds-two-disp-dtbs := imx95-19x19-evk-neoisp.dtb imx95-19x19-evk-ox05b1s.dtbo \
 							  imx95-19x19-evk-ox05b1s-combo.dtbo \
-							  imx95-19x19-evk-it6263-lvds-dual.dtbo
-dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-ox05b1s-isp-lvds-dual.dtb
+							  imx95-19x19-evk-it6263-lvds0.dtbo \
+							  imx95-19x19-evk-it6263-lvds1.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-ox05b1s-isp-lvds-two-disp.dtb
 
 imx95-19x19-evk-neutron-dtbs := imx95-19x19-evk.dtb imx95-19x19-evk-neutron.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-neutron.dtb
