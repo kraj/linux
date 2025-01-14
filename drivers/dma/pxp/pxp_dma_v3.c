@@ -2269,7 +2269,9 @@ static int pxp_start(struct pxps *pxp)
 		__raw_writel(BF_PXP_INPUT_FETCH_CTRL_CH0_ARBIT_EN(1),
 			     pxp->base + HW_PXP_INPUT_FETCH_CTRL_CH0_SET);
 
-	val = (BM_PXP_CTRL_ENABLE | BM_PXP_CTRL_BLOCK_SIZE);
+	val = BM_PXP_CTRL_ENABLE;
+	val |= (pxp->devdata->version < PXP_V4) ? BM_PXP_CTRL_BLOCK_SIZE :
+						  BM_PXP_CTRL_BLOCK_SIZE_32x32;
 
 	if (pxp->devdata &&
 	    pxp_is_v3(pxp) &&
