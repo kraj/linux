@@ -87,6 +87,15 @@ void __iomem *pinctrl_base;
 #define PXP_2D_INPUT_STORE1	15
 #define PXP_2D_NUM		16
 
+/* define the pxp 2d input/output nodes mask */
+#define BM_PXP_2D_PS		BIT(PXP_2D_PS)
+#define BM_PXP_2D_AS		BIT(PXP_2D_AS)
+#define BM_PXP_2D_INPUT_FETCH0	BIT(PXP_2D_INPUT_FETCH0)
+#define BM_PXP_2D_INPUT_FETCH1	BIT(PXP_2D_INPUT_FETCH1)
+#define BM_PXP_2D_OUT		BIT(PXP_2D_OUT)
+#define BM_PXP_2D_INPUT_STORE0	BIT(PXP_2D_INPUT_STORE0)
+#define BM_PXP_2D_INPUT_STORE1	BIT(PXP_2D_INPUT_STORE1)
+
 #define PXP_2D_ALPHA0_S0_S1	0xaa
 #define PXP_2D_ALPHA1_S0_S1	0xbb
 
@@ -261,6 +270,17 @@ struct pxp_op_info{
 	int lut;
 	uint32_t lut_status_1;
 	uint32_t lut_status_2;
+};
+
+struct pxp_format_info {
+	u32	format;
+	u32	nodes;
+	u32	fmt_ctrl[PXP_2D_NUM];
+	u8	bpp;
+	enum {
+		PXP_ENC_RGB,
+		PXP_ENC_YUV,
+	} encoding;
 };
 
 struct pxp_pixmap {
@@ -996,6 +1016,248 @@ struct pxp_devdata {
 	void (*pxp_restart)(struct pxps *pxp);
 	unsigned int version;
 	bool input_fetch_arbit_en;
+	const struct pxp_format_info *info;
+	u32 info_size;
+};
+
+static const struct pxp_format_info common_formats[] = {
+	/* RGB */
+	{
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_XRGB32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGB888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_RGB555,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB555,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGB555,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB555,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_RGB444,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB444,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGB444,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB444,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_RGB565,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB565,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGB565,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB565,
+		},
+		.encoding	= PXP_ENC_RGB,
+	},
+	/* YUV */
+	{
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_YUV444,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__YUV1P444,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__YUV1P444,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_UYVY,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__UYVY1P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__UYVY1P422,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_VYUY,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__VYUY1P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__VYUY1P422,
+		},
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_UYVY,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__UYVY1P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__UYVY1P422,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_YUYV,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__UYVY1P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__UYVY1P422,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_YVYU,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__VYUY1P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__VYUY1P422,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 8,
+		.format		= PXP_PIX_FMT_GREY,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__Y8,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__Y8,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 4,
+		.format		= PXP_PIX_FMT_GY04,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__Y4,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__Y4,
+		},
+		.encoding = PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_NV12,
+		.fmt_ctrl	= {
+			[PXP_2D_PS] = BV_PXP_PS_CTRL_FORMAT__YUV2P420,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__YUV2P420,
+		},
+		.encoding = PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_NV21,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__YVU2P420,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__YVU2P420,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_NV16,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__YUV2P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__YUV2P422,
+		},
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_NV61,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__YVU2P422,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__YVU2P422,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_YUV422P,
+		.fmt_ctrl	= {
+			[PXP_2D_PS] = BV_PXP_PS_CTRL_FORMAT__YUV422,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_YUV420P,
+		.fmt_ctrl	= {
+			[PXP_2D_PS] = BV_PXP_PS_CTRL_FORMAT__YUV420,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_YVU420P,
+		.fmt_ctrl	= {
+			[PXP_2D_PS] = BV_PXP_PS_CTRL_FORMAT__YUV420,
+		},
+		.encoding	= PXP_ENC_YUV,
+	}, {
+		.nodes		= BM_PXP_2D_PS,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_VUY444,
+		.fmt_ctrl	= {
+			[PXP_2D_PS] = BV_PXP_PS_CTRL_FORMAT__YUV1P444,
+		},
+		.encoding	= PXP_ENC_YUV,
+	},
+	{ /* Sentinel */ }
+};
+
+static const struct pxp_format_info legacy_formats[] = {
+	/* RGB */
+	{
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_ARGB32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGB888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_AS,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_RGBA32,
+		.fmt_ctrl	= {
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGBA8888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_ARGB555,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB555,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__ARGB1555,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__ARGB1555,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_ARGB444,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB444,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__ARGB4444,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__ARGB4444,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_OUT,
+		.bpp		= 24,
+		.format		= PXP_PIX_FMT_RGB24,
+		.fmt_ctrl	= {
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB888P,
+		},
+		.encoding	= PXP_ENC_RGB,
+	},
+	{ /* Sentinel */ }
 };
 
 static const struct pxp_devdata pxp_devdata[] = {
@@ -1010,6 +1272,8 @@ static const struct pxp_devdata pxp_devdata[] = {
 		.pxp_restart = NULL,
 		.version = PXP_V3,
 		.input_fetch_arbit_en = false,
+		.info = legacy_formats,
+		.info_size = ARRAY_SIZE(legacy_formats),
 	},
 	[PXP_V3P] = {
 		.pxp_wfe_a_configure = pxp_wfe_a_configure_v3p,
@@ -1022,6 +1286,8 @@ static const struct pxp_devdata pxp_devdata[] = {
 		.pxp_restart = NULL,
 		.version = PXP_V3P,
 		.input_fetch_arbit_en = false,
+		.info = legacy_formats,
+		.info_size = ARRAY_SIZE(legacy_formats),
 	},
 	[PXP_V3_8ULP] = {
 		.pxp_wfe_a_configure = pxp_wfe_a_configure,
@@ -1034,6 +1300,8 @@ static const struct pxp_devdata pxp_devdata[] = {
 		.pxp_restart = pxp_software_restart,
 		.version = PXP_V3_8ULP,
 		.input_fetch_arbit_en = false,
+		.info = legacy_formats,
+		.info_size = ARRAY_SIZE(legacy_formats),
 	},
 	[PXP_V3_IMX93] = {
 		.pxp_wfe_a_configure = NULL,
@@ -1050,6 +1318,8 @@ static const struct pxp_devdata pxp_devdata[] = {
 		 * enable arbitration when use two PXP input fetch channels
 		 */
 		.input_fetch_arbit_en = true,
+		.info = legacy_formats,
+		.info_size = ARRAY_SIZE(legacy_formats),
 	},
 	[PXP_V4] = {
 		.pxp_wfe_a_configure = NULL,
@@ -1066,8 +1336,35 @@ static const struct pxp_devdata pxp_devdata[] = {
 		 * enable arbitration when use two PXP input fetch channels
 		 */
 		.input_fetch_arbit_en = true,
+		.info = legacy_formats,
+		.info_size = ARRAY_SIZE(legacy_formats),
 	},
 };
+
+static const struct pxp_format_info *
+pxp_format_by_fourcc(struct pxps *pxp, u32 fourcc, u32 node)
+{
+	const struct pxp_devdata *data = pxp->devdata;
+	unsigned int i;
+
+	/* Search platform related format list first */
+	for (i = 0; i < data->info_size; i++) {
+		const struct pxp_format_info *fmt = &data->info[i];
+
+		if (fmt->format == fourcc && fmt->nodes & BIT(node))
+			return fmt;
+	}
+
+	/* Search common formats list */
+	for (i = 0; i < ARRAY_SIZE(common_formats); i++) {
+		const struct pxp_format_info *fmt = &common_formats[i];
+
+		if (fmt->format == fourcc && fmt->nodes & BIT(node))
+			return fmt;
+	}
+
+	return NULL;
+}
 
 /*
  * PXP common functions
@@ -1310,73 +1607,17 @@ static u32 get_bpp_from_fmt(u32 pix_fmt)
 	return bpp;
 }
 
-static uint32_t pxp_parse_ps_fmt(uint32_t format)
+static uint32_t pxp_parse_ps_fmt(struct pxps *pxp, uint32_t format)
 {
-	uint32_t fmt_ctrl;
+	const struct pxp_format_info *fmt;
 
-	switch (format) {
-	case PXP_PIX_FMT_XRGB32:
-	case PXP_PIX_FMT_ARGB32:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__RGB888;
-		break;
-	case PXP_PIX_FMT_RGB565:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__RGB565;
-		break;
-	case PXP_PIX_FMT_RGB555:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__RGB555;
-		break;
-	case PXP_PIX_FMT_YUV420P:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YUV420;
-		break;
-	case PXP_PIX_FMT_YVU420P:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YUV420;
-		break;
-	case PXP_PIX_FMT_GREY:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__Y8;
-		break;
-	case PXP_PIX_FMT_GY04:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__Y4;
-		break;
-	case PXP_PIX_FMT_VUY444:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YUV1P444;
-		break;
-	case PXP_PIX_FMT_YUV422P:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YUV422;
-		break;
-	case PXP_PIX_FMT_UYVY:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__UYVY1P422;
-		break;
-	case PXP_PIX_FMT_YUYV:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__UYVY1P422;
-		break;
-	case PXP_PIX_FMT_VYUY:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__VYUY1P422;
-		break;
-	case PXP_PIX_FMT_YVYU:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__VYUY1P422;
-		break;
-	case PXP_PIX_FMT_NV12:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YUV2P420;
-		break;
-	case PXP_PIX_FMT_NV21:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YVU2P420;
-		break;
-	case PXP_PIX_FMT_NV16:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YUV2P422;
-		break;
-	case PXP_PIX_FMT_NV61:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__YVU2P422;
-		break;
-	case PXP_PIX_FMT_RGBA32:
-	case PXP_PIX_FMT_RGBX32:
-		fmt_ctrl = BV_PXP_PS_CTRL_FORMAT__RGBA888;
-		break;
-	default:
+	fmt = pxp_format_by_fourcc(pxp, format, PXP_2D_PS);
+	if (!fmt) {
 		pr_debug("PS doesn't support this format\n");
-		fmt_ctrl = 0;
+		return 0;
 	}
 
-	return fmt_ctrl;
+	return fmt->fmt_ctrl[PXP_2D_PS];
 }
 
 static void pxp_set_colorkey(struct pxps *pxp)
@@ -1422,102 +1663,30 @@ static void imx93_pxp_software_restart(struct pxps *pxp)
 	/* config mediamix for PXP, keep default so far */
 }
 
-static uint32_t pxp_parse_as_fmt(uint32_t format)
+static uint32_t pxp_parse_as_fmt(struct pxps *pxp, uint32_t format)
 {
-	uint32_t fmt_ctrl;
+	const struct pxp_format_info *fmt;
 
-	switch (format) {
-	case PXP_PIX_FMT_BGRA32:
-	case PXP_PIX_FMT_ARGB32:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__ARGB8888;
-		break;
-	case PXP_PIX_FMT_RGBA32:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGBA8888;
-		break;
-	case PXP_PIX_FMT_XRGB32:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGB888;
-		break;
-	case PXP_PIX_FMT_ARGB555:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__ARGB1555;
-		break;
-	case PXP_PIX_FMT_ARGB444:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__ARGB4444;
-		break;
-	case PXP_PIX_FMT_RGBA555:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGBA5551;
-		break;
-	case PXP_PIX_FMT_RGBA444:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGBA4444;
-		break;
-	case PXP_PIX_FMT_RGB555:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGB555;
-		break;
-	case PXP_PIX_FMT_RGB444:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGB444;
-		break;
-	case PXP_PIX_FMT_RGB565:
-		fmt_ctrl = BV_PXP_AS_CTRL_FORMAT__RGB565;
-		break;
-	default:
+	fmt = pxp_format_by_fourcc(pxp, format, PXP_2D_AS);
+	if (!fmt) {
 		pr_debug("AS doesn't support this format\n");
-		fmt_ctrl = 0xf;
-		break;
+		return 0xf;
 	}
 
-	return fmt_ctrl;
+	return fmt->fmt_ctrl[PXP_2D_AS];
 }
 
-static uint32_t pxp_parse_out_fmt(uint32_t format)
+static uint32_t pxp_parse_out_fmt(struct pxps *pxp, uint32_t format)
 {
-	uint32_t fmt_ctrl;
+	const struct pxp_format_info *fmt;
 
-	switch (format) {
-	case PXP_PIX_FMT_BGRA32:
-	case PXP_PIX_FMT_ARGB32:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__ARGB8888;
-		break;
-	case PXP_PIX_FMT_XRGB32:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__RGB888;
-		break;
-	case PXP_PIX_FMT_RGB24:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__RGB888P;
-		break;
-	case PXP_PIX_FMT_RGB565:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__RGB565;
-		break;
-	case PXP_PIX_FMT_RGB555:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__RGB555;
-		break;
-	case PXP_PIX_FMT_GREY:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__Y8;
-		break;
-	case PXP_PIX_FMT_GY04:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__Y4;
-		break;
-	case PXP_PIX_FMT_UYVY:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__UYVY1P422;
-		break;
-	case PXP_PIX_FMT_VYUY:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__VYUY1P422;
-		break;
-	case PXP_PIX_FMT_NV12:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__YUV2P420;
-		break;
-	case PXP_PIX_FMT_NV21:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__YVU2P420;
-		break;
-	case PXP_PIX_FMT_NV16:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__YUV2P422;
-		break;
-	case PXP_PIX_FMT_NV61:
-		fmt_ctrl = BV_PXP_OUT_CTRL_FORMAT__YVU2P422;
-		break;
-	default:
+	fmt = pxp_format_by_fourcc(pxp, format, PXP_2D_OUT);
+	if (!fmt) {
 		pr_debug("OUT doesn't support this format\n");
-		fmt_ctrl = 0;
+		return 0;
 	}
 
-	return fmt_ctrl;
+	return fmt->fmt_ctrl[PXP_2D_OUT];
 }
 
 static void set_mux(struct mux_config *path_ctrl)
@@ -2026,91 +2195,31 @@ static int pxp_start(struct pxps *pxp)
 	return 0;
 }
 
-static bool fmt_ps_support(uint32_t format)
+static bool fmt_ps_support(struct pxps *pxp, uint32_t format)
 {
-	switch (format) {
-	case PXP_PIX_FMT_XRGB32:
-	case PXP_PIX_FMT_ARGB32:
-	case PXP_PIX_FMT_RGB555:
-	case PXP_PIX_FMT_XRGB555:
-	case PXP_PIX_FMT_ARGB555:
-	case PXP_PIX_FMT_RGB444:
-	case PXP_PIX_FMT_XRGB444:
-	case PXP_PIX_FMT_ARGB444:
-	case PXP_PIX_FMT_RGB565:
-	case PXP_PIX_FMT_YUV444:
-	case PXP_PIX_FMT_UYVY:
-	case PXP_PIX_FMT_VUY444:
-	/* need word byte swap */
-	case PXP_PIX_FMT_YUYV:
-	case PXP_PIX_FMT_VYUY:
-	/* need word byte swap */
-	case PXP_PIX_FMT_YVYU:
-	case PXP_PIX_FMT_GREY:
-	case PXP_PIX_FMT_GY04:
-	case PXP_PIX_FMT_NV16:
-	case PXP_PIX_FMT_NV12:
-	case PXP_PIX_FMT_NV61:
-	case PXP_PIX_FMT_NV21:
-	case PXP_PIX_FMT_YUV422P:
-	case PXP_PIX_FMT_YUV420P:
-	case PXP_PIX_FMT_YVU420P:
-	case PXP_PIX_FMT_RGBA32:
-	case PXP_PIX_FMT_RGBX32:
-	case PXP_PIX_FMT_RGBA555:
-	case PXP_PIX_FMT_RGBA444:
-		return true;
-	default:
-		return false;
-	}
+	const struct pxp_format_info *fmt;
+
+	fmt = pxp_format_by_fourcc(pxp, format, PXP_2D_PS);
+
+	return fmt ? true : false;
 }
 
-static bool fmt_as_support(uint32_t format)
+static bool fmt_as_support(struct pxps *pxp, uint32_t format)
 {
-	switch (format) {
-	case PXP_PIX_FMT_ARGB32:
-	case PXP_PIX_FMT_RGBA32:
-	case PXP_PIX_FMT_XRGB32:
-	case PXP_PIX_FMT_BGRA32:
-	case PXP_PIX_FMT_ARGB555:
-	case PXP_PIX_FMT_ARGB444:
-	case PXP_PIX_FMT_RGBA555:
-	case PXP_PIX_FMT_RGBA444:
-	case PXP_PIX_FMT_RGB555:
-	case PXP_PIX_FMT_RGB444:
-	case PXP_PIX_FMT_RGB565:
-		return true;
-	default:
-		return false;
-	}
+	const struct pxp_format_info *fmt;
+
+	fmt = pxp_format_by_fourcc(pxp, format, PXP_2D_AS);
+
+	return fmt ? true : false;
 }
 
-static bool fmt_out_support(uint32_t format)
+static bool fmt_out_support(struct pxps *pxp, uint32_t format)
 {
-	switch (format) {
-	case PXP_PIX_FMT_ARGB32:
-	case PXP_PIX_FMT_ABGR32:
-	case PXP_PIX_FMT_XRGB32:
-	case PXP_PIX_FMT_BGRA32:
-	case PXP_PIX_FMT_RGB24:
-	case PXP_PIX_FMT_ARGB555:
-	case PXP_PIX_FMT_ARGB444:
-	case PXP_PIX_FMT_RGB555:
-	case PXP_PIX_FMT_RGB444:
-	case PXP_PIX_FMT_RGB565:
-	case PXP_PIX_FMT_YUV444:
-	case PXP_PIX_FMT_UYVY:
-	case PXP_PIX_FMT_VYUY:
-	case PXP_PIX_FMT_GREY:
-	case PXP_PIX_FMT_GY04:
-	case PXP_PIX_FMT_NV16:
-	case PXP_PIX_FMT_NV12:
-	case PXP_PIX_FMT_NV61:
-	case PXP_PIX_FMT_NV21:
-		return true;
-	default:
-		return false;
-	}
+	const struct pxp_format_info *fmt;
+
+	fmt = pxp_format_by_fourcc(pxp, format, PXP_2D_OUT);
+
+	return fmt ? true : false;
 }
 
 /* common means 'ARGB32/XRGB32/YUV444' */
@@ -2187,7 +2296,8 @@ static uint8_t fmt_store_from_common(uint32_t out)
 	}
 }
 
-static void filter_possible_inputs(struct pxp_pixmap *input,
+static void filter_possible_inputs(struct pxps *pxp,
+				   struct pxp_pixmap *input,
 				   size_t *possible)
 {
 	uint8_t clear = 0xff;
@@ -2200,11 +2310,11 @@ static void filter_possible_inputs(struct pxp_pixmap *input,
 
 		switch (position) {
 		case PXP_2D_PS:
-			if (!fmt_ps_support(input->format))
+			if (!fmt_ps_support(pxp, input->format))
 				clear = PXP_2D_PS;
 			break;
 		case PXP_2D_AS:
-			if (!fmt_as_support(input->format))
+			if (!fmt_as_support(pxp, input->format))
 				clear = PXP_2D_AS;
 			break;
 		case PXP_2D_INPUT_FETCH0:
@@ -2233,7 +2343,8 @@ static void filter_possible_inputs(struct pxp_pixmap *input,
 	} while (1);
 }
 
-static void filter_possible_outputs(struct pxp_pixmap *output,
+static void filter_possible_outputs(struct pxps *pxp,
+				    struct pxp_pixmap *output,
 				    size_t *possible)
 {
 	uint8_t clear = 0xff;
@@ -2246,7 +2357,7 @@ static void filter_possible_outputs(struct pxp_pixmap *output,
 
 		switch (position) {
 		case PXP_2D_OUT:
-			if (!fmt_out_support(output->format))
+			if (!fmt_out_support(pxp, output->format))
 				clear = PXP_2D_OUT;
 			break;
 		case PXP_2D_INPUT_STORE0:
@@ -2573,7 +2684,7 @@ static int pxp_ps_config(struct pxps *pxp,
 	memset((void*)&ctrl, 0x0, sizeof(ctrl));
 	memset((void *)&lrc, 0x0, sizeof(lrc));
 
-	ctrl.format = pxp_parse_ps_fmt(input->format);
+	ctrl.format = pxp_parse_ps_fmt(pxp, input->format);
 
 	switch (output->rotate) {
 	case 0:
@@ -2701,7 +2812,7 @@ static int pxp_as_config(struct pxps *pxp,
 
 	memset((void*)&ctrl, 0x0, sizeof(ctrl));
 
-	ctrl.format = pxp_parse_as_fmt(input->format);
+	ctrl.format = pxp_parse_as_fmt(pxp, input->format);
 
 	if (alpha_blending_version == PXP_ALPHA_BLENDING_V1) {
 		if (input->format == PXP_PIX_FMT_BGRA32) {
@@ -2946,7 +3057,7 @@ static int pxp_csc2_config(struct pxp_pixmap *output)
 	return 0;
 }
 
-static int pxp_out_config(struct pxp_pixmap *output)
+static int pxp_out_config(struct pxps *pxp, struct pxp_pixmap *output)
 {
 	uint32_t offset, UV;
 	struct out_ctrl ctrl;
@@ -2954,7 +3065,7 @@ static int pxp_out_config(struct pxp_pixmap *output)
 
 	memset((void*)&ctrl, 0x0, sizeof(ctrl));
 
-	ctrl.format = pxp_parse_out_fmt(output->format);
+	ctrl.format = pxp_parse_out_fmt(pxp, output->format);
 	offset = output->crop.y * output->pitch +
 		 output->crop.x * (output->bpp >> 3);
 
@@ -3312,7 +3423,7 @@ static int pxp_2d_task_config(struct pxps *pxp,
 			pxp_rotation0_config(input);
 			break;
 		case PXP_2D_OUT:
-			pxp_out_config(output);
+			pxp_out_config(pxp, output);
 			break;
 		case PXP_2D_INPUT_STORE0:
 		case PXP_2D_INPUT_STORE1:
@@ -3506,8 +3617,8 @@ reparse:
 							      OUT_NEED_SHIFT;
 		}
 
-		filter_possible_inputs(input, &possible_inputs);
-		filter_possible_outputs(output, &possible_outputs);
+		filter_possible_inputs(pxp, input, &possible_inputs);
+		filter_possible_outputs(pxp, output, &possible_outputs);
 
 		if (!possible_inputs || !possible_outputs) {
 			dev_err(&pxp->pdev->dev, "unsupport 2d operation\n");
@@ -3628,13 +3739,13 @@ reparse:
 			input_s1->flags |= IN_NEED_CSC;
 		}
 
-		filter_possible_inputs(input_s0, &possible_inputs_s0);
-		filter_possible_inputs(input_s1, &possible_inputs_s1);
+		filter_possible_inputs(pxp, input_s0, &possible_inputs_s0);
+		filter_possible_inputs(pxp, input_s1, &possible_inputs_s1);
 
 		if (!possible_inputs_s0 || !possible_inputs_s1)
 			return -EINVAL;
 
-		filter_possible_outputs(output, &possible_outputs);
+		filter_possible_outputs(pxp, output, &possible_outputs);
 		if (!possible_outputs)
 			return -EINVAL;
 
