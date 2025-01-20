@@ -148,8 +148,8 @@ static int imx8mp_hdmi_pavi_probe(struct platform_device *pdev)
 
 static void imx8mp_hdmi_pavi_remove(struct platform_device *pdev)
 {
-	gpavi = NULL;
 	clk_disable_unprepare(gpavi->clk_apb);
+	gpavi = NULL;
 }
 
 static const struct of_device_id imx8mp_hdmi_pavi_dt_ids[] = {
