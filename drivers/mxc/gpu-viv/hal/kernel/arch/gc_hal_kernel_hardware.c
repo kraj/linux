@@ -2615,9 +2615,7 @@ gckHARDWARE_InitializeHardware(IN gckHARDWARE Hardware)
                                           offset + 0x2C, 0x2));
     }
 
-
     gcmkONERROR(gckHARDWARE_SetMMU(Hardware, Hardware->kernel->mmu));
-
 
     if (Hardware->mcFE) {
         /* Reinitialize MCFE, now MMU is enabled. */
@@ -10368,7 +10366,6 @@ gckHARDWARE_ExecuteFunctions(IN gcsFUNCTION_EXECUTION_PTR Execution)
     gctUINT32   i, timer = 0, delay = 10;
     gctADDRESS  address;
     gckHARDWARE hardware = (gckHARDWARE)Execution->hardware;
-
 
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(hardware->os, "#[function: %s]", Execution->funcName);

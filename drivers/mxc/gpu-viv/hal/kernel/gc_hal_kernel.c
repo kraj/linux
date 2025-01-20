@@ -3491,9 +3491,11 @@ gckKERNEL_Dispatch(IN gckKERNEL Kernel, IN gckDEVICE Device,
                                                    gcvNULL,
                                                    0));
                     }
+
                     gcmkONERROR(gckKERNEL_FindDatabase(Kernel, processID, gcvFALSE, &database));
 
                     database->matchCaptureOnly = gcvTRUE;
+
                     break;
                 } else {
                     gctUINT i = 0;
@@ -3515,6 +3517,7 @@ gckKERNEL_Dispatch(IN gckKERNEL Kernel, IN gckDEVICE Device,
                 gcmkONERROR(gckCOMMAND_Attach(Kernel->command, &context, &bytes,
                                               &Interface->u.Attach.numStates, processID,
                                               Interface->u.Attach.shared));
+
                 Interface->u.Attach.maxState = bytes;
                 Interface->u.Attach.context = gcmPTR_TO_NAME(context);
             }
