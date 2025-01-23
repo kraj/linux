@@ -201,8 +201,8 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.reg_off = 0x8000,
 	.reg_read = imx_ocotp_reg_read,
-	.size = 2048,
-	.num_entry = 12,
+	.size = 2440, /* 610 words */
+	.num_entry = 15,
 	.se_soc_id = SOC_ID_OF_IMX95,
 	.entry = {
 		{ 0, 1, FUSE_FSB | FUSE_ECC },
@@ -216,7 +216,10 @@ static const struct ocotp_devtype_data imx95_ocotp_data = {
 		{ 188, 1, FUSE_ELE },
 		{ 317, 2, FUSE_FSB | FUSE_ECC },
 		{ 320, 7, FUSE_FSB },
-		{ 328, 184, FUSE_FSB }
+		{ 328, 64, FUSE_FSB },
+		{ 448, 143, FUSE_FSB},
+		{ 591, 1, FUSE_FSB | FUSE_ECC },
+		{ 592, 16, FUSE_FSB }
 	},
 };
 
