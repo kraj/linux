@@ -1905,9 +1905,11 @@ static uint32_t get_mux_val(struct mux_config *muxes,
 	}
 }
 
-static uint32_t pxp_store_ctrl_config(struct pxp_pixmap *out, uint8_t mode,
+static uint32_t pxp_store_ctrl_config(struct pxps *pxp,
+				      struct pxp_pixmap *out, uint8_t mode,
 				      uint8_t fill_en, uint8_t combine_2ch)
 {
+	const struct pxp_devdata *data = pxp->devdata;
 	struct store_ctrl ctrl;
 	uint8_t output_active_bpp;
 
@@ -1930,9 +1932,15 @@ static uint32_t pxp_store_ctrl_config(struct pxp_pixmap *out, uint8_t mode,
 	if (out && (out->rotate || out->flip))
 		ctrl.block_en = 1;
 
+	if (data->version < PXP_V4) {
+		ctrl.block_16 = 1;
+		ctrl.wr_num_bytes = 3;
+	} else {
+		ctrl.block_32 = 1;
+		ctrl.wr_num_bytes = 4;
+	}
+
 	ctrl.ch_en = 1;
-	ctrl.block_16 = 1;
-	ctrl.wr_num_bytes = 3;
 
 	return *(uint32_t *)&ctrl;
 }
@@ -2107,9 +2115,11 @@ static uint32_t pxp_store_shift_ctrl_config(struct pxp_pixmap *out,
 	return *(uint32_t *)&shift_ctrl;
 }
 
-static uint32_t pxp_fetch_ctrl_config(struct pxp_pixmap *in,
+static uint32_t pxp_fetch_ctrl_config(struct pxps *pxp,
+				      struct pxp_pixmap *in,
 				      uint8_t mode)
 {
+	const struct pxp_devdata *data = pxp->devdata;
 	struct fetch_ctrl ctrl;
 
 	memset((void*)&ctrl, 0x0, sizeof(ctrl));
@@ -2127,9 +2137,15 @@ static uint32_t pxp_fetch_ctrl_config(struct pxp_pixmap *in,
 	if (in->rotate || in->flip)
 		ctrl.block_en = 1;
 
-	ctrl.block_16 = 1;
+	if (data->version < PXP_V4) {
+		ctrl.block_16 = 1;
+		ctrl.rd_num_bytes = 3;
+	} else {
+		ctrl.block_32 = 1;
+		ctrl.rd_num_bytes = 4;
+	}
+
 	ctrl.ch_en = 1;
-	ctrl.rd_num_bytes = 3;
 
 	return *(uint32_t *)&ctrl;
 }
@@ -2973,7 +2989,8 @@ static uint32_t pxp_fetch_size_config(struct pxp_pixmap *input)
 	return *(uint32_t *)&total_size;
 }
 
-static int pxp_fetch_config(struct pxp_pixmap *input,
+static int pxp_fetch_config(struct pxps *pxp,
+			    struct pxp_pixmap *input,
 			    uint32_t fetch_index)
 {
 	uint8_t  shift_bypass = 1, expand_en = 0;
@@ -2985,7 +3002,7 @@ static int pxp_fetch_config(struct pxp_pixmap *input,
 	struct fetch_shift_width shift_width;
 
 	memset((unsigned int *)&shift_width, 0x0, sizeof(shift_width));
-	fetch_ctrl = pxp_fetch_ctrl_config(input, FETCH_MODE_NORMAL);
+	fetch_ctrl = pxp_fetch_ctrl_config(pxp, input, FETCH_MODE_NORMAL);
 	size_ulc = pxp_fetch_active_size_ulc(input);
 	size_lrc = pxp_fetch_active_size_lrc(input);
 	total_size = pxp_fetch_size_config(input);
@@ -3204,7 +3221,8 @@ static int pxp_out_config(struct pxps *pxp, struct pxp_pixmap *output)
 	return 0;
 }
 
-static int pxp_store_config(struct pxp_pixmap *output,
+static int pxp_store_config(struct pxps *pxp,
+			    struct pxp_pixmap *output,
 			    struct pxp_op_info *op)
 {
 	uint8_t combine_2ch, flags;
@@ -3215,7 +3233,7 @@ static int pxp_store_config(struct pxp_pixmap *output,
 
 	memset((void*)d_mask, 0x0, sizeof(*d_mask) * 8);
 	combine_2ch = (output->bpp == 64) ? 1 : 0;
-	store_ctrl  = pxp_store_ctrl_config(output, STORE_MODE_NORMAL,
+	store_ctrl  = pxp_store_ctrl_config(pxp, output, STORE_MODE_NORMAL,
 					    op->fill_en, combine_2ch);
 	store_size  = pxp_store_size_config(output);
 	store_pitch = pxp_store_pitch_config(output, NULL);
@@ -3495,7 +3513,7 @@ static int pxp_2d_task_config(struct pxps *pxp,
 			break;
 		case PXP_2D_INPUT_FETCH0:
 		case PXP_2D_INPUT_FETCH1:
-			pxp_fetch_config(input, position);
+			pxp_fetch_config(pxp, input, position);
 			break;
 		case PXP_2D_CSC1:
 			pxp_csc1_config(input, true);
@@ -3524,7 +3542,7 @@ static int pxp_2d_task_config(struct pxps *pxp,
 			break;
 		case PXP_2D_INPUT_STORE0:
 		case PXP_2D_INPUT_STORE1:
-			pxp_store_config(output, op);
+			pxp_store_config(pxp, output, op);
 			break;
 		default:
 			break;
