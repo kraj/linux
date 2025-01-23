@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/firmware/imx/se_api.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
@@ -34,6 +35,7 @@ struct ocotp_devtype_data {
 	u32 num_entry;
 	u32 flag;
 	nvmem_reg_read_t reg_read;
+	uint32_t se_soc_id;
 	struct ocotp_map_entry entry[];
 };
 
@@ -43,6 +45,7 @@ struct imx_ocotp_priv {
 	struct nvmem_config config;
 	struct mutex lock;
 	const struct ocotp_devtype_data *data;
+	void *se_data;
 };
 
 static enum fuse_type imx_ocotp_fuse_type(void *context, u32 index)
@@ -73,6 +76,7 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 	void *p;
 	int i;
 	u8 skipbytes;
+	int ret = 0;
 
 	if (offset + bytes > priv->data->size)
 		bytes = priv->data->size - offset;
@@ -92,24 +96,27 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 
 	for (i = index; i < (index + count); i++) {
 		type = imx_ocotp_fuse_type(context, i);
-		if (type == FUSE_INVALID || type == FUSE_ELE) {
-			*buf++ = 0;
-			continue;
-		}
 
-		if (type & FUSE_ECC)
+		if (type == FUSE_INVALID) {
+			*buf++ = 0;
+		} else if (type == (FUSE_FSB | FUSE_ECC)) {
 			*buf++ = readl_relaxed(reg + (i << 2)) & GENMASK(15, 0);
-		else
+		} else if (type == FUSE_FSB) {
 			*buf++ = readl_relaxed(reg + (i << 2));
+		} else if (type == FUSE_ELE) {
+			ret = imx_se_read_fuse(priv->se_data, i, buf++);
+			if (ret)
+				goto err;
+		}
 	}
 
 	memcpy(val, ((u8 *)p) + skipbytes, bytes);
-
+err:
 	mutex_unlock(&priv->lock);
 
 	kfree(p);
 
-	return 0;
+	return ret;
 };
 
 static int imx_ocotp_cell_pp(void *context, const char *id, int index,
@@ -150,6 +157,10 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+	priv->se_data = imx_get_se_data_info(priv->data->se_soc_id, 0);
+	if (!priv->se_data)
+		return -EPERM;
+
 	priv->config.dev = dev;
 	priv->config.name = "ELE-OCOTP";
 	priv->config.id = NVMEM_DEVID_AUTO;
@@ -176,6 +187,7 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 	.reg_read = imx_ocotp_reg_read,
 	.size = 2048,
 	.num_entry = 6,
+	.se_soc_id = SOC_ID_OF_IMX93,
 	.entry = {
 		{ 0, 52, FUSE_FSB },
 		{ 63, 1, FUSE_ELE},
@@ -191,6 +203,7 @@ static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.reg_read = imx_ocotp_reg_read,
 	.size = 2048,
 	.num_entry = 12,
+	.se_soc_id = SOC_ID_OF_IMX95,
 	.entry = {
 		{ 0, 1, FUSE_FSB | FUSE_ECC },
 		{ 7, 1, FUSE_FSB | FUSE_ECC },
