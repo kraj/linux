@@ -111,7 +111,9 @@ config NVMEM_IMX_OCOTP_ELE
 	tristate "i.MX On-Chip OTP Controller support"
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_IOMEM
+	depends on IMX_SEC_ENCLAVE
 	depends on OF
+	default y
 	help
 	  This is a driver for the On-Chip OTP Controller (OCOTP)
 	  available on i.MX SoCs which has ELE.
