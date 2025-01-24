@@ -188,6 +188,7 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	priv->config.id = NVMEM_DEVID_AUTO;
 	priv->config.owner = THIS_MODULE;
 	priv->config.size = priv->data->size;
+	priv->config.add_legacy_fixed_of_cells = true;
 	priv->config.reg_read = priv->data->reg_read;
 	priv->config.word_size = 1;
 	priv->config.reg_write = priv->data->reg_write;
