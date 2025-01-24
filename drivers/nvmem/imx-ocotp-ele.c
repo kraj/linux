@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/firmware/imx/se_api.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -17,6 +18,7 @@
 
 #define MAC1_ADDR_OFFSET_BYTE 0x4ec
 #define MAC2_ADDR_OFFSET_BYTE 0x4f2
+#define IMX95_MAC_ADDR_OFFSET 0x514
 
 enum fuse_type {
 	FUSE_FSB = BIT(0),
@@ -41,7 +43,10 @@ struct ocotp_devtype_data {
 	nvmem_reg_read_t reg_write;
 	uint32_t se_soc_id;
 	bool fuse_mac_addr_93;
+	bool fuse_mac_addr_95;
 	bool reverse_mac_address;
+	bool increase_mac_address;
+	const u8 *pf_mac_offset_list;
 	struct ocotp_map_entry entry[];
 };
 
@@ -52,6 +57,7 @@ struct imx_ocotp_priv {
 	struct mutex lock;
 	const struct ocotp_devtype_data *data;
 	void *se_data;
+	u8 pfn;
 };
 
 static enum fuse_type imx_ocotp_fuse_type(void *context, u32 index)
@@ -99,6 +105,13 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 
 			memcpy(val, (u8 *)(mac2_addr) + 2, bytes);
 			return ret;
+		}
+	}
+
+	if (priv->data->fuse_mac_addr_95) {
+		if ((offset & 0xfff) == IMX95_MAC_ADDR_OFFSET) {
+			priv->pfn = offset >> 12 & 0xf;
+			offset = offset & 0xfff;
 		}
 	}
 
@@ -202,6 +215,12 @@ static int imx_ocotp_ele_post_process(void *context, const char *id, int index,
 			for (i = 0; i < bytes / 2; i++)
 				swap(buf[i], buf[bytes - i - 1]);
 		}
+
+		if (priv->data->increase_mac_address && priv->data->pf_mac_offset_list) {
+			if (priv->pfn >= sizeof(priv->data->pf_mac_offset_list))
+				return -EINVAL;
+			eth_addr_add(buf, priv->data->pf_mac_offset_list[priv->pfn]);
+		}
 	}
 
 	return 0;
@@ -248,7 +267,7 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	priv->config.priv = priv;
 	priv->config.add_legacy_fixed_of_cells = true;
 	priv->config.fixup_dt_cell_info = imx_ocotp_fixup_dt_cell_info;
-	if (priv->data->reverse_mac_address)
+	if (priv->data->reverse_mac_address || priv->data->increase_mac_address)
 		priv->config.fixup_dt_cell_info = &imx_ocotp_ele_fixup_dt_cell;
 	mutex_init(&priv->lock);
 
@@ -280,6 +299,7 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 	},
 };
 
+static const u8 imx95_pf_mac_offset_list[] = { 0, 3, 6 };
 static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.reg_off = 0x8000,
 	.reg_read = imx_ocotp_reg_read,
@@ -287,6 +307,9 @@ static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.size = 2440, /* 610 words */
 	.num_entry = 15,
 	.se_soc_id = SOC_ID_OF_IMX95,
+	.fuse_mac_addr_95 = true,
+	.increase_mac_address = true,
+	.pf_mac_offset_list = imx95_pf_mac_offset_list,
 	.entry = {
 		{ 0, 1, FUSE_FSB | FUSE_ECC },
 		{ 7, 1, FUSE_FSB | FUSE_ECC },
