@@ -15,6 +15,9 @@
 #include <linux/slab.h>
 #include <linux/if_ether.h>	/* ETH_ALEN */
 
+#define MAC1_ADDR_OFFSET_BYTE 0x4ec
+#define MAC2_ADDR_OFFSET_BYTE 0x4f2
+
 enum fuse_type {
 	FUSE_FSB = BIT(0),
 	FUSE_ELE = BIT(1),
@@ -37,6 +40,8 @@ struct ocotp_devtype_data {
 	nvmem_reg_read_t reg_read;
 	nvmem_reg_read_t reg_write;
 	uint32_t se_soc_id;
+	bool fuse_mac_addr_93;
+	bool reverse_mac_address;
 	struct ocotp_map_entry entry[];
 };
 
@@ -78,6 +83,24 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 	int i;
 	u8 skipbytes;
 	int ret = 0;
+
+	if (priv->data->fuse_mac_addr_93) {
+		if (offset == MAC2_ADDR_OFFSET_BYTE) {
+			offset = offset / 4;
+			u32 mac2_addr[2];
+
+			ret = imx_se_read_fuse(priv->se_data, offset, &mac2_addr[0]);
+			if (ret)
+				return ret;
+
+			ret = imx_se_read_fuse(priv->se_data, offset + 1, &mac2_addr[1]);
+			if (ret)
+				return ret;
+
+			memcpy(val, (u8 *)(mac2_addr) + 2, bytes);
+			return ret;
+		}
+	}
 
 	if (offset + bytes > priv->data->size)
 		bytes = priv->data->size - offset;
@@ -163,6 +186,35 @@ static int imx_ocotp_reg_write(void *context, unsigned int offset, void *val, si
 	return ret;
 }
 
+static int imx_ocotp_ele_post_process(void *context, const char *id, int index,
+				      unsigned int offset, void *data, size_t bytes)
+{
+	struct imx_ocotp_priv *priv = context;
+	u8 *buf = data;
+	int i;
+
+	if (!priv)
+		return -EINVAL;
+
+	/* Deal with some post processing of nvmem cell data */
+	if (id && !strcmp(id, "mac-address")) {
+		if (priv->data->reverse_mac_address) {
+			for (i = 0; i < bytes / 2; i++)
+				swap(buf[i], buf[bytes - i - 1]);
+		}
+	}
+
+	return 0;
+}
+
+struct imx_ocotp_priv *gpriv;
+static void imx_ocotp_ele_fixup_dt_cell(struct nvmem_device *nvmem,
+					struct nvmem_cell_info *cell)
+{
+	cell->priv = gpriv;
+	cell->read_post_process = imx_ocotp_ele_post_process;
+}
+
 static int imx_ele_ocotp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -172,6 +224,7 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+	gpriv = priv;
 
 	priv->data = of_device_get_match_data(dev);
 
@@ -195,6 +248,8 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	priv->config.priv = priv;
 	priv->config.add_legacy_fixed_of_cells = true;
 	priv->config.fixup_dt_cell_info = imx_ocotp_fixup_dt_cell_info;
+	if (priv->data->reverse_mac_address)
+		priv->config.fixup_dt_cell_info = &imx_ocotp_ele_fixup_dt_cell;
 	mutex_init(&priv->lock);
 
 	nvmem = devm_nvmem_register(dev, &priv->config);
@@ -211,6 +266,8 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 	.size = 2048,
 	.num_entry = 8,
 	.se_soc_id = SOC_ID_OF_IMX93,
+	.fuse_mac_addr_93 = true,
+	.reverse_mac_address = true,
 	.entry = {
 		{ 0, 1, FUSE_ELE },
 		{ 2, 50, FUSE_ELE },
