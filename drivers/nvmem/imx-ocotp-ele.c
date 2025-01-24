@@ -35,6 +35,7 @@ struct ocotp_devtype_data {
 	u32 num_entry;
 	u32 flag;
 	nvmem_reg_read_t reg_read;
+	nvmem_reg_read_t reg_write;
 	uint32_t se_soc_id;
 	struct ocotp_map_entry entry[];
 };
@@ -141,6 +142,27 @@ static void imx_ocotp_fixup_dt_cell_info(struct nvmem_device *nvmem,
 	cell->read_post_process = imx_ocotp_cell_pp;
 }
 
+static int imx_ocotp_reg_write(void *context, unsigned int offset, void *val, size_t bytes)
+{
+	struct imx_ocotp_priv *priv = context;
+	u32 *buf = val;
+	u32 index;
+	int ret;
+
+	/* allow only writing one complete OTP word at a time */
+	if (bytes != 4)
+		return -EINVAL;
+
+	/* divide the offset by the word size to get the word count */
+	index = offset / 4;
+
+	mutex_lock(&priv->lock);
+	ret = imx_se_write_fuse(priv->se_data, index, *buf, false);
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 static int imx_ele_ocotp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -168,9 +190,8 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	priv->config.size = priv->data->size;
 	priv->config.reg_read = priv->data->reg_read;
 	priv->config.word_size = 1;
-	priv->config.stride = 1;
+	priv->config.reg_write = priv->data->reg_write;
 	priv->config.priv = priv;
-	priv->config.read_only = true;
 	priv->config.add_legacy_fixed_of_cells = true;
 	priv->config.fixup_dt_cell_info = imx_ocotp_fixup_dt_cell_info;
 	mutex_init(&priv->lock);
@@ -185,6 +206,7 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 static const struct ocotp_devtype_data imx93_ocotp_data = {
 	.reg_off = 0x8000,
 	.reg_read = imx_ocotp_reg_read,
+	.reg_write = imx_ocotp_reg_write,
 	.size = 2048,
 	.num_entry = 8,
 	.se_soc_id = SOC_ID_OF_IMX93,
@@ -203,6 +225,7 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.reg_off = 0x8000,
 	.reg_read = imx_ocotp_reg_read,
+	.reg_write = imx_ocotp_reg_write,
 	.size = 2440, /* 610 words */
 	.num_entry = 15,
 	.se_soc_id = SOC_ID_OF_IMX95,
