@@ -182,7 +182,7 @@ static const struct ox03c10_reg {
 };
 
 static const struct regmap_range ox03c10_volatile_ranges[] = {
-	{ 0x7057, 0x7059 }, { 0x705b, 0x705d }, /* OTP correction registers */
+	{ 0x7057, 0x7059 }, { 0x705b, 0x705d }, { 0x705f, 0x7061 }, /* OTP correction registers */
 
 };
 
@@ -196,7 +196,7 @@ static const struct regmap_config ox03c10_sensor_regmap_cfg = {
 	.reg_bits = 16,
 	.val_bits = 8,
 
-	.max_register = 0x705D,
+	.max_register = 0x7061,
 	.volatile_table = &ox03c10_volatile_access_table,
 	.cache_type = REGCACHE_RBTREE,
 };
@@ -713,6 +713,8 @@ static int ox03c10_otp_correction_get(struct ox03c10 *sensor, void *ret_values)
 	otp->val1 = (reg_val[0] << 16) | (reg_val[1] << 8) | reg_val[2];
 	ret |= regmap_bulk_read(sensor->rmap, 0x705b, reg_val, 3);
 	otp->val2 = (reg_val[0] << 16) | (reg_val[1] << 8) | reg_val[2];
+	ret |= regmap_bulk_read(sensor->rmap, 0x705f, reg_val, 3);
+	otp->val3 = (reg_val[0] << 16) | (reg_val[1] << 8) | reg_val[2];
 
 	return ret ? -EIO : 0;
 }
