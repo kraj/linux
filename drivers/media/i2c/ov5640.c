@@ -57,6 +57,7 @@
 #define OV5640_REG_PAD_OUTPUT_ENABLE01	0x3017
 #define OV5640_REG_PAD_OUTPUT_ENABLE02	0x3018
 #define OV5640_REG_PAD_OUTPUT00		0x3019
+#define OV5640_REG_CHIP_REVISION	0x302a
 #define OV5640_REG_SYSTEM_CONTROL1	0x302e
 #define OV5640_REG_SC_PLL_CTRL0		0x3034
 #define OV5640_REG_SC_PLL_CTRL1		0x3035
@@ -3879,6 +3880,7 @@ static int ov5640_check_chip_id(struct ov5640_dev *sensor)
 	struct i2c_client *client = sensor->i2c_client;
 	int ret = 0;
 	u16 chip_id;
+	u8 chip_rev;
 
 	ret = ov5640_read_reg16(sensor, OV5640_REG_CHIP_ID, &chip_id);
 	if (ret) {
@@ -3892,6 +3894,14 @@ static int ov5640_check_chip_id(struct ov5640_dev *sensor)
 			__func__, chip_id);
 		return -ENXIO;
 	}
+
+	ret = ov5640_read_reg(sensor, OV5640_REG_CHIP_REVISION, &chip_rev);
+	if (ret) {
+		dev_err(&client->dev, "%s: fail to read chip revision\n",
+			__func__);
+		return ret;
+	}
+	dev_dbg(&client->dev, "%s: chip revision=0x%x\n", __func__, chip_rev);
 
 	return 0;
 }
