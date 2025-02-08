@@ -497,4 +497,10 @@
 /* Port MAC Merge Hold Count Register */
 #define ENETC4_MMHCR			0x581c
 
+/* Port internal MDIO base address, use to access PCS */
+#define ENETC4_PM_IMDIO_BASE		0x5030
+
+/* Port external MDIO Base address, use to access off-chip PHY */
+#define ENETC4_EMDIO_BASE		0x5c00
+
 #endif

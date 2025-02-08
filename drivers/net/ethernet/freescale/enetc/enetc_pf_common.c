@@ -155,6 +155,14 @@ void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 }
 EXPORT_SYMBOL_GPL(enetc_pf_netdev_setup);
 
+static int enetc_get_mdio_base(struct enetc_si *si, bool imdio)
+{
+	if (is_enetc_rev1(si))
+		return imdio ? ENETC_PM_IMDIO_BASE : ENETC_EMDIO_BASE;
+
+	return imdio ? ENETC4_PM_IMDIO_BASE : ENETC4_EMDIO_BASE;
+}
+
 static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 {
 	struct device *dev = &pf->si->pdev->dev;
@@ -174,7 +182,7 @@ static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 	bus->parent = dev;
 	mdio_priv = bus->priv;
 	mdio_priv->hw = &pf->si->hw;
-	mdio_priv->mdio_base = ENETC_EMDIO_BASE;
+	mdio_priv->mdio_base = enetc_get_mdio_base(pf->si, false);
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
 
 	err = of_mdiobus_register(bus, np);
@@ -200,12 +208,6 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 	struct mii_bus *bus;
 	int err;
 
-	if (!pf->ops->create_pcs) {
-		dev_err(dev, "Creating PCS is not supported\n");
-
-		return -EOPNOTSUPP;
-	}
-
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
 	if (!bus)
 		return -ENOMEM;
@@ -219,7 +221,7 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 	bus->phy_mask = ~0;
 	mdio_priv = bus->priv;
 	mdio_priv->hw = &pf->si->hw;
-	mdio_priv->mdio_base = ENETC_PM_IMDIO_BASE;
+	mdio_priv->mdio_base = enetc_get_mdio_base(pf->si, true);
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-imdio", dev_name(dev));
 
 	mdio_priv->regulator = devm_regulator_get_optional(dev, "serdes");
@@ -270,7 +272,7 @@ static void enetc_imdio_remove(struct enetc_pf *pf)
 {
 	struct mii_bus *imdio = pf->imdio;
 
-	if (pf->pcs && pf->ops->destroy_pcs)
+	if (pf->pcs)
 		pf->ops->destroy_pcs(pf->pcs);
 
 	if (imdio) {
@@ -289,7 +291,9 @@ static bool enetc_port_has_pcs(struct enetc_pf *pf)
 	return (pf->if_mode == PHY_INTERFACE_MODE_SGMII ||
 		pf->if_mode == PHY_INTERFACE_MODE_1000BASEX ||
 		pf->if_mode == PHY_INTERFACE_MODE_2500BASEX ||
-		pf->if_mode == PHY_INTERFACE_MODE_USXGMII);
+		pf->if_mode == PHY_INTERFACE_MODE_USXGMII ||
+		pf->if_mode == PHY_INTERFACE_MODE_10GBASER ||
+		pf->if_mode == PHY_INTERFACE_MODE_XGMII);
 }
 
 int enetc_mdiobus_create(struct enetc_pf *pf, struct device_node *node)
@@ -335,7 +339,7 @@ int enetc_phylink_create(struct enetc_ndev_priv *priv, struct device_node *node,
 	pf->phylink_config.dev = &priv->ndev->dev;
 	pf->phylink_config.type = PHYLINK_NETDEV;
 	pf->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
-		MAC_10 | MAC_100 | MAC_1000 | MAC_2500FD;
+		MAC_10 | MAC_100 | MAC_1000 | MAC_2500FD | MAC_10000FD;
 
 	__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 		  pf->phylink_config.supported_interfaces);
@@ -346,6 +350,10 @@ int enetc_phylink_create(struct enetc_ndev_priv *priv, struct device_node *node,
 	__set_bit(PHY_INTERFACE_MODE_2500BASEX,
 		  pf->phylink_config.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_USXGMII,
+		  pf->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_10GBASER,
+		  pf->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_XGMII,
 		  pf->phylink_config.supported_interfaces);
 	phy_interface_set_rgmii(pf->phylink_config.supported_interfaces);
 

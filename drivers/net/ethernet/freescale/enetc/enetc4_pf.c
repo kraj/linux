@@ -6,6 +6,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
+#include <linux/pcs/pcs-xpcs.h>
 #include <linux/unaligned.h>
 
 #include "enetc_pf_common.h"
@@ -413,6 +414,17 @@ static void enetc4_pf_set_si_vlan_promisc(struct enetc_hw *hw, int si, bool en)
 	enetc_port_wr(hw, ENETC4_PSIPVMR, val);
 }
 
+static struct phylink_pcs *enetc4_pf_create_pcs(struct enetc_pf *pf,
+						struct mii_bus *bus)
+{
+	return xpcs_create_mdiodev_with_phy(bus, 0, 16, pf->if_mode);
+}
+
+static void enetc4_pf_destroy_pcs(struct phylink_pcs *pcs)
+{
+	xpcs_pcs_destroy(pcs);
+}
+
 static const struct enetc_pf_ops enetc4_pf_ops = {
 	.set_si_primary_mac = enetc4_pf_set_si_primary_mac,
 	.get_si_primary_mac = enetc4_pf_get_si_primary_mac,
@@ -423,6 +435,8 @@ static const struct enetc_pf_ops enetc4_pf_ops = {
 	.set_si_mac_hash_filter = enetc4_pf_set_si_mac_hash_filter,
 	.set_si_vlan_promisc = enetc4_pf_set_si_vlan_promisc,
 	.set_si_vlan_hash_filter = enetc_set_si_vlan_ht_filter,
+	.create_pcs = enetc4_pf_create_pcs,
+	.destroy_pcs = enetc4_pf_destroy_pcs,
 };
 
 static int enetc4_pf_struct_init(struct enetc_si *si)
