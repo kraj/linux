@@ -246,6 +246,8 @@ static int imx_ocotp_ele_post_process(void *context, const char *id, int index,
 		if (priv->data->increase_mac_address && priv->data->pf_mac_offset_list) {
 			if (priv->pfn >= sizeof(priv->data->pf_mac_offset_list))
 				return -EINVAL;
+			if (is_zero_ether_addr(buf))
+				return 0;
 			eth_addr_add(buf, priv->data->pf_mac_offset_list[priv->pfn]);
 		}
 	}
