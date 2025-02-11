@@ -1312,6 +1312,22 @@
 			reg = <0x0 0x47510000 0x0 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			eth_mac0: mac-address@0 {
+				reg = <0x0854 0x6>;
+			};
+
+			eth_mac1: mac-address@1 {
+				reg = <0x1854 0x6>;
+			};
+
+			eth_mac2: mac-address@2 {
+				reg = <0x2854 0x6>;
+			};
+
+			eth_mac3: mac-address@3 {
+				reg = <0x3854 0x6>;
+			};
 		};
 
 		v2x_mu0: mailbox@47300000 {
@@ -1481,6 +1497,8 @@
 					compatible = "pci1131,e110";
 					reg = <0x0 0 0 0 0>;
 					phy-mode = "internal";
+					nvmem-cells = <&eth_mac0>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 
 					fixed-link {
@@ -1568,6 +1586,8 @@
 				enetc0: ethernet@0,0 {
 					compatible = "pci1131,e101";
 					reg = <0x10000 0 0 0 0>;
+					nvmem-cells = <&eth_mac1>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
@@ -1586,12 +1606,16 @@
 				enetc1: ethernet@8,0 {
 					compatible = "pci1131,e101";
 					reg = <0x14000 0 0 0 0>;
+					nvmem-cells = <&eth_mac2>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
 				enetc2: ethernet@10,0 {
 					compatible = "pci1131,e101";
 					reg = <0x18000 0 0 0 0>;
+					nvmem-cells = <&eth_mac3>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
