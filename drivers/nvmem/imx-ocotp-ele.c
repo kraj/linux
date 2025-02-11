@@ -18,6 +18,7 @@
 
 #define MAC1_ADDR_OFFSET_BYTE 0x4ec
 #define MAC2_ADDR_OFFSET_BYTE 0x4f2
+#define IMX94_MAC_ADDR_OFFSET 0x854
 #define IMX95_MAC_ADDR_OFFSET 0x514
 
 enum fuse_type {
@@ -45,7 +46,7 @@ struct ocotp_devtype_data {
 	nvmem_reg_read_t reg_write;
 	uint32_t se_soc_id;
 	bool fuse_mac_addr_93;
-	bool fuse_mac_addr_95;
+	bool fuse_mac_addr_netc;
 	bool reverse_mac_address;
 	bool increase_mac_address;
 	const u8 *pf_mac_offset_list;
@@ -114,8 +115,9 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 		}
 	}
 
-	if (priv->data->fuse_mac_addr_95) {
-		if ((offset & 0xfff) == IMX95_MAC_ADDR_OFFSET) {
+	if (priv->data->fuse_mac_addr_netc) {
+		if ((offset & 0xfff) == IMX95_MAC_ADDR_OFFSET ||
+		    (offset & 0xfff) == IMX94_MAC_ADDR_OFFSET) {
 			priv->pfn = offset >> 12 & 0xf;
 			offset = offset & 0xfff;
 		}
@@ -351,6 +353,19 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 	},
 };
 
+/*
+ * i.MX94 uses the following mac address offset list:
+ * | No.    | Module      | Mac address user             |
+ * |--------|-------------|------------------------------|
+ * | 0 ~ 1  | ethercat    | port0/port1                  |
+ * | 2      | netc switch | internal enetc3 mac OR swp0  |
+ * | 3 ~ 6  |             | enetc3 vf1~3 AND swp1        |
+ * | 7      | enetc mac   | enetc0 pf                    |
+ * | 8      |             | enetc1 pf                    |
+ * | 9      |             | enetc2 pf                    |
+ * | 10     | netc switch | swp2                         |
+ */
+static const u8 imx94_pf_mac_offset_list[] = { 2, 7, 8, 9 };
 static const struct ocotp_devtype_data imx94_ocotp_data = {
 	.reg_off = 0x8000,
 	.reg_read = imx_ocotp_reg_read,
@@ -358,6 +373,9 @@ static const struct ocotp_devtype_data imx94_ocotp_data = {
 	.size = 3296, /* 103 Banks */
 	.num_entry = 10,
 	.se_soc_id = SOC_ID_OF_IMX94,
+	.fuse_mac_addr_netc = true,
+	.increase_mac_address = true,
+	.pf_mac_offset_list = imx94_pf_mac_offset_list,
 	.entry = {
 		{ 0, 1, FUSE_FSB | FUSE_ECC },
 		{ 7, 1, FUSE_FSB | FUSE_ECC },
@@ -372,6 +390,20 @@ static const struct ocotp_devtype_data imx94_ocotp_data = {
 	},
 };
 
+/*
+ * i.MX95 uses the following mac address offset list:
+ * | No. | Mac address user  |
+ * |-----|-------------------|
+ * | 0   | enetc mac pf0     |
+ * | 1   | enetc mac vf0     |
+ * | 2   | enetc mac vf1     |
+ * | 3   | enetc mac pf1     |
+ * | 4   | enetc mac vf2     |
+ * | 5   | enetc mac vf3     |
+ * | 6   | enetc mac pf2     |
+ * | 7   | enetc mac vf4     |
+ * | 8   | enetc mac vf5     |
+ */
 static const u8 imx95_pf_mac_offset_list[] = { 0, 3, 6 };
 static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.reg_off = 0x8000,
@@ -380,7 +412,7 @@ static const struct ocotp_devtype_data imx95_ocotp_data = {
 	.size = 2440, /* 610 words */
 	.num_entry = 15,
 	.se_soc_id = SOC_ID_OF_IMX95,
-	.fuse_mac_addr_95 = true,
+	.fuse_mac_addr_netc = true,
 	.increase_mac_address = true,
 	.pf_mac_offset_list = imx95_pf_mac_offset_list,
 	.entry = {
