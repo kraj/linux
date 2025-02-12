@@ -1314,6 +1314,53 @@
 			#size-cells = <1>;
 		};
 
+		v2x_mu0: mailbox@47300000 {
+			compatible = "fsl,imx94-mu-v2x";
+			reg = <0x0 0x47300000 0x0 0x10000>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			#mbox-cells = <2>;
+		};
+
+		v2x_mu2: mailbox@47320000 {
+			compatible = "fsl,imx94-mu-v2x";
+			reg = <0x0 0x47320000 0x0 0x10000>;
+			interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			#mbox-cells = <2>;
+		};
+
+		v2x_mu3: mailbox@47330000 {
+			compatible = "fsl,imx94-mu-v2x";
+			reg = <0x0 0x47330000 0x0 0x10000>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			#mbox-cells = <2>;
+		};
+
+		v2x_mu4: mailbox@47340000 {
+			compatible = "fsl,imx94-mu-v2x";
+			reg = <0x0 0x47340000 0x0 0x10000>;
+			interrupts = <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			#mbox-cells = <2>;
+		};
+
+		v2x_mu: mailbox@47350000 {
+			compatible = "fsl,imx94-mu-v2x";
+			reg = <0x0 0x47350000 0x0 0x10000>;
+			interrupts = <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			#mbox-cells = <2>;
+		};
+
+		elemu3: mailbox@47550000 {
+			compatible = "fsl,imx94-mu-ele";
+			reg = <0x0 0x47550000 0x0 0x10000>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+		};
+
 		aips4: bus@49000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0x0 0x49000000 0x0 0x800000>;
@@ -1655,4 +1702,47 @@
 			status = "disabled";
 		};
 	};
+
+	ele_if0: secure-enclave-0 {
+		compatible = "fsl,imx94-se";
+		mboxes = <&elemu3 0 0>,
+			 <&elemu3 1 0>;
+		mbox-names = "tx", "rx";
+	};
+
+	v2x_dbg: secure-enclave-1 {
+		compatible = "fsl,imx94-se";
+		mboxes = <&v2x_mu 0 0>,
+			<&v2x_mu 1 0>;
+		mbox-names = "tx", "rx";
+	};
+
+	v2x_she: secure-enclave-2 {
+		compatible = "fsl,imx94-se";
+		mboxes = <&v2x_mu2 0 0>,
+			<&v2x_mu2 1 0>;
+		mbox-names = "tx", "rx";
+	};
+
+	v2x_sv0: secure-enclave-3 {
+		compatible = "fsl,imx94-se";
+		mboxes = <&v2x_mu0 0 0>,
+			<&v2x_mu0 1 0>;
+		mbox-names = "tx", "rx";
+	};
+
+	v2x_sg0: secure-enclave-4 {
+		compatible = "fsl,imx94-se";
+		mboxes = <&v2x_mu3 0 0>,
+			<&v2x_mu3 1 0>;
+		mbox-names = "tx", "rx";
+	};
+
+	v2x_sg1: secure-enclave-5 {
+		compatible = "fsl,imx94-se";
+		mboxes = <&v2x_mu4 0 0>,
+			<&v2x_mu4 1 0>;
+		mbox-names = "tx", "rx";
+	};
+
 };
