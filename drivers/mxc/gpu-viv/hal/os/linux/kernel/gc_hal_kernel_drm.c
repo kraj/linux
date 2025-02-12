@@ -825,7 +825,9 @@ static struct drm_driver viv_drm_driver = {
     .fops               = &viv_drm_fops,
     .name               = "vivante",
     .desc               = "vivante DRM",
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
     .date               = "20170808",
+#endif
     .major              = 1,
     .minor              = 0,
 };
