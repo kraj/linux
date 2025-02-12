@@ -787,6 +787,9 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		fsl_edma->chan_masked |= chan_mask[0];
 	}
 
+	if (of_property_read_bool(np, "dma-coherent"))
+		fsl_edma->dma_coherent = true;
+
 	for (i = 0; i < fsl_edma->drvdata->dmamuxs; i++) {
 		char clkname[32];
 
