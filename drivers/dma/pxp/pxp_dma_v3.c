@@ -1260,6 +1260,101 @@ static const struct pxp_format_info legacy_formats[] = {
 	{ /* Sentinel */ }
 };
 
+static const struct pxp_format_info imx94_formats[] = {
+	{
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_ARGB32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__ARGB8888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__ARGB8888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__ARGB8888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_RGBA32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGBA8888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGBA8888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGBA8888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_ABGR32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__ABGR8888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__ABGR8888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__ABGR8888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_BGRA32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__BGRA8888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__BGRA8888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__BGRA8888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 24,
+		.format		= PXP_PIX_FMT_RGB24,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__RGB888P,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__RGB888P,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__RGB888P,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 32,
+		.format		= PXP_PIX_FMT_XBGR32,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__BGR888,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__BGR888,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__BGR888,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 24,
+		.format		= PXP_PIX_FMT_BGR24,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__BGR888P,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__BGR888P,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__BGR888P,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_ARGB555,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__ARGB1555,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__ARGB1555,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__ARGB1555,
+		},
+		.encoding	= PXP_ENC_RGB,
+	}, {
+		.nodes		= BM_PXP_2D_PS | BM_PXP_2D_AS | BM_PXP_2D_OUT,
+		.bpp		= 16,
+		.format		= PXP_PIX_FMT_ARGB444,
+		.fmt_ctrl	= {
+			[PXP_2D_PS]  = BV_PXP_PS_CTRL_FORMAT__ARGB4444,
+			[PXP_2D_AS]  = BV_PXP_AS_CTRL_FORMAT__ARGB4444,
+			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__ARGB4444,
+		},
+		.encoding	= PXP_ENC_RGB,
+	},
+	{ /* Sentinel */ }
+};
+
 static const struct pxp_devdata pxp_devdata[] = {
 	[PXP_V3] = {
 		.pxp_wfe_a_configure = pxp_wfe_a_configure,
@@ -1336,8 +1431,8 @@ static const struct pxp_devdata pxp_devdata[] = {
 		 * enable arbitration when use two PXP input fetch channels
 		 */
 		.input_fetch_arbit_en = true,
-		.info = legacy_formats,
-		.info_size = ARRAY_SIZE(legacy_formats),
+		.info = imx94_formats,
+		.info_size = ARRAY_SIZE(imx94_formats),
 	},
 };
 
@@ -3680,10 +3775,20 @@ reparse:
 			goto reparse;
 		}
 
-		if (nodes_used & (1 << PXP_2D_PS))
+		/*
+		 * Skip workaround to support RGB with alpha for PS
+		 * engine since RGB formats with alpha component are
+		 * supported by PXP version 4.
+		 */
+		if (nodes_used & (1 << PXP_2D_PS) && pxp->devdata->version < PXP_V4)
 			pxp_config_alpha(input);
 
-		if (nodes_used & (1 << PXP_2D_AS)) {
+		/*
+		 * Skip workaround when only As engine is used for RGB format with
+		 * alpha component since new RGB formats with alpha component are
+		 * supported by PXP version 4.
+		 */
+		if (nodes_used & (1 << PXP_2D_AS) && pxp->devdata->version < PXP_V4) {
 			/* Need to select mux3 port 0 when use AS engine */
 			path_ctrl0.mux3_sel = 0;
 			pxp_as_alpha_config(input);
