@@ -294,7 +294,7 @@
 					<&a55_irqsteer 348>, <&a55_irqsteer 349>,
 					<&a55_irqsteer 350>, <&a55_irqsteer 351>,
 					<&gic GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>;
-				status = "disabled";
+				dma-coherent;
 			};
 
 			mu10: mailbox@42430000 {
