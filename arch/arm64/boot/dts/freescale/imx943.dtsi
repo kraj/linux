@@ -145,4 +145,24 @@
 			cache-unified;
 		};
 	};
+
+	soc {
+		neutron_core: neutron-remoteproc@4ab00000 {
+			compatible = "fsl,imx95-neutron-rproc";
+			reg = <0x0 0x4ab00000 0x0 0x4>;
+			power-domains = <&scmi_devpd IMX94_PD_NPU>;
+		};
+
+		neutron: neutron@4ab00004 {
+			compatible = "fsl,imx95-neutron";
+			reg = <0x0 0x4ab00004 0x0 0x400>;
+			fsl,neutron-rproc = <&neutron_core>;
+			interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX94_CLK_NPU>,
+				 <&scmi_clk IMX94_CLK_NPUAPB>,
+				 <&scmi_clk IMX94_CLK_NPU_CGC>;
+			clock-names = "npu", "npu_apb, npu_cgc";
+			power-domains = <&scmi_devpd IMX94_PD_NPU>;
+		};
+	};
 };
