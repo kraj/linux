@@ -343,8 +343,6 @@ struct pxps {
 	struct task_struct *dispatch;
 	wait_queue_head_t thread_waitq;
 	struct completion complete;
-
-	struct regmap *gpr;
 };
 
 #define to_pxp_dma(d) container_of(d, struct pxp_dma, dma)
@@ -8519,10 +8517,6 @@ static int pxp_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto exit;
 	}
-
-	pxp->gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "pxp-gpr");
-	if (IS_ERR(pxp->gpr))
-		pxp->gpr = NULL;
 
 	pxp_clk_enable(pxp);
 	pxp_soft_reset(pxp);
