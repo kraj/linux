@@ -103,15 +103,21 @@ static int _dpa_bp_add_8_bufs(const struct dpa_bp *dpa_bp)
 		 */
 		if (unlikely(fm_has_errata_a050385())) {
 			struct page *new_page = alloc_page(GFP_ATOMIC);
-			if (unlikely(!new_page))
-				goto netdev_alloc_failed;
+			if (unlikely(!new_page)) {
+				dev_err_ratelimited(dev, "%s: alloc_page() failed\n",
+						    __func__);
+				goto err_release_previous_bufs;
+			}
 			new_buf = page_address(new_page);
 		} else {
 			new_buf = netdev_alloc_frag(SMP_CACHE_BYTES +
 						    DPA_BP_RAW_SIZE);
+			if (unlikely(!new_buf)) {
+				dev_err_ratelimited(dev, "%s: netdev_alloc_frag(%d) failed\n",
+						    __func__, SMP_CACHE_BYTES + DPA_BP_RAW_SIZE);
+				goto err_release_previous_bufs;
+			}
 		}
-		if (unlikely(!new_buf))
-			goto netdev_alloc_failed;
 
 		new_buf = PTR_ALIGN(new_buf, SMP_CACHE_BYTES);
 
@@ -124,7 +130,11 @@ static int _dpa_bp_add_8_bufs(const struct dpa_bp *dpa_bp)
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
 		if (unlikely(!skb)) {
 			put_page(virt_to_head_page(new_buf));
-			goto build_skb_failed;
+			dev_err_ratelimited(dev, "%s: build_skb(%zu) failed \n",
+					    __func__, SMP_CACHE_BYTES +
+					    DPA_SKB_SIZE(dpa_bp->size) +
+					    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
+			goto err_release_previous_bufs;
 		}
 
 		/* Reserve SMP_CACHE_BYTES in the skb's headroom to store the
@@ -143,10 +153,13 @@ static int _dpa_bp_add_8_bufs(const struct dpa_bp *dpa_bp)
 		fman_buf = new_buf + SMP_CACHE_BYTES;
 		DPA_WRITE_SKB_PTR(skb, skbh, fman_buf, -1);
 
-		addr = dma_map_single(dev, fman_buf,
-				dpa_bp->size, DMA_BIDIRECTIONAL);
-		if (unlikely(dma_mapping_error(dev, addr)))
-			goto dma_map_failed;
+		addr = dma_map_single(dev, fman_buf, dpa_bp->size,
+				      DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(dev, addr))) {
+			dev_err_ratelimited(dev, "%s: dma_map_single(%zu) failed\n",
+					    __func__, dpa_bp->size);
+			goto err_free_skb;
+		}
 
 		bm_buffer_set64(&bmb[i], addr);
 	}
@@ -160,14 +173,9 @@ release_bufs:
 		cpu_relax();
 	return i;
 
-dma_map_failed:
+err_free_skb:
 	kfree_skb(skb);
-
-build_skb_failed:
-netdev_alloc_failed:
-	net_err_ratelimited("%s failed\n", __func__);
-	WARN_ONCE(1, "Memory allocation failure on Rx\n");
-
+err_release_previous_bufs:
 	bm_buffer_set64(&bmb[i], 0);
 	/* Avoid releasing a completely null buffer; bman_release() requires
 	 * at least one buffer.
