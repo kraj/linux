@@ -101,19 +101,18 @@ static int _dpa_bp_add_8_bufs(const struct dpa_bp *dpa_bp)
 		 * We only need enough space to store a pointer, but allocate
 		 * an entire cacheline for performance reasons.
 		 */
-#ifdef FM_ERRATUM_A050385
 		if (unlikely(fm_has_errata_a050385())) {
 			struct page *new_page = alloc_page(GFP_ATOMIC);
 			if (unlikely(!new_page))
 				goto netdev_alloc_failed;
 			new_buf = page_address(new_page);
+		} else {
+			new_buf = netdev_alloc_frag(SMP_CACHE_BYTES +
+						    DPA_BP_RAW_SIZE);
 		}
-		else
-#endif
-		new_buf = netdev_alloc_frag(SMP_CACHE_BYTES + DPA_BP_RAW_SIZE);
-
 		if (unlikely(!new_buf))
 			goto netdev_alloc_failed;
+
 		new_buf = PTR_ALIGN(new_buf, SMP_CACHE_BYTES);
 
 		/* Apart from the buffer that will be used by the FMan, the
@@ -738,7 +737,6 @@ int __hot skb_to_contig_fd(struct dpa_priv_s *priv,
 }
 EXPORT_SYMBOL(skb_to_contig_fd);
 
-#ifdef FM_ERRATUM_A050385
 /* Verify the conditions that trigger the A050385 errata:
  * - 4K memory address boundary crossings when the data/SG fragments aren't
  *   aligned to 256 bytes
@@ -882,7 +880,6 @@ err:
 	put_page(npage);
 	return NULL;
 }
-#endif
 
 int __hot skb_to_sg_fd(struct dpa_priv_s *priv,
 		       struct sk_buff *skb, struct qm_fd *fd)
@@ -914,17 +911,15 @@ int __hot skb_to_sg_fd(struct dpa_priv_s *priv,
 	/* Get a page frag to store the SGTable, or a full page if the errata
 	 * is in place and we need to avoid crossing a 4k boundary.
 	 */
-#ifdef FM_ERRATUM_A050385
 	if (unlikely(fm_has_errata_a050385())) {
 		struct page *new_page = alloc_page(GFP_ATOMIC);
 
 		if (unlikely(!new_page))
 			return -ENOMEM;
 		sgt_buf = page_address(new_page);
-	}
-	else
-#endif
+	} else {
 		sgt_buf = netdev_alloc_frag(priv->tx_headroom + sgt_size);
+	}
 	if (unlikely(!sgt_buf)) {
 		dev_err(dpa_bp->dev, "netdev_alloc_frag() failed\n");
 		return -ENOMEM;
@@ -1096,10 +1091,8 @@ int __hot dpa_tx_extended(struct sk_buff *skb, struct net_device *net_dev,
 
 	clear_fd(&fd);
 
-#ifdef FM_ERRATUM_A050385
 	if (unlikely(fm_has_errata_a050385()) && a050385_check_skb(skb, priv))
 		skb_need_wa = true;
-#endif
 
 	nonlinear = skb_is_nonlinear(skb);
 
@@ -1169,7 +1162,6 @@ int __hot dpa_tx_extended(struct sk_buff *skb, struct net_device *net_dev,
 			 * more fragments than we support. In this case,
 			 * we have no choice but to linearize it ourselves.
 			 */
-#ifdef FM_ERRATUM_A050385
 			/* No point in linearizing the skb now if we are going
 			 * to realign and linearize it again further down due
 			 * to the A050385 errata
@@ -1177,14 +1169,12 @@ int __hot dpa_tx_extended(struct sk_buff *skb, struct net_device *net_dev,
 			if (unlikely(fm_has_errata_a050385()))
 				skb_need_wa = true;
 			else
-#endif
 				err = __skb_linearize(skb);
 		}
 		if (unlikely(!skb || err < 0))
 			/* Common out-of-memory error path */
 			goto enomem;
 
-#ifdef FM_ERRATUM_A050385
 		/* Verify the skb a second time if it has been updated since
 		 * the previous check
 		 */
@@ -1199,7 +1189,6 @@ int __hot dpa_tx_extended(struct sk_buff *skb, struct net_device *net_dev,
 			dev_kfree_skb(skb);
 			skb = nskb;
 		}
-#endif
 
 		err = skb_to_contig_fd(priv, skb, &fd, countptr, &offset);
 	}

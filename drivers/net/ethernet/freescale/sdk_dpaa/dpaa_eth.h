@@ -99,15 +99,9 @@ static inline void DPA_BUG_ON(bool cond)
  * space to account for further alignments.
  */
 #define DPA_MAX_FRM_SIZE	9600
-#ifndef FM_ERRATUM_A050385
-#define DPA_BP_RAW_SIZE \
-	((DPA_MAX_FRM_SIZE + DPA_MAX_FD_OFFSET + \
-	  sizeof(struct skb_shared_info) + 128) & ~(SMP_CACHE_BYTES - 1))
-#else /* FM_ERRATUM_A050385 */
 #define DPA_BP_RAW_SIZE ((unlikely(fm_has_errata_a050385())) ? 2048 : \
 	((DPA_MAX_FRM_SIZE + DPA_MAX_FD_OFFSET + \
 	  sizeof(struct skb_shared_info) + 128) & ~(SMP_CACHE_BYTES - 1)))
-#endif /* FM_ERRATUM_A050385 */
 #endif /* CONFIG_FSL_DPAA_ETH_JUMBO_FRAME */
 
 /* This is what FMan is ever allowed to use.
@@ -656,7 +650,6 @@ static inline void _dpa_bp_free_pf(void *addr)
  * on egress.
  */
 
-#ifdef FM_ERRATUM_A050385
 #define CROSS_4K(start, size) \
 	(((uintptr_t)(start) + (size)) > \
 	 (((uintptr_t)(start) + 0x1000) & ~0xFFF))
@@ -664,6 +657,5 @@ static inline void _dpa_bp_free_pf(void *addr)
  * we reserve 256 bytes instead to guarantee 256 data alignment.
  */
 #define DPAA_A050385_HEADROOM	256
-#endif  /* FM_ERRATUM_A050385 */
 
 #endif	/* __DPA_H */
