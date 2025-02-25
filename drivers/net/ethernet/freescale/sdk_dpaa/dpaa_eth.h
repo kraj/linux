@@ -115,11 +115,6 @@ static inline void DPA_BUG_ON(bool cond)
  */
 #define DPA_RECYCLE_MAX_SIZE	16384
 
-#if defined(CONFIG_FSL_SDK_FMAN_TEST)
-/*TODO: temporary for fman pcd testing */
-#define FMAN_PCD_TESTS_MAX_NUM_RANGES	20
-#endif
-
 #define DPAA_ETH_FQ_DELTA	0x10000
 
 #define DPAA_ETH_PCD_FQ_BASE(device_addr) \
@@ -202,13 +197,6 @@ static inline void DPA_BUG_ON(bool cond)
 #ifdef CONFIG_PM
 /* Magic Packet wakeup */
 #define DPAA_WOL_MAGIC		0x00000001
-#endif
-
-#if defined(CONFIG_FSL_SDK_FMAN_TEST)
-struct pcd_range {
-	uint32_t			 base;
-	uint32_t			 count;
-};
 #endif
 
 /* More detailed FQ types - used for fine-grained WQ assignments */
@@ -348,12 +336,6 @@ struct dpa_priv_s {
 	uint32_t		 msg_enable;	/* net_device message level */
 #ifdef CONFIG_FSL_DPAA_1588
 	struct dpa_ptp_tsu	 *tsu;
-#endif
-
-#if defined(CONFIG_FSL_SDK_FMAN_TEST)
-/* TODO: this is temporary until pcd support is implemented in dpaa */
-	int			priv_pcd_num_ranges;
-	struct pcd_range	priv_pcd_ranges[FMAN_PCD_TESTS_MAX_NUM_RANGES];
 #endif
 
 	struct {
