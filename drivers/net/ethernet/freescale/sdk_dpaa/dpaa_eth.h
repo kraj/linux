@@ -88,21 +88,8 @@ static inline void DPA_BUG_ON(bool cond)
 	(FM_PORT_FRM_ERR_UNSUPPORTED_FORMAT | \
 	 FM_PORT_FRM_ERR_LENGTH | FM_PORT_FRM_ERR_DMA)
 
-#ifndef CONFIG_FSL_DPAA_ETH_JUMBO_FRAME
-/* The raw buffer size must be cacheline aligned.
- * Normally we use 2K buffers.
- */
+/* The raw buffer size must be cacheline aligned. */
 #define DPA_BP_RAW_SIZE		2048
-#else
-/* For jumbo frame optimizations, use buffers large enough to accommodate
- * 9.6K frames, FD maximum offset, skb sh_info overhead and some extra
- * space to account for further alignments.
- */
-#define DPA_MAX_FRM_SIZE	9600
-#define DPA_BP_RAW_SIZE ((unlikely(fm_has_errata_a050385())) ? 2048 : \
-	((DPA_MAX_FRM_SIZE + DPA_MAX_FD_OFFSET + \
-	  sizeof(struct skb_shared_info) + 128) & ~(SMP_CACHE_BYTES - 1)))
-#endif /* CONFIG_FSL_DPAA_ETH_JUMBO_FRAME */
 
 /* This is what FMan is ever allowed to use.
  * FMan-DMA requires 16-byte alignment for Rx buffers, but SKB_DATA_ALIGN is
