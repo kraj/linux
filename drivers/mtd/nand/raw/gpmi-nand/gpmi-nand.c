@@ -1306,6 +1306,14 @@ static int acquire_dma_channels(struct gpmi_nand_data *this)
 		release_dma_channels(this);
 	} else {
 		this->dma_chans[0] = dma_chan;
+		this->link = device_link_add(&pdev->dev,
+					     dma_chan->device->dev,
+					     DL_FLAG_AUTOREMOVE_CONSUMER |
+					     DL_FLAG_PM_RUNTIME);
+		if (IS_ERR(this->link)) {
+			dev_err(this->dev, "failed to add device link\n");
+			ret = PTR_ERR(this->link);
+		}
 	}
 
 	return ret;
