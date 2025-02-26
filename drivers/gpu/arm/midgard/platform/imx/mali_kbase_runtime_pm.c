@@ -156,7 +156,6 @@ if (pm_runtime_enabled(kbdev->dev)) {
 #endif
 }
 
-#ifdef KBASE_PM_RUNTIME
 static int kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	int ret = 0;
@@ -202,7 +201,6 @@ static void kbase_device_runtime_disable(struct kbase_device *kbdev)
 		kbdev->dev_gpuperf = NULL;
 	}
 }
-#endif /* KBASE_PM_RUNTIME */
 
 static int pm_callback_runtime_on(struct kbase_device *kbdev)
 {
