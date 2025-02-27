@@ -273,7 +273,7 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 	phylink_pcs = pf->ops->create_pcs(pf, bus);
 	if (IS_ERR(phylink_pcs)) {
 		err = PTR_ERR(phylink_pcs);
-		dev_err(dev, "cannot create lynx pcs (%d)\n", err);
+		dev_err(dev, "cannot create ENETC pcs (%d)\n", err);
 		goto unregister_mdiobus;
 	}
 
