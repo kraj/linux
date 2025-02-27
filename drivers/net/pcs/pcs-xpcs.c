@@ -1460,7 +1460,16 @@ static int xpcs_register_phy(struct dw_xpcs *xpcs, struct mii_bus *bus)
 
 	xpcs_phy_reg_lock(xpcs);
 
-	xpcs_phy_id = xpcs_phy_get_id(xpcs);
+	/* Here is a workaround.
+	 * Since the IDs of the XPCS/PHY of i.MX94/95 are exactly the same
+	 * in the registers, cannot simply distinguish the two versions
+	 * of XPCS/PHY by reading the ID register.
+	 * Therefore, when initializing XPCS/PHY, a unique ID is created
+	 * for different versions of them by passing in the version for
+	 * subsequent configuration.
+	 * By default, version is 0, which will not affect other platforms.
+	 */
+	xpcs_phy_id = xpcs_phy_get_id(xpcs) + xpcs->info.version;
 	ret = xpcs_phy_check_id(xpcs_phy_id);
 	if (!ret)
 		return -ENODEV;
@@ -1569,7 +1578,8 @@ static int xpcs_init_id(struct dw_xpcs *xpcs)
 }
 
 static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
-				   struct mdio_device *phydev)
+				   struct mdio_device *phydev,
+				   int version)
 {
 	struct dw_xpcs *xpcs;
 	int ret;
@@ -1578,6 +1588,7 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 	if (IS_ERR(xpcs))
 		return xpcs;
 
+	xpcs->info.version = version;
 	ret = xpcs_init_clks(xpcs);
 	if (ret)
 		goto out_free_data;
@@ -1622,7 +1633,7 @@ struct dw_xpcs *xpcs_create_mdiodev(struct mii_bus *bus, int addr)
 	if (IS_ERR(mdiodev))
 		return ERR_CAST(mdiodev);
 
-	xpcs = xpcs_create(mdiodev, NULL);
+	xpcs = xpcs_create(mdiodev, NULL, DW_XPCS_VER_DEFAULT);
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio
@@ -1670,7 +1681,7 @@ struct dw_xpcs *xpcs_create_fwnode(struct fwnode_handle *fwnode)
 	if (!mdiodev)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	xpcs = xpcs_create(mdiodev, NULL);
+	xpcs = xpcs_create(mdiodev, NULL, DW_XPCS_VER_DEFAULT);
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio
@@ -1686,6 +1697,7 @@ EXPORT_SYMBOL_GPL(xpcs_create_fwnode);
 
 struct phylink_pcs *xpcs_create_mdiodev_with_phy(struct mii_bus *bus,
 						 int mdioaddr, int phyaddr,
+						 int portid, int version,
 						 phy_interface_t interface)
 {
 	struct mdio_device *mdiodev, *phydev;
@@ -1702,11 +1714,12 @@ struct phylink_pcs *xpcs_create_mdiodev_with_phy(struct mii_bus *bus,
 		goto err_phydev;
 	}
 
-	xpcs = xpcs_create(mdiodev, phydev);
+	xpcs = xpcs_create(mdiodev, phydev, version);
 	if (IS_ERR(xpcs)) {
 		err_ptr = ERR_CAST(xpcs);
 		goto err_xpcs;
 	}
+	xpcs->portid = portid;
 
 	/* xpcs_create() has taken a refcount on the mdiodev if it was
 	 * successful. If xpcs_create() fails, this will free the mdio

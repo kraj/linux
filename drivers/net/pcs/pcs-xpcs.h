@@ -115,6 +115,7 @@ struct dw_xpcs {
 	phy_interface_t interface;
 	bool need_reset;
 	u8 eee_mult_fact;
+	u8 portid;
 };
 
 #define phylink_pcs_to_xpcs(pl_pcs) container_of((pl_pcs), struct dw_xpcs, pcs)
