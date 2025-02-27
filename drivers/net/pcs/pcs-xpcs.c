@@ -119,6 +119,16 @@ static const int xpcs_mx95_10g_features[] = {
 	__ETHTOOL_LINK_MODE_MASK_NBITS,
 };
 
+static const int xpcs_mx94_features[] = {
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_Autoneg_BIT,
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
 enum {
 	DW_XPCS_USXGMII,
 	DW_XPCS_10GKR,
@@ -637,7 +647,8 @@ static void xpcs_disable(struct phylink_pcs *pcs)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
-	if (xpcs && xpcs->info.pma == NXP_MX95_XPCS_ID)
+	if (xpcs && (xpcs->info.pma == NXP_MX95_XPCS_ID ||
+		     xpcs->info.pma == NXP_MX94_XPCS_ID))
 		xpcs_phy_reset(xpcs);
 }
 
@@ -675,6 +686,18 @@ static void xpcs_pre_config(struct phylink_pcs *pcs, phy_interface_t interface)
 	if (ret)
 		dev_err(&xpcs->mdiodev->dev, "switch interface failed: %pe\n",
 			ERR_PTR(ret));
+
+	switch (xpcs->info.pma) {
+	case NXP_MX94_XPCS_ID:
+		xpcs->pcs.poll = false;
+		xpcs->need_reset = false;
+		break;
+	case NXP_MX95_XPCS_ID:
+		xpcs->need_reset = false;
+		break;
+	default:
+		break;
+	}
 
 	if (!xpcs->need_reset)
 		return;
@@ -1429,6 +1452,21 @@ static const struct dw_xpcs_compat nxp_mx95_xpcs_compat[] = {
 	}
 };
 
+static const struct dw_xpcs_compat nxp_mx94_xpcs_compat[] = {
+	{
+		.supported = xpcs_mx94_features,
+		.interface = PHY_INTERFACE_MODE_2500BASEX,
+		.an_mode = DW_2500BASEX,
+		.pma_config = imx94_xpcs_phy_sgmii_2p5g_config,
+	}, {
+		.supported = xpcs_mx94_features,
+		.interface = PHY_INTERFACE_MODE_SGMII,
+		.an_mode = DW_AN_C37_SGMII,
+		.pma_config = imx94_xpcs_phy_sgmii_1g_config,
+	}, {
+	}
+};
+
 static const struct dw_xpcs_desc xpcs_desc_list[] = {
 	{
 		.id = DW_XPCS_ID,
@@ -1446,6 +1484,10 @@ static const struct dw_xpcs_desc xpcs_desc_list[] = {
 		.id = NXP_MX95_XPCS_ID,
 		.mask = DW_XPCS_ID_MASK,
 		.compat = nxp_mx95_xpcs_compat,
+	}, {
+		.id = NXP_MX94_XPCS_ID,
+		.mask = DW_XPCS_ID_MASK,
+		.compat = nxp_mx94_xpcs_compat,
 	},
 };
 
@@ -1466,8 +1508,6 @@ static int xpcs_register_phy(struct dw_xpcs *xpcs, struct mii_bus *bus)
 {
 	u32 xpcs_phy_id;
 	int ret = 0;
-
-	xpcs_phy_reg_lock(xpcs);
 
 	/* Here is a workaround.
 	 * Since the IDs of the XPCS/PHY of i.MX94/95 are exactly the same
