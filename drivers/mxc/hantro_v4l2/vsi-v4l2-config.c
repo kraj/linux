@@ -92,20 +92,20 @@ static s32 leveltbl_hevc[][3] = {
 	{VCENC_HEVC_LEVEL_6_2,	V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2,  240000000},
 };
 static s32 leveltbl_h264[][3] = {
-	{VCENC_H264_LEVEL_1,	V4L2_MPEG_VIDEO_H264_LEVEL_1_0, 175000},
-	{VCENC_H264_LEVEL_1_b,	V4L2_MPEG_VIDEO_H264_LEVEL_1B,   350000},
-	{VCENC_H264_LEVEL_1_1,	V4L2_MPEG_VIDEO_H264_LEVEL_1_1,  500000},
-	{VCENC_H264_LEVEL_1_2,	V4L2_MPEG_VIDEO_H264_LEVEL_1_2,  1000000},
-	{VCENC_H264_LEVEL_1_3,	V4L2_MPEG_VIDEO_H264_LEVEL_1_3,  2000000},
+	{VCENC_H264_LEVEL_1,	V4L2_MPEG_VIDEO_H264_LEVEL_1_0,  175000},	//64000
+	{VCENC_H264_LEVEL_1_b,	V4L2_MPEG_VIDEO_H264_LEVEL_1B,   350000},	//128000
+	{VCENC_H264_LEVEL_1_1,	V4L2_MPEG_VIDEO_H264_LEVEL_1_1,  500000},	//192000
+	{VCENC_H264_LEVEL_1_2,	V4L2_MPEG_VIDEO_H264_LEVEL_1_2,  1000000},	//384000
+	{VCENC_H264_LEVEL_1_3,	V4L2_MPEG_VIDEO_H264_LEVEL_1_3,  2000000},	//768000
 	{VCENC_H264_LEVEL_2,	V4L2_MPEG_VIDEO_H264_LEVEL_2_0,  2000000},
 	{VCENC_H264_LEVEL_2_1,	V4L2_MPEG_VIDEO_H264_LEVEL_2_1,  4000000},
 	{VCENC_H264_LEVEL_2_2,	V4L2_MPEG_VIDEO_H264_LEVEL_2_2,  4000000},
 	{VCENC_H264_LEVEL_3,	V4L2_MPEG_VIDEO_H264_LEVEL_3_0,  10000000},
 	{VCENC_H264_LEVEL_3_1,	V4L2_MPEG_VIDEO_H264_LEVEL_3_1,  14000000},
 	{VCENC_H264_LEVEL_3_2,	V4L2_MPEG_VIDEO_H264_LEVEL_3_2,  20000000},
-	{VCENC_H264_LEVEL_4,	V4L2_MPEG_VIDEO_H264_LEVEL_4_0,  25000000},
-	{VCENC_H264_LEVEL_4_1,	V4L2_MPEG_VIDEO_H264_LEVEL_4_1,  62500000},
-	{VCENC_H264_LEVEL_4_2,	V4L2_MPEG_VIDEO_H264_LEVEL_4_2,  62500000},
+	{VCENC_H264_LEVEL_4,	V4L2_MPEG_VIDEO_H264_LEVEL_4_0,  25000000},	//20000000
+	{VCENC_H264_LEVEL_4_1,	V4L2_MPEG_VIDEO_H264_LEVEL_4_1,  62500000},	//50000000
+	{VCENC_H264_LEVEL_4_2,	V4L2_MPEG_VIDEO_H264_LEVEL_4_2,  62500000},	//50000000
 	{VCENC_H264_LEVEL_5,	V4L2_MPEG_VIDEO_H264_LEVEL_5_0,  135000000},
 	{VCENC_H264_LEVEL_5_1,	V4L2_MPEG_VIDEO_H264_LEVEL_5_1,  240000000},
 	{VCENC_H264_LEVEL_5_2,	V4L2_MPEG_VIDEO_H264_LEVEL_5_2,  240000000},
@@ -401,6 +401,43 @@ int vsi_get_Level(struct vsi_v4l2_ctx *ctx, int mediatype, int dir, int level)
 		return (mediatype == 0 ? V4L2_MPEG_VIDEO_H264_LEVEL_1_0 :
 			V4L2_MPEG_VIDEO_HEVC_LEVEL_1);
 	return -EINVAL;
+}
+
+u32 vsi_get_bitrate(struct vsi_v4l2_ctx *ctx, u32 bitrate)
+{
+	struct vsi_v4l2_mediacfg *pcfg = &ctx->mediacfg;
+	struct v4l2_ctrl_config cfg;
+	int (*table)[3];
+	int max_level;
+	int i, size;
+
+	if (!isencoder(ctx))
+		return bitrate;
+
+	switch (pcfg->outfmt_fourcc) {
+	case V4L2_PIX_FMT_H264:
+		cfg.id = V4L2_CID_MPEG_VIDEO_H264_LEVEL;
+		table = leveltbl_h264;
+		size = ARRAY_SIZE(leveltbl_h264);
+		break;
+	case V4L2_PIX_FMT_HEVC:
+		cfg.id = V4L2_CID_MPEG_VIDEO_HEVC_LEVEL;
+		table = leveltbl_hevc;
+		size = ARRAY_SIZE(leveltbl_hevc);
+		break;
+	default:
+		return bitrate;
+	}
+	vsi_v4l2_update_ctrlcfg(&cfg);
+	max_level = cfg.max;
+
+	for (i = 0; i < size; i++) {
+		if (table[i][1] >= max_level)
+			return min_t(u32, bitrate, table[i][2]);
+		if (table[i][2] >= bitrate)
+			break;
+	}
+	return bitrate;
 }
 
 static struct vsi_video_fmt vsi_raw_fmt[] = {
@@ -2256,6 +2293,12 @@ void vsi_v4l2_update_ctrlcfg(struct v4l2_ctrl_config *cfg)
 			cfg->max = V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2;
 		else
 			cfg->max = V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1;
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		if (vsi_v4l2_hwconfig.enc_isH1)
+			cfg->max = 60000000;
+		else
+			cfg->max = 240000000;
 		break;
 	default:
 		break;

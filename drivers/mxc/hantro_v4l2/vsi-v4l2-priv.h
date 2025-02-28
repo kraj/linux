@@ -423,6 +423,7 @@ void vsi_enum_encfsize(struct v4l2_frmsizeenum *f, u32 pixel_format);
 int vsiv4l2_enc_getalign(u32 srcfmt, u32 dstfmt, int width);
 void vsiv4l2_initcfg(struct vsi_v4l2_ctx *ctx);
 int vsi_get_Level(struct vsi_v4l2_ctx *ctx, int mediatype, int dir, int level);
+u32 vsi_get_bitrate(struct vsi_v4l2_ctx *ctx, u32 bitrate);
 int vsiv4l2_verifyfmt(struct vsi_v4l2_ctx *ctx, struct v4l2_format *fmt, int try_only);
 int vsiv4l2_setfmt(struct vsi_v4l2_ctx *ctx, struct v4l2_format *fmt);
 int vsiv4l2_getfmt(struct vsi_v4l2_ctx *ctx, struct v4l2_format *fmt);
