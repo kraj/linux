@@ -703,37 +703,7 @@ static int ox03c10_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 }
 
-static int ox03c10_otp_correction_get(struct ox03c10 *sensor, void *ret_values)
-{
-	struct ox03c10_otp_correction *otp = ret_values;
-	int ret;
-	u8 reg_val[3] = {0};
-
-	ret = regmap_bulk_read(sensor->rmap, 0x7057, reg_val, 3);
-	otp->val1 = (reg_val[0] << 16) | (reg_val[1] << 8) | reg_val[2];
-	ret |= regmap_bulk_read(sensor->rmap, 0x705b, reg_val, 3);
-	otp->val2 = (reg_val[0] << 16) | (reg_val[1] << 8) | reg_val[2];
-	ret |= regmap_bulk_read(sensor->rmap, 0x705f, reg_val, 3);
-	otp->val3 = (reg_val[0] << 16) | (reg_val[1] << 8) | reg_val[2];
-
-	return ret ? -EIO : 0;
-}
-
-static int ox03c10_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct ox03c10 *sensor = container_of(ctrl->handler, struct ox03c10, ctrl_handler);
-
-	switch (ctrl->id) {
-	case V4L2_CID_OX03C10_OTP_CORRECTION:
-		return ox03c10_otp_correction_get(sensor, ctrl->p_new.p);
-
-	default:
-		return -EINVAL;
-	}
-}
-
 static const struct v4l2_ctrl_ops ox03c10_ctrl_ops = {
-	.g_volatile_ctrl = ox03c10_g_volatile_ctrl,
 	.s_ctrl		 = ox03c10_s_ctrl,
 };
 
@@ -747,6 +717,7 @@ static struct ox03c10_analog_gain ox03c10_initial_analog_gain;
 static struct ox03c10_digital_gain ox03c10_initial_digital_gain;
 static struct ox03c10_wb_capture_gain ox03c10_initial_wb_capture_gain[4];
 static struct ox03c10_pwl_ctrl ox03c10_initial_pwl_ctrl;
+static struct ox03c10_otp_correction ox03c10_initial_otp;
 static u8 ox03c10_initial_pwl_knee_points_lut[OX03C10_PWL_LUT_SIZE];
 
 static int ox03c10_get_initial_params(struct ox03c10 *sensor)
@@ -811,6 +782,36 @@ static int ox03c10_get_initial_params(struct ox03c10 *sensor)
 	ret |= regmap_bulk_read(sensor->rmap, OX03C10_PWL0_0_1,
 				ox03c10_initial_pwl_knee_points_lut, OX03C10_PWL_LUT_SIZE);
 
+	/* start streaming in order to retrieve OTP values */
+	regmap_write(sensor->rmap, OX03C10_SMIA_R0100, 1);
+
+	/*
+	 * OTP values are updated after streaming is started but some sensors take longer to
+	 * update their values. Wait a maximum of 100ms and keep retrying until the values are
+	 * populated.
+	 */
+	for (i = 0; i < 10; i++) {
+		ret = regmap_bulk_read(sensor->rmap, 0x7057, buf, 3);
+		ox03c10_initial_otp.val1 = (buf[0] << 16) | (buf[1] << 8) | buf[2];
+		ret |= regmap_bulk_read(sensor->rmap, 0x705b, buf, 3);
+		ox03c10_initial_otp.val2 = (buf[0] << 16) | (buf[1] << 8) | buf[2];
+		ret |= regmap_bulk_read(sensor->rmap, 0x705f, buf, 3);
+		ox03c10_initial_otp.val3 = (buf[0] << 16) | (buf[1] << 8) | buf[2];
+
+		if (ret || (ox03c10_initial_otp.val1 && ox03c10_initial_otp.val2 &&
+			    ox03c10_initial_otp.val3))
+			break;
+
+		fsleep(10000);
+	}
+
+	if (i == 10 && !ox03c10_initial_otp.val1 && !ox03c10_initial_otp.val2 &&
+	    !ox03c10_initial_otp.val3)
+		dev_warn(sensor->dev, "OTP values not populated after 100ms...\n");
+
+	/* stop the streaming */
+	regmap_write(sensor->rmap, OX03C10_SMIA_R0100, 0);
+
 	return ret ? -EIO : 0;
 }
 
@@ -848,6 +849,10 @@ static void ox03c10_v4l2_ctrl_type_op_init(const struct v4l2_ctrl *ctrl, u32 fro
 	case V4L2_CID_OX03C10_PWL_KNEE_POINTS_LUT:
 		memcpy(ptr.p, &ox03c10_initial_pwl_knee_points_lut,
 		       sizeof(ox03c10_initial_pwl_knee_points_lut));
+		break;
+
+	case V4L2_CID_OX03C10_OTP_CORRECTION:
+		memcpy(ptr.p, &ox03c10_initial_otp, sizeof(ox03c10_initial_otp));
 		break;
 
 	default:
@@ -957,7 +962,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.step		= 1,
 		.def		= 0,
 		.dims		= { sizeof(struct ox03c10_otp_correction) },
-		.flags		= V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_READ_ONLY,
+		.flags		= V4L2_CTRL_FLAG_READ_ONLY,
 	},
 };
 
