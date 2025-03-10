@@ -9299,19 +9299,21 @@ gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
         gctSIZE_T      offset          = 0;
         gctPHYS_ADDR_T physicalAddress = 0;
         gceAREA_TYPE   areaType;
+#if !gcdENABLE_TRUST_APPLICATION
         gctUINT32      pageMask;
+#endif
         gcePAGE_TYPE   pageType;
 
         gctUINT32_PTR  entry;
 
         gckMMU_GetAreaType(Hardware->kernel->mmu, address, &areaType);
 
-        pageMask = (areaType == gcvAREA_TYPE_4K) ? gcdMMU_PAGE_4K_MASK : gcdMMU_PAGE_1M_MASK;
         pageType = (areaType == gcvAREA_TYPE_4K) ? gcvPAGE_TYPE_4K : gcvPAGE_TYPE_1M;
 
 #if gcdENABLE_TRUST_APPLICATION
         address &= ~gcdMMU_PAGE_4K_MASK;
 #else
+        pageMask = (areaType == gcvAREA_TYPE_4K) ? gcdMMU_PAGE_4K_MASK : gcdMMU_PAGE_1M_MASK;
         address &= ~pageMask;
 #endif
 
