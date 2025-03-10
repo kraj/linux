@@ -9253,9 +9253,11 @@ gceSTATUS
 gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
 {
     gceSTATUS status = gcvSTATUS_NOT_SUPPORTED;
-    gctUINT32 mmu, mmuStatus, address = 0, i = 0;
+    gctUINT32 mmu, mmuStatus, i = 0;
+    gctUINT32 addressLow = 0;
     gctUINT32 mmuStatusRegAddress;
     gctUINT32 mmuExceptionAddress;
+    gctADDRESS address = 0;
 
     gcmkHEADER_ARG("Hardware=%p", Hardware);
 
@@ -9270,7 +9272,7 @@ gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
     /* Get MMU exception address. */
 #if gcdENABLE_TRUST_APPLICATION
     if (Hardware->options.secureMode == gcvSECURE_IN_TA) {
-        gckKERNEL_ReadMMUException(Hardware->kernel, &mmuStatus, &address);
+        gckKERNEL_ReadMMUException(Hardware->kernel, &mmuStatus, &addressLow);
     } else {
 #endif
         gcmkVERIFY_OK(gckOS_ReadRegisterEx(Hardware->os, Hardware->kernel,
@@ -9286,7 +9288,7 @@ gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
                 continue;
 
             gcmkVERIFY_OK(gckOS_ReadRegisterEx(Hardware->os, Hardware->kernel,
-                                               mmuExceptionAddress + i * 4, &address));
+                                               mmuExceptionAddress + i * 4, &addressLow));
 
             break;
         }
@@ -9294,6 +9296,7 @@ gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
     }
 #endif
 
+    address = (gctADDRESS) addressLow;
     if (address) {
         gckVIDMEM_NODE nodeObject      = gcvNULL;
         gctSIZE_T      offset          = 0;
