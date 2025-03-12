@@ -49,6 +49,14 @@ properties:
       - const: axi
       - const: pix
 
+  assigned-clocks:
+    description: Reference to DISPLAYMIX CSR clock mux.
+    maxItems: 1
+
+  assigned-clock-parents:
+    description: Parent of the clock mux.
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 
@@ -65,21 +73,29 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    display-controller@4b120000 {
-        compatible = "nxp,imx94-dcif";
-        reg = <0x0 0x4b120000 0x0 0x300000>;
-        interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
-                     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
-                     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-names = "common", "bg_layer", "fg_layer";
-        clocks = <&scmi_clk 69>, <&scmi_clk 70>, <&scmi_clk 71>;
-        clock-names = "apb", "axi", "pix";
-        power-domains = <&scmi_devpd 11>;
-        nxp,blk-ctrl = <&dispmix_csr>;
 
-        port {
-            dcif_out: endpoint {
-                remote-endpoint = <&ldb_in>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        display-controller@4b120000 {
+            compatible = "nxp,imx94-dcif";
+            reg = <0x0 0x4b120000 0x0 0x300000>;
+            interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "common", "bg_layer", "fg_layer";
+            clocks = <&scmi_clk 69>, <&scmi_clk 70>, <&dispmix_csr 0>;
+            clock-names = "apb", "axi", "pix";
+            assigned-clocks = <&dispmix_csr 0>;
+            assigned-clock-parents = <&ldb_pll_pixel>;
+            power-domains = <&scmi_devpd 11>;
+            nxp,blk-ctrl = <&dispmix_csr>;
+
+            port {
+                dcif_out: endpoint {
+                    remote-endpoint = <&ldb_in>;
+                };
             };
         };
     };
