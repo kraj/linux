@@ -24,12 +24,6 @@
 #include "dcif-drv.h"
 #include "dcif-reg.h"
 
-/* registers in blk-ctrl */
-#define CLOCK_CTRL			0x0
-#define  DSIP_CLK_SEL_MASK		0x2
-#define  CCM				0x0
-#define  LVDS_PLL_7			0x2
-
 #define QOS_SETTING			0x1c
 #define  DISPLAY_PANIC_QOS_MASK		0x70
 #define  DISPLAY_PANIC_QOS(n)		(((n) & 0x7) << 4)
@@ -56,19 +50,6 @@ static struct drm_driver dcif_driver = {
 	.minor			= 0,
 	.patchlevel		= 0,
 };
-
-static int dcif_clk_sel(struct dcif_dev *dcif)
-{
-	struct drm_device *drm = &dcif->drm;
-	int ret;
-
-	/* display source LDB PLL */
-	ret = regmap_update_bits(dcif->blkctrl_regmap, CLOCK_CTRL, DSIP_CLK_SEL_MASK, LVDS_PLL_7);
-	if (ret < 0)
-		dev_err(drm->dev, "failed to set DSIP_CLK_SEL: %d\n", ret);
-
-	return ret;
-}
 
 static int dcif_set_qos(struct dcif_dev *dcif)
 {
@@ -256,7 +237,6 @@ static int dcif_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	dcif_clk_sel(dcif);
 	ret = dcif_set_qos(dcif);
 	if (ret) {
 		clk_bulk_disable_unprepare(dcif->num_clks, dcif->clks);
