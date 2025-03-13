@@ -236,20 +236,6 @@ static void dcif_remove(struct platform_device *pdev)
 	pm_runtime_disable(drm->dev);
 }
 
-static int dcif_suspend(struct device *dev)
-{
-	struct dcif_dev *dcif = dev_get_drvdata(dev);
-
-	return drm_mode_config_helper_suspend(&dcif->drm);
-}
-
-static int dcif_resume(struct device *dev)
-{
-	struct dcif_dev *dcif = dev_get_drvdata(dev);
-
-	return drm_mode_config_helper_resume(&dcif->drm);
-}
-
 static int dcif_runtime_suspend(struct device *dev)
 {
 	struct dcif_dev *dcif = dev_get_drvdata(dev);
@@ -278,6 +264,35 @@ static int dcif_runtime_resume(struct device *dev)
 	}
 
 	return 0;
+}
+
+static int dcif_suspend(struct device *dev)
+{
+	struct dcif_dev *dcif = dev_get_drvdata(dev);
+	int ret;
+
+	ret = drm_mode_config_helper_suspend(&dcif->drm);
+	if (ret < 0)
+		return ret;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+	
+	return dcif_runtime_suspend(dev);
+}
+
+static int dcif_resume(struct device *dev)
+{
+	struct dcif_dev *dcif = dev_get_drvdata(dev);
+	int ret;
+
+	if (!pm_runtime_suspended(dev)) {
+		ret = dcif_runtime_resume(dev);
+		if (ret < 0)
+			return ret;
+	}
+
+	return drm_mode_config_helper_resume(&dcif->drm);
 }
 
 static const struct dev_pm_ops dcif_pm_ops = {
