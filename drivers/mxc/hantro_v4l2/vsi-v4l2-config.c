@@ -1137,6 +1137,9 @@ struct vsi_video_fmt *vsi_enum_dec_format(int idx, int braw, struct vsi_v4l2_ctx
 					outfmt == VSI_V4L2_DECOUT_RFC) &&
 					ctx->mediacfg.decparams.dec_info.dec_info.bit_depth != 8)
 					continue;
+				if (inputformat != V4L2_DAEMON_CODEC_DEC_JPEG &&
+				    isJpegOnlyFmt(outfmt))
+					continue;
 			}
 			k++;
 
