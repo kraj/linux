@@ -464,6 +464,7 @@
 	assigned-clock-rates = <0>, <786432000>, <49152000>, <12288000>, <49152000>;
 	pinctrl-0 = <&pinctrl_esai0>;
 	pinctrl-names = "default";
+	fsl,txm-rxs;
 	status = "okay";
 };
 
