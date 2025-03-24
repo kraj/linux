@@ -82,6 +82,7 @@
 
 &dsp {
 	compatible = "fsl,imx8mp-dsp";
+	reg-names = "iram";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai3>;
@@ -107,6 +108,7 @@
 	mboxes = <&mu2 2 0>, <&mu2 2 1>,
 		 <&mu2 3 0>, <&mu2 3 1>;
 	memory-region = <&dsp_reserved>;
+	memory-region-names = "sram";
 	/delete-property/ firmware-name;
 
 	tplg-name = "sof-imx8mp-wm8962.tplg";
