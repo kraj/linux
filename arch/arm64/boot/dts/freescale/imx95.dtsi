@@ -3067,7 +3067,7 @@
 			    dynamic-coefficient = <1013>;
 			    reference_voltage = <920>;
 			    ts = <20000 2000 (-20) 2>;
-			    thermal-zone = "ana";
+			    thermal-zone = "ana-thermal";
 			};
 
 			ipa_power:power_model@1 {
