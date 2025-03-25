@@ -219,6 +219,11 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
     EXTRA_CFLAGS += -DCONFIG_MALI_NO_MALI_DEFAULT_GPU='\"$(CONFIG_MALI_NO_MALI_DEFAULT_GPU)\"'
 endif
 
+ifeq ($(CONFIG_MALI_MIDGARD),m)
+MALI_BUILD_TM =\"$(shell date +"%H:%M:%S %Y/%m/%d")\"
+EXTRA_CFLAGS += -DMALI_BUILD_BY=\"$(shell whoami)\"
+EXTRA_CFLAGS += -DMALI_BUILD_TM="${MALI_BUILD_TM}"
+endif
 #
 # KBUILD_EXTRA_SYMBOLS to prevent warnings about unknown functions
 #
