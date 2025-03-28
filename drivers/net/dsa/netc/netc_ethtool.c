@@ -341,3 +341,28 @@ void netc_port_get_eth_mac_stats(struct dsa_switch *ds, int port_id,
 		break;
 	}
 }
+
+int netc_port_set_mac_eee(struct dsa_switch *ds, int port_id,
+			  struct ethtool_keee *eee)
+{
+	struct net_device *ndev = dsa_to_port(ds, port_id)->user;
+	u64 clk_freq = NETC_PRIV(ds)->info->sysclk_freq;
+	u64 sleep_cycles;
+
+	if (eee->eee_enabled && eee->tx_lpi_enabled) {
+		if (!eee->tx_lpi_timer) {
+			netdev_err(ndev, "tx_lpi_timer is zero\n");
+			return -EINVAL;
+		}
+
+		sleep_cycles = netc_us_to_cycles(clk_freq, eee->tx_lpi_timer);
+		if (sleep_cycles > PM_SLEEP_TIMER_SLEEP) {
+			netdev_err(ndev, "tx_lpi_timer cannot exceed %llu\n",
+				   netc_cycles_to_us(clk_freq,
+						     PM_SLEEP_TIMER_SLEEP));
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}

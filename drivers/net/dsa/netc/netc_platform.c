@@ -31,6 +31,7 @@ static void imx94_switch_phylink_get_caps(int port, struct phylink_config *confi
 		__set_bit(PHY_INTERFACE_MODE_2500BASEX,
 			  config->supported_interfaces);
 		config->mac_capabilities |= MAC_2500FD;
+		config->lpi_capabilities |= MAC_2500FD;
 		fallthrough;
 	case 2:
 		__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
@@ -39,6 +40,9 @@ static void imx94_switch_phylink_get_caps(int port, struct phylink_config *confi
 			__set_bit(PHY_INTERFACE_MODE_REVMII, config->supported_interfaces);
 
 		phy_interface_set_rgmii(config->supported_interfaces);
+		config->lpi_capabilities |= MAC_100FD | MAC_1000FD;
+		memcpy(config->lpi_interfaces, config->supported_interfaces,
+		       sizeof(config->lpi_interfaces));
 		break;
 	case 3: /* CPU port */
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL, config->supported_interfaces);
@@ -103,6 +107,7 @@ static const struct netc_switch_info imx94_info = {
 	.cpu_port_num = 1,
 	.usr_port_num = 3,
 	.tmr_devfn = 1,
+	.sysclk_freq = NETC_SYSCLK_333M,
 	.phylink_get_caps = imx94_switch_phylink_get_caps,
 	.bpt_init = imx94_switch_bpt_init,
 	.port_tx_pause_config = imx94_port_tx_pause_config,

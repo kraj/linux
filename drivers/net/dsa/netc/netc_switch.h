@@ -57,6 +57,9 @@
 /* Software defined host reason */
 #define NETC_HR_TRAP			0x8
 
+#define NETC_SYSCLK_333M		333333333UL
+#define NETC_LPWAKE_US			50
+
 struct netc_switch;
 struct netc_port;
 
@@ -64,6 +67,7 @@ struct netc_switch_info {
 	u32 cpu_port_num;
 	u32 usr_port_num;
 	u32 tmr_devfn;
+	u64 sysclk_freq;
 	void (*phylink_get_caps)(int port, struct phylink_config *config);
 	void (*bpt_init)(struct netc_switch *priv);
 	void (*port_tx_pause_config)(struct netc_port *port, bool tx_pause);
@@ -268,6 +272,8 @@ void netc_port_get_eth_ctrl_stats(struct dsa_switch *ds, int port_id,
 				  struct ethtool_eth_ctrl_stats *ctrl_stats);
 void netc_port_get_eth_mac_stats(struct dsa_switch *ds, int port_id,
 				 struct ethtool_eth_mac_stats *mac_stats);
+int netc_port_set_mac_eee(struct dsa_switch *ds, int port_id,
+			  struct ethtool_keee *eee);
 
 /* PTP APIs */
 int netc_get_ts_info(struct dsa_switch *ds, int port_id,
@@ -322,6 +328,16 @@ static inline void netc_del_vlan_entry(struct netc_vlan_entry *entry)
 {
 	hlist_del(&entry->node);
 	kfree(entry);
+}
+
+static inline u64 netc_us_to_cycles(u64 clk_freq, u32 us)
+{
+	return mul_u64_u32_div(clk_freq, us, 1000000U);
+}
+
+static inline u64 netc_cycles_to_us(u64 clk_freq, u32 cycles)
+{
+	return mul_u64_u64_div_u64(cycles, 1000000ULL, clk_freq);
 }
 
 #endif

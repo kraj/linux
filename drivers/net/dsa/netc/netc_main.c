@@ -2361,11 +2361,55 @@ static void netc_mac_link_down(struct phylink_config *config, unsigned int mode,
 	netc_port_remove_dynamic_entries(port);
 }
 
+static void netc_port_disable_tx_lpi(struct netc_switch *priv,
+				     int port_id)
+{
+	struct netc_port *port = NETC_PORT(priv, port_id);
+
+	netc_mac_port_wr(port, NETC_PM_SLEEP_TIMER(0), 0);
+	netc_mac_port_wr(port, NETC_PM_LPWAKE_TIMER(0), 0);
+}
+
+static void netc_port_enable_tx_lpi(struct netc_switch *priv,
+				    int port_id, u32 timer)
+{
+	struct netc_port *port = NETC_PORT(priv, port_id);
+	u64 clk_freq = priv->info->sysclk_freq;
+	u32 sleep_cycles, lpwake_cycles;
+
+	sleep_cycles = netc_us_to_cycles(clk_freq, timer);
+	lpwake_cycles = netc_us_to_cycles(clk_freq, NETC_LPWAKE_US);
+
+	netc_mac_port_wr(port, NETC_PM_SLEEP_TIMER(0), sleep_cycles);
+	netc_mac_port_wr(port, NETC_PM_LPWAKE_TIMER(0), lpwake_cycles);
+}
+
+static void netc_mac_disable_tx_lpi(struct phylink_config *config)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct netc_switch *priv = dp->ds->priv;
+
+	netc_port_disable_tx_lpi(priv, dp->index);
+}
+
+static int netc_mac_enable_tx_lpi(struct phylink_config *config,
+				  u32 timer, bool tx_clock_stop)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct netc_switch *priv = dp->ds->priv;
+
+	netc_port_enable_tx_lpi(priv, dp->index, timer);
+
+	return 0;
+}
+
 static const struct phylink_mac_ops netc_phylink_mac_ops = {
 	.mac_select_pcs		= netc_mac_select_pcs,
 	.mac_config		= netc_mac_config,
 	.mac_link_up		= netc_mac_link_up,
 	.mac_link_down		= netc_mac_link_down,
+	.mac_disable_tx_lpi	= netc_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi	= netc_mac_enable_tx_lpi,
 };
 
 static const struct dsa_switch_ops netc_switch_ops = {
@@ -2407,6 +2451,8 @@ static const struct dsa_switch_ops netc_switch_ops = {
 	.get_rmon_stats			= netc_port_get_rmon_stats,
 	.get_eth_ctrl_stats		= netc_port_get_eth_ctrl_stats,
 	.get_eth_mac_stats		= netc_port_get_eth_mac_stats,
+	.support_eee			= dsa_supports_eee,
+	.set_mac_eee			= netc_port_set_mac_eee,
 };
 
 static int netc_switch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
