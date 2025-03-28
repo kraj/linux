@@ -1072,6 +1072,12 @@ F: Documentation/devicetree/bindings/spi/spi-fsl-qspi.txt
 F: drivers/spi/spi-fsl-qspi.c
 F: drivers/mtd/spi-nor/spansion.c
 
+spi/xspi
+M: Han Xu <han.xu@nxp.com>
+M: Haibo Chen <haibo.chen@nxp.com>
+F: Documentation/devicetree/bindings/spi/spi-nxp-xspi.yaml
+F: drivers/spi/spi-nxp-xspi.c
+
 thermal
 M: Jacky Bai <ping.bai@nxp.com>
 M: Alice Guo <alice.guo@nxp.com>
