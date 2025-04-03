@@ -99,10 +99,13 @@ static int mx95mbcam_s_stream(struct v4l2_subdev *sd, int enable)
 static int mx95mbcam_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct mx95mbcam_priv *priv = container_of(sd, struct mx95mbcam_priv, sd);
+
 	if (code->pad || code->index > 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SBGGR16_1X16;
+	code->code = priv->sensor->vflip->val ? MEDIA_BUS_FMT_SGRBG16_1X16 :
+						MEDIA_BUS_FMT_SBGGR16_1X16;
 
 	return 0;
 }
@@ -127,6 +130,7 @@ static int mx95mbcam_enum_frame_size(struct v4l2_subdev *sd,
 static int mx95mbcam_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *format)
 {
+	struct mx95mbcam_priv *priv = container_of(sd, struct mx95mbcam_priv, sd);
 	struct v4l2_mbus_framefmt *mf = &format->format;
 
 	if (format->pad)
@@ -134,7 +138,8 @@ static int mx95mbcam_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_state *s
 
 	mf->width		= OX03C10_PIXEL_ARRAY_WIDTH;
 	mf->height		= OX03C10_PIXEL_ARRAY_HEIGHT;
-	mf->code		= MEDIA_BUS_FMT_SBGGR16_1X16;
+	mf->code		= priv->sensor->vflip->val ? MEDIA_BUS_FMT_SGRBG16_1X16 :
+							     MEDIA_BUS_FMT_SBGGR16_1X16;
 	mf->colorspace		= V4L2_COLORSPACE_RAW;
 	mf->field		= V4L2_FIELD_NONE;
 	mf->ycbcr_enc		= V4L2_YCBCR_ENC_601;
