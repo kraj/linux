@@ -687,6 +687,23 @@ static int ox03c10_hflip_enable(struct ox03c10 *sensor, bool en)
 	return ret ? -EIO : 0;
 }
 
+static int ox03c10_vflip_enable(struct ox03c10 *sensor, bool en)
+{
+	int ret;
+
+	if (sensor->streaming)
+		return -EBUSY;
+
+	/*
+	 * Vertical flipping will not keep the CFA pattern. Setting OX03C10_REG_WIN_09[1] has no
+	 * effect. In fact, it can freeze the sensor.
+	 */
+	ret = regmap_update_bits(sensor->rmap, OX03C10_TIMING_CTRL_REG_20, BIT(2),
+				 en ? BIT(2) : 0);
+
+	return ret ? -EIO : 0;
+}
+
 static int ox03c10_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ox03c10 *sensor = container_of(ctrl->handler, struct ox03c10, ctrl_handler);
@@ -728,6 +745,9 @@ static int ox03c10_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_HFLIP:
 		return ox03c10_hflip_enable(sensor, ctrl->val);
+
+	case V4L2_CID_VFLIP:
+		return ox03c10_vflip_enable(sensor, ctrl->val);
 
 	default:
 		return -EINVAL;
@@ -1007,7 +1027,7 @@ int ox03c10_v4l2_controls_init(struct ox03c10 *sensor)
 	u16 hblank, vblank;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(&sensor->ctrl_handler, ARRAY_SIZE(ox03c10_ctrl_cfgs) + 4);
+	ret = v4l2_ctrl_handler_init(&sensor->ctrl_handler, ARRAY_SIZE(ox03c10_ctrl_cfgs) + 9);
 	if (ret < 0) {
 		dev_err(dev, "Cannot initialize V4L2 ctrl handler.\n");
 		return ret;
@@ -1044,6 +1064,11 @@ int ox03c10_v4l2_controls_init(struct ox03c10 *sensor)
 	v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops, V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 0);
 
 	v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	sensor->vflip = v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops,
+					  V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (sensor->vflip)
+		sensor->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 
 	ret = v4l2_fwnode_device_parse(sensor->dev, &props);
 	if (ret)

@@ -26,6 +26,8 @@ struct ox03c10 {
 	s32 dgain_input;
 	struct ox03c10_digital_gain dgain;
 
+	struct v4l2_ctrl *vflip;
+
 	/* this needs to be the last element in the structure */
 	struct v4l2_ctrl *ctrls[];
 };
