@@ -873,6 +873,15 @@ net/ls1028-switch
 M: Vladimir Oltean <vladimir.oltean@nxp.com>
 F: drivers/net/ethernet/mscc/ocelot.c
 
+net/netc-switch
+M: Wei Fang <wei.fang@nxp.com>
+R: Vladimir Oltean <vladimir.oltean@nxp.com>
+R: Claudiu Manoil <claudiu.manoil@nxp.com>
+R: Clark Wang <xiaoning.wang@nxp.com>
+F: drivers/net/dsa/netc/
+F: include/linux/dsa/tag_netc.h
+F: net/dsa/tag_netc.c
+
 net/pfe
 M: Chaitanya Sakinam <Chaitanya.sakinam@nxp.com>
 R: Wei Fang <wei.fang@nxp.com>
