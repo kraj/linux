@@ -796,9 +796,10 @@ F: drivers/mtd/nand/raw/gpmi-nand/
 F: include/linux/fsl_ifc.h
 
 net/phy
-M: Wei Fang <wei.fang@nxp.com>
-R: Clark Wang <xiaoning.wang@nxp.com>
-R: Florin Chiculita <florinlaurentiu.chiculita@nxp.com>
+M: Clark Wang <xiaoning.wang@nxp.com>
+M: Ioana Ciornei <ioana.ciornei@nxp.com>
+M: Vladimir Oltean <vladimir.oltean@nxp.com>
+R: Wei Fang <wei.fang@nxp.com>
 F: drivers/net/phy/
 F: include/linux/phy.h
 
