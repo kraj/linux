@@ -20,24 +20,27 @@
 #define OX03C10_I2C_ADDR		0x36
 #define OX03C10_PIXEL_RATE		90000000L
 
-#define OX03C10_EXPOSURE_MIN		4U
+#define OX03C10_EXPOSURE_MIN		2U
 
 #define OX03C10_AGAIN_MIN		0x10000L /* Q16.16 for 1.0 */
-#define OX03C10_AGAIN_MAX		0xF8000L /* Q16.16 for 15.5 */
+#define OX03C10_AGAIN_MAX		0xF0000 /* Q16.16 for 15.0 */
 
 #define OX03C10_DGAIN_MIN		0x10000L /* Q16.16 for 1.0 */
-#define OX03C10_DGAIN_MAX		0xFFFC0L /* Q16.16 for 15.999 */
+#define OX03C10_DGAIN_MAX		0xF0000 /* Q16.16 for 15.0 */
 
-#define OX03C10_L2S_RATIO		0x200000L /* Q16.16 for 32 */
-#define OX03C10_L2VS_RATIO		0x4000000L /* Q16.16 for 1024 */
+#define OX03C10_L2S_RATIO		0x100000L /* Q16.16 for 16 */
+#define OX03C10_L2VS_RATIO		0x800000L /* Q16.16 for 128 */
+#define OX03C10_L2SPD_RATIO		0x4000000L /* Q16.16 for 1024 */
 
 #define OX03C10_GAIN_CONV_RATIO		0x751EBL /* Q16.16 for 7.32 */
+#define OX03C10_LPD_SPD_SENS_RATIO	0x6C8000L /* Q16.16 for 108.5 */
 
 #define OX03C10_GAIN_VS_MIN		(OX03C10_AGAIN_MIN * OX03C10_DGAIN_MIN / 0x10000)
 #define OX03C10_GAIN_S_MIN		(OX03C10_AGAIN_MIN * OX03C10_DGAIN_MIN / 0x10000)
 #define OX03C10_GAIN_L_MIN		(OX03C10_GAIN_S_MIN * OX03C10_L2S_RATIO / 0x10000)
 
-#define OX03C10_EXPOSURE_LINES_MIN	4
+#define OX03C10_EXPOSURE_LINES_MIN	2
+/* Workaround max VS exposure set to 4 (instead of 31) to prevent image corruption */
 #define OX03C10_EXPOSURE_LINES_VS_MAX	4
 #define OX03C10_EXPOSURE_LINES_VS_MIN	0
 
@@ -448,14 +451,16 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 					     s32 again, s32 dgain)
 {
 	u64 total_exposure_l, total_exposure_l_rows;
-	u32 exposure_us, exposure_dcg, exposure_vs;
-	u64 again_hcg, again_lcg, again_vs;
-	u32 dgain_hcg, dgain_lcg, dgain_vs;
+	u32 exposure_us, exposure_dcg, exposure_spd, exposure_vs;
+	u64 again_hcg, again_lcg, again_spd, again_vs;
+	u32 dgain_hcg, dgain_lcg, dgain_spd, dgain_vs;
 	struct ox03c10_exposure computed_exposure;
 	struct ox03c10_analog_gain computed_again;
 	struct ox03c10_digital_gain computed_dgain;
 	u64 add_gain;
 	int ret = 0;
+	/* in double-rows */
+	u32 max_exposure_lines = (sensor->cur_mode->vts / 2) - OX03C10_EXPOSURE_LINES_VS_MAX - 13;
 
 	if (sensor->streaming)
 		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x00); /* set group hold 0 */
@@ -494,6 +499,27 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 		again_hcg = OX03C10_GAIN_L_MIN;
 
 	again_lcg = again_hcg * 0x10000 / OX03C10_L2S_RATIO;
+
+	/* SPD distribution */
+	exposure_spd = max_exposure_lines; /* default to max */
+	total_exposure_l_rows = again_hcg * ((u64)exposure_dcg *
+					     OX03C10_LPD_SPD_SENS_RATIO / 0x10000);
+	again_spd = total_exposure_l_rows * 0x10000 /
+				(OX03C10_L2SPD_RATIO * (u64)exposure_spd);
+
+	if (again_spd < OX03C10_AGAIN_MIN) {
+		again_spd = OX03C10_AGAIN_MIN;
+		exposure_spd = total_exposure_l_rows * 0x10000 /
+			(OX03C10_L2SPD_RATIO * again_spd);
+
+		if (exposure_spd <= OX03C10_EXPOSURE_LINES_MIN)
+			exposure_spd = OX03C10_EXPOSURE_LINES_MIN;
+
+		again_spd = total_exposure_l_rows * 0x10000 /
+				(OX03C10_L2SPD_RATIO * (u64)exposure_spd);
+	}
+
+	/* VS distribution */
 	exposure_vs = OX03C10_EXPOSURE_LINES_VS_MAX; /* default to max */
 
 	total_exposure_l_rows = again_hcg * ((u64)exposure_dcg * 0x400 + OFFSET_M);
@@ -522,40 +548,45 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 	}
 
 	computed_exposure.dcg = exposure_dcg;
-	computed_exposure.spd = 0x04; /* using default */
+	computed_exposure.spd = exposure_spd;
 	computed_exposure.vs = exposure_vs;
 
 	ret |= ox03c10_exposure_set(sensor, &computed_exposure);
 
 	dgain_hcg = OX03C10_DGAIN_MIN;
 	dgain_lcg = OX03C10_DGAIN_MIN;
+	dgain_spd = OX03C10_DGAIN_MIN;
 	dgain_vs = OX03C10_DGAIN_MIN;
 
 	again_hcg = (again_hcg * 0x10000) / (((u64)dgain_hcg * OX03C10_GAIN_CONV_RATIO) / 0x10000);
 	again_lcg = (again_lcg * 0x10000) / dgain_lcg;
+	again_spd = (again_spd * 0x10000) / dgain_spd;
 	again_vs = (again_vs * 0x10000) / dgain_vs;
 
 	again_hcg = ox03c10_distribute_again(again_hcg, OX03C10_AGAIN_MIN,
 					     OX03C10_AGAIN_MAX, &dgain_hcg);
 	again_lcg = ox03c10_distribute_again(again_lcg, OX03C10_AGAIN_MIN,
 					     OX03C10_AGAIN_MAX, &dgain_lcg);
+	again_spd = ox03c10_distribute_again(again_spd, OX03C10_AGAIN_MIN,
+					     OX03C10_AGAIN_MAX, &dgain_spd);
 	again_vs = ox03c10_distribute_again(again_vs, OX03C10_AGAIN_MIN,
 					    OX03C10_AGAIN_MAX, &dgain_vs);
 
 	computed_again.hcg = again_hcg >> 12;
 	computed_again.lcg = again_lcg >> 12;
-	computed_again.spd = 0x10; /* use the default */
+	computed_again.spd = again_spd >> 12;
 	computed_again.vs = again_vs >> 12;
 
 	ret |= ox03c10_analogue_gain_set(sensor, &computed_again);
 
 	dgain_hcg = ox03c10_distribute_dgain(dgain_hcg, OX03C10_DGAIN_MIN, OX03C10_DGAIN_MAX);
 	dgain_lcg = ox03c10_distribute_dgain(dgain_lcg, OX03C10_DGAIN_MIN, OX03C10_DGAIN_MAX);
+	dgain_spd = ox03c10_distribute_dgain(dgain_spd, OX03C10_DGAIN_MIN, OX03C10_DGAIN_MAX);
 	dgain_vs = ox03c10_distribute_dgain(dgain_vs, OX03C10_DGAIN_MIN, OX03C10_DGAIN_MAX);
 
 	computed_dgain.hcg = dgain_hcg >> 6;
 	computed_dgain.lcg = dgain_lcg >> 6;
-	computed_dgain.spd = 0x400; /* use the default */
+	computed_dgain.spd = dgain_spd >> 6;
 	computed_dgain.vs = dgain_vs >> 6;
 
 	ret |= ox03c10_digital_gain_set(sensor, &computed_dgain);
