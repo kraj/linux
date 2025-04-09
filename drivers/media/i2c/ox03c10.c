@@ -296,6 +296,32 @@ static u32 ox03c10_distribute_dgain(u32 gain, u32 min_gain, u32 max_gain)
 	return gain & OX03C10_DGAIN_MASK;
 }
 
+static int ox03c10_gh_set(struct ox03c10 *sensor, int gh_no)
+{
+	if (!sensor->streaming || sensor->gh_open[gh_no])
+		return 0;
+
+	sensor->gh_open[gh_no] = true;
+
+	return regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, gh_no & 0xf);
+}
+
+static int ox03c10_gh_close_and_launch(struct ox03c10 *sensor, int gh_no)
+{
+	int ret;
+
+	if (!sensor->streaming || !sensor->gh_open[gh_no])
+		return 0;
+
+	sensor->gh_open[gh_no] = false;
+
+	ret = regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x10 | (gh_no & 0xf));
+	if (ret)
+		return ret;
+
+	return regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0xE0 | (gh_no & 0xf));
+}
+
 static int ox03c10_exposure_set(struct ox03c10 *sensor, struct ox03c10_exposure *exp)
 {
 	int ret = 0;
@@ -328,17 +354,15 @@ static int ox03c10_exposure_set_gh(struct ox03c10 *sensor, struct ox03c10_exposu
 {
 	int ret = 0;
 
-	if (sensor->streaming)
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x00); /* set group hold 0 */
+	ret = ox03c10_gh_set(sensor, 0);
+	if (ret)
+		return ret;
 
-	ret |= ox03c10_exposure_set(sensor, exp);
+	ret = ox03c10_exposure_set(sensor, exp);
+	if (ret)
+		return ret;
 
-	if (sensor->streaming) {
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x10); /* end group hold 0 */
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0xE0); /* quick launch */
-	}
-
-	return ret ? -EIO : 0;
+	return ox03c10_gh_close_and_launch(sensor, 0);
 }
 
 static int ox03c10_analogue_gain_set(struct ox03c10 *sensor, struct ox03c10_analog_gain *gain)
@@ -379,17 +403,15 @@ static int ox03c10_analogue_gain_set_gh(struct ox03c10 *sensor, struct ox03c10_a
 {
 	int ret = 0;
 
-	if (sensor->streaming)
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x00); /* set group hold 0 */
+	ret = ox03c10_gh_set(sensor, 0);
+	if (ret)
+		return ret;
 
-	ret |= ox03c10_analogue_gain_set(sensor, gain);
+	ret = ox03c10_analogue_gain_set(sensor, gain);
+	if (ret)
+		return ret;
 
-	if (sensor->streaming) {
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x10); /* end group hold 0 */
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0xE0); /* quick launch */
-	}
-
-	return ret ? -EIO : 0;
+	return ox03c10_gh_close_and_launch(sensor, 0);
 }
 
 static int ox03c10_digital_gain_set(struct ox03c10 *sensor, struct ox03c10_digital_gain *gain)
@@ -434,17 +456,15 @@ static int ox03c10_digital_gain_set_gh(struct ox03c10 *sensor, struct ox03c10_di
 {
 	int ret = 0;
 
-	if (sensor->streaming)
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x00); /* set group hold 0 */
+	ret = ox03c10_gh_set(sensor, 0);
+	if (ret)
+		return ret;
 
-	ret |= ox03c10_digital_gain_set(sensor, gain);
+	ret = ox03c10_digital_gain_set(sensor, gain);
+	if (ret)
+		return ret;
 
-	if (sensor->streaming) {
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x10); /* end group hold 0 */
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0xE0); /* quick launch */
-	}
-
-	return ret ? -EIO : 0;
+	return ox03c10_gh_close_and_launch(sensor, 0);
 }
 
 static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposure,
@@ -462,8 +482,9 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 	/* in double-rows */
 	u32 max_exposure_lines = (sensor->cur_mode->vts / 2) - OX03C10_EXPOSURE_LINES_VS_MAX - 13;
 
-	if (sensor->streaming)
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x00); /* set group hold 0 */
+	ret = ox03c10_gh_set(sensor, 0);
+	if (ret)
+		return ret;
 
 	/* save the current exposure and gains values */
 	sensor->exposure_input = exposure;
@@ -551,7 +572,10 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 	computed_exposure.spd = exposure_spd;
 	computed_exposure.vs = exposure_vs;
 
-	ret |= ox03c10_exposure_set(sensor, &computed_exposure);
+	ret = __v4l2_ctrl_s_ctrl_compound(sensor->ctrls[OX03C10_EXPOSURE], V4L2_CTRL_TYPE_U8,
+					  &computed_exposure);
+	if (ret)
+		return ret;
 
 	dgain_hcg = OX03C10_DGAIN_MIN;
 	dgain_lcg = OX03C10_DGAIN_MIN;
@@ -577,7 +601,10 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 	computed_again.spd = again_spd >> 12;
 	computed_again.vs = again_vs >> 12;
 
-	ret |= ox03c10_analogue_gain_set(sensor, &computed_again);
+	ret = __v4l2_ctrl_s_ctrl_compound(sensor->ctrls[OX03C10_AGAIN], V4L2_CTRL_TYPE_U8,
+					  &computed_again);
+	if (ret)
+		return ret;
 
 	dgain_hcg = ox03c10_distribute_dgain(dgain_hcg, OX03C10_DGAIN_MIN, OX03C10_DGAIN_MAX);
 	dgain_lcg = ox03c10_distribute_dgain(dgain_lcg, OX03C10_DGAIN_MIN, OX03C10_DGAIN_MAX);
@@ -589,14 +616,12 @@ static int ox03c10_exposure_and_gains_update(struct ox03c10 *sensor, s32 exposur
 	computed_dgain.spd = dgain_spd >> 6;
 	computed_dgain.vs = dgain_vs >> 6;
 
-	ret |= ox03c10_digital_gain_set(sensor, &computed_dgain);
+	ret = __v4l2_ctrl_s_ctrl_compound(sensor->ctrls[OX03C10_DGAIN], V4L2_CTRL_TYPE_U8,
+					  &computed_dgain);
+	if (ret)
+		return ret;
 
-	if (sensor->streaming) {
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x10); /* end group hold 0 */
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0xE0); /* quick launch */
-	}
-
-	return ret;
+	return ox03c10_gh_close_and_launch(sensor, 0);
 }
 
 static int ox03c10_wb_gain_set(struct ox03c10 *sensor, struct ox03c10_wb_capture_gain *wb_gain)
@@ -630,17 +655,15 @@ static int ox03c10_wb_gain_set_gh(struct ox03c10 *sensor, struct ox03c10_wb_capt
 {
 	int ret = 0;
 
-	if (sensor->streaming)
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x00); /* set group hold 0 */
+	ret = ox03c10_gh_set(sensor, 0);
+	if (ret)
+		return ret;
 
-	ret |= ox03c10_wb_gain_set(sensor, wb_gain);
+	ret = ox03c10_wb_gain_set(sensor, wb_gain);
+	if (ret)
+		return ret;
 
-	if (sensor->streaming) {
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0x10); /* end group hold 3 */
-		ret |= regmap_write(sensor->rmap, OX03C10_GRP_HOLD_8, 0xE0); /* quick launch */
-	}
-
-	return ret ? -EIO : 0;
+	return ox03c10_gh_close_and_launch(sensor, 0);
 }
 
 static int ox03c10_pwl_enable(struct ox03c10 *sensor, bool en)
@@ -920,7 +943,7 @@ static const struct v4l2_ctrl_type_ops ox03c10_ctrl_type_ops = {
 };
 
 static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
-	{
+	[OX03C10_EXPOSURE] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_EXPOSURE,
@@ -932,7 +955,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.def		= 0,
 		.dims		= { sizeof(struct ox03c10_exposure) },
 	},
-	{
+	[OX03C10_AGAIN] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_ANALOGUE_GAIN,
@@ -944,7 +967,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.def		= 0x0,
 		.dims		= { sizeof(struct ox03c10_analog_gain) },
 	},
-	{
+	[OX03C10_DGAIN] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_DIGITAL_GAIN,
@@ -956,7 +979,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.def		= 0x00,
 		.dims		= { sizeof(struct ox03c10_digital_gain) },
 	},
-	{
+	[OX03C10_WBGAIN] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_WB_GAIN,
@@ -968,7 +991,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.def		= 0x00,
 		.dims		= { 4 * sizeof(struct ox03c10_wb_capture_gain) },
 	},
-	{
+	[OX03C10_PWL_EN] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.id		= V4L2_CID_OX03C10_PWL_EN,
 		.name		= "Enable PWL compression",
@@ -978,7 +1001,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.step		= 1,
 		.def		= true,
 	},
-	{
+	[OX03C10_PWL_CTRL] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_PWL_CTRL,
@@ -990,7 +1013,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.def		= 0,
 		.dims		= { sizeof(struct ox03c10_pwl_ctrl) }
 	},
-	{
+	[OX03C10_PWL_KNEE_POINTS_LUT] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_PWL_KNEE_POINTS_LUT,
@@ -1002,7 +1025,7 @@ static const struct v4l2_ctrl_config ox03c10_ctrl_cfgs[] = {
 		.def		= 0,
 		.dims		= { 132 }
 	},
-	{
+	[OX03C10_OTP_CORRECTION] = {
 		.ops		= &ox03c10_ctrl_ops,
 		.type_ops	= &ox03c10_ctrl_type_ops,
 		.id		= V4L2_CID_OX03C10_OTP_CORRECTION,

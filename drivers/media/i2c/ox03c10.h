@@ -8,6 +8,17 @@
 
 #include <uapi/linux/ox03c10.h>
 
+enum ox03c10_custom_ctrls {
+	OX03C10_EXPOSURE,
+	OX03C10_AGAIN,
+	OX03C10_DGAIN,
+	OX03C10_WBGAIN,
+	OX03C10_PWL_EN,
+	OX03C10_PWL_CTRL,
+	OX03C10_PWL_KNEE_POINTS_LUT,
+	OX03C10_OTP_CORRECTION,
+};
+
 struct ox03c10 {
 	struct i2c_client *client;
 	struct device *dev;
@@ -18,6 +29,8 @@ struct ox03c10 {
 	struct ox03c10_mode *cur_mode;
 
 	bool streaming;
+
+	bool gh_open[4];
 
 	s32 exposure_input;
 	struct ox03c10_exposure exposure;
