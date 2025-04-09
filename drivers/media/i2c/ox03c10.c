@@ -10,6 +10,7 @@
 #include <linux/regmap.h>
 
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-common.h>
 #include <media/v4l2-fwnode.h>
 
 #include <uapi/linux/ox03c10.h>
@@ -209,9 +210,35 @@ static struct ox03c10_mode ox03c10_modes[] = {
 		.height = OX03C10_PIXEL_ARRAY_HEIGHT,
 		.hts = 2186,
 		.vts = 1372,
-		.fps = 30
+		.fps = 30,
+		.crop = {
+			.left = 8,
+			.top = 4,
+			.width = 1920,
+			.height = 1280,
+		},
+	},
+	{
+		.width = 1920,
+		.height = 1082,
+		.hts = 2186,
+		.vts = 1372,
+		.fps = 30,
+		.crop = {
+			.left = 8,
+			.top = 104,
+			.width = 1920,
+			.height = 1080,
+		},
 	},
 };
+
+const struct ox03c10_mode *ox03c10_find_closest_mode(struct ox03c10 *sensor, u16 width, u16 height)
+{
+	return v4l2_find_nearest_size(ox03c10_modes, ARRAY_SIZE(ox03c10_modes),
+				      width, height, width, height);
+}
+EXPORT_SYMBOL(ox03c10_find_closest_mode);
 
 static inline u32 ox03c10_get_dbl_row_time_ns(u32 hts_pixels)
 {
@@ -228,21 +255,21 @@ static inline u32 ox03c10_get_dbl_row_time_ns(u32 hts_pixels)
 	return 2 * (u64)hts_pixels * NSEC_PER_SEC / OX03C10_PIXEL_RATE;
 }
 
-static u32 ox03c10_us_to_dbl_rows(struct ox03c10_mode *mode, u32 exposure_us)
+static u32 ox03c10_us_to_dbl_rows(const struct ox03c10_mode *mode, u32 exposure_us)
 {
 	u32 dbl_row_time_ns = ox03c10_get_dbl_row_time_ns(mode->hts);
 
 	return (exposure_us * 1000 + dbl_row_time_ns / 2) / dbl_row_time_ns;
 }
 
-static u32 ox03c10_dbl_rows_to_us(struct ox03c10_mode *mode, u32 exposure_in_dbl_rows)
+static u32 ox03c10_dbl_rows_to_us(const struct ox03c10_mode *mode, u32 exposure_in_dbl_rows)
 {
 	u32 dbl_row_time_ns = ox03c10_get_dbl_row_time_ns(mode->hts);
 
 	return (exposure_in_dbl_rows * dbl_row_time_ns) / 1000;
 }
 
-static u32 ox03c10_calc_additional_gain(struct ox03c10_mode *mode, u32 exposure_us,
+static u32 ox03c10_calc_additional_gain(const struct ox03c10_mode *mode, u32 exposure_us,
 					u32 exposure_in_dbl_rows)
 {
 	u32 dbl_row_time_ns = ox03c10_get_dbl_row_time_ns(mode->hts);
@@ -1078,13 +1105,15 @@ int ox03c10_v4l2_controls_init(struct ox03c10 *sensor)
 
 	hblank = sensor->cur_mode->hts - sensor->cur_mode->width;
 
-	v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops, V4L2_CID_HBLANK,
-			  hblank, hblank, 1, hblank);
+	sensor->hblank = v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops,
+					   V4L2_CID_HBLANK, hblank, hblank, 1,
+					   hblank);
 
 	vblank = sensor->cur_mode->vts - sensor->cur_mode->height;
 
-	v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops, V4L2_CID_VBLANK,
-			  vblank, vblank, 1, vblank);
+	sensor->vblank = v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops,
+					   V4L2_CID_VBLANK, vblank, vblank, 1,
+					   vblank);
 
 	v4l2_ctrl_new_std(ctrl_handler, &ox03c10_ctrl_ops, V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 0);
 
@@ -1161,6 +1190,35 @@ int ox03c10_streaming_start(struct ox03c10 *sensor, bool start)
 	return ret ? -EIO : 0;
 }
 EXPORT_SYMBOL(ox03c10_streaming_start);
+
+int ox03c10_set_mode(struct ox03c10 *sensor, const struct ox03c10_mode *mode)
+{
+	int ret;
+	u8 buf[4];
+
+	buf[0] = (mode->crop.left >> 8) & 0xff;
+	buf[1] = mode->crop.left & 0xff;
+	buf[2] = (mode->crop.top >> 8) & 0xff;
+	buf[3] = mode->crop.top & 0xff;
+
+	ret = regmap_bulk_write(sensor->rmap, OX03C10_ISP_X_WIN_INT_H, buf, 4);
+	if (ret)
+		return ret;
+
+	buf[0] = (mode->crop.width >> 8) & 0xff;
+	buf[1] = mode->crop.width & 0xff;
+	buf[2] = (mode->crop.height >> 8) & 0xff;
+	buf[3] = mode->crop.height & 0xff;
+
+	ret = regmap_bulk_write(sensor->rmap, OX03C10_X_OUTPUT_SIZE_INT_H, buf, 4);
+	if (ret)
+		return ret;
+
+	sensor->cur_mode = mode;
+
+	return 0;
+}
+EXPORT_SYMBOL(ox03c10_set_mode);
 
 static int ox03c10_sensor_init(struct ox03c10 *sensor)
 {

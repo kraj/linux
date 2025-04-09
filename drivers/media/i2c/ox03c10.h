@@ -26,7 +26,7 @@ struct ox03c10 {
 
 	struct v4l2_ctrl_handler ctrl_handler;
 
-	struct ox03c10_mode *cur_mode;
+	const struct ox03c10_mode *cur_mode;
 
 	bool streaming;
 
@@ -40,6 +40,9 @@ struct ox03c10 {
 	struct ox03c10_digital_gain dgain;
 
 	struct v4l2_ctrl *vflip;
+
+	struct v4l2_ctrl *hblank;
+	struct v4l2_ctrl *vblank;
 
 	/* this needs to be the last element in the structure */
 	struct v4l2_ctrl *ctrls[];
@@ -59,6 +62,7 @@ struct ox03c10_mode {
 	u32 hts;
 	u32 vts;
 	u16 fps;
+	struct v4l2_rect crop;
 };
 
 int ox03c10_v4l2_controls_init(struct ox03c10 *ox03c10);
@@ -68,5 +72,7 @@ int ox03c10_streaming_start(struct ox03c10 *sensor, bool start);
 struct v4l2_ctrl_handler *ox03c10_ctrl_handler_get(struct ox03c10 *sensor);
 void ox03c10_ctrl_handler_free(struct ox03c10 *sensor);
 struct ox03c10_mode *ox03c10_get_mode(int index);
+const struct ox03c10_mode *ox03c10_find_closest_mode(struct ox03c10 *sensor, u16 width, u16 height);
+int ox03c10_set_mode(struct ox03c10 *sensor, const struct ox03c10_mode *mode);
 
 #endif
