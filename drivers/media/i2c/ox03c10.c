@@ -40,8 +40,7 @@
 #define OX03C10_GAIN_L_MIN		(OX03C10_GAIN_S_MIN * OX03C10_L2S_RATIO / 0x10000)
 
 #define OX03C10_EXPOSURE_LINES_MIN	2
-/* Workaround max VS exposure set to 4 (instead of 31) to prevent image corruption */
-#define OX03C10_EXPOSURE_LINES_VS_MAX	4
+#define OX03C10_EXPOSURE_LINES_VS_MAX	31
 #define OX03C10_EXPOSURE_LINES_VS_MIN	0
 
 #define OX03C10_AGAIN_RANGE_1_MASK	0xFF000U
@@ -340,6 +339,9 @@ static int ox03c10_exposure_set(struct ox03c10 *sensor, struct ox03c10_exposure 
 	}
 
 	if (exp->vs != sensor->exposure.vs) {
+		if (exp->vs > 4 && !sensor->streaming)
+			return -EINVAL;
+
 		buf[0] = (exp->vs >> 8) & 0xff;
 		buf[1] = exp->vs & 0xff;
 		ret |= regmap_bulk_write(sensor->rmap, OX03C10_AEC_VS_CTRL_01, buf, 2);
@@ -1136,6 +1138,20 @@ int ox03c10_streaming_start(struct ox03c10 *sensor, bool start)
 
 		/* Wait a maximum of 1 time frame. Worst case is 33.33ms. */
 		msleep(34);
+
+		/*
+		 * OX03C10 messes up the frames if the VS exposure is higher than 4 before streaming
+		 * is started. The following is working around this issue by lowering the VS to 4
+		 * if the value was set higher during streaming.
+		 */
+		if (sensor->exposure.vs > 4) {
+			struct ox03c10_exposure new_exposure = sensor->exposure;
+
+			new_exposure.vs = 4;
+			__v4l2_ctrl_s_ctrl_compound(sensor->ctrls[OX03C10_EXPOSURE],
+						    V4L2_CTRL_TYPE_U8,
+						    &new_exposure);
+		}
 	} else {
 		ret = regmap_write(sensor->rmap, OX03C10_SMIA_R0100, 1);
 	}
