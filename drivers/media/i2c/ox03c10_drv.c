@@ -40,10 +40,13 @@ static int ox03c10_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct ox03c10_priv *priv = to_ox03c10_priv(sd);
+
 	if (code->pad != 0 || code->index > 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SBGGR16_1X16;
+	code->code = priv->sensor->vflip->val ? MEDIA_BUS_FMT_SBGGR16_1X16 :
+						MEDIA_BUS_FMT_SBGGR16_1X16;
 	return 0;
 }
 
@@ -70,6 +73,8 @@ static int ox03c10_enum_frame_size(struct v4l2_subdev *sd,
 static int ox03c10_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 				  struct v4l2_mbus_frame_desc *fd)
 {
+	struct ox03c10_priv *priv = to_ox03c10_priv(sd);
+
 	if (pad != 0 || !fd)
 		return -EINVAL;
 
@@ -77,7 +82,8 @@ static int ox03c10_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
 	fd->entry[0].flags = 0;
-	fd->entry[0].pixelcode = MEDIA_BUS_FMT_SBGGR16_1X16;
+	fd->entry[0].pixelcode = priv->sensor->vflip->val ? MEDIA_BUS_FMT_SBGGR16_1X16 :
+							    MEDIA_BUS_FMT_SBGGR16_1X16;
 	fd->entry[0].bus.csi2.vc = 0;
 	fd->entry[0].bus.csi2.dt = MIPI_CSI2_DT_RAW16;
 	fd->num_entries = 1;
@@ -123,6 +129,9 @@ static int ox03c10_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fmt->format = *format;
+	fmt->format.code = priv->sensor->vflip->val ? MEDIA_BUS_FMT_SGRBG16_1X16 :
+						      MEDIA_BUS_FMT_SBGGR16_1X16;
+
 	return 0;
 }
 
