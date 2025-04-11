@@ -15,7 +15,7 @@ static u32 v2x_fw_state;
 
 #define V2X_FW_AUTH_DBG_COMPLETE	0x15
 #define V2X_FW_AUTH_NORM_COMPLETE	0x13
-#define V2X_STATE_FETCH_MAX_RETRIES	200
+#define V2X_STATE_FETCH_MAX_RETRIES	1000
 
 static bool is_v2x_fw_running(u32 v2x_fw_state)
 {
