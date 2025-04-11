@@ -170,6 +170,7 @@ struct imx_pcie {
 	int			host_wake_irq;
 	int			num_clks;
 	bool			enable_ext_refclk;
+	bool			pll_locked;
 	bool			supports_clkreq;
 	struct regmap		*iomuxc_gpr;
 	u16			msi_ctrl;
@@ -534,9 +535,11 @@ static int imx95_pcie_wait_for_phy_pll_lock(struct imx_pcie *imx_pcie)
 				     PHY_PLL_LOCK_WAIT_USLEEP_MAX,
 				     PHY_PLL_LOCK_WAIT_TIMEOUT)) {
 		dev_err(dev, "PCIe PLL lock timeout\n");
+		imx_pcie->pll_locked = false;
 		return -ETIMEDOUT;
 	}
 
+	imx_pcie->pll_locked = true;
 	return 0;
 }
 
@@ -1276,13 +1279,13 @@ static int imx_pcie_host_init(struct dw_pcie_rp *pp)
 	if (imx_pcie->drvdata->init_phy)
 		imx_pcie->drvdata->init_phy(imx_pcie);
 
-	imx_pcie_configure_type(imx_pcie);
-
 	ret = imx_pcie_clk_enable(imx_pcie);
 	if (ret) {
 		dev_err(dev, "unable to enable pcie clocks: %d\n", ret);
 		return ret;
 	}
+
+	imx_pcie_configure_type(imx_pcie);
 
 	if (imx_pcie->phy) {
 		ret = phy_init(imx_pcie->phy);
@@ -1653,6 +1656,15 @@ static int imx_pcie_resume_noirq(struct device *dev)
 			return ret;
 	} else {
 		ret = dw_pcie_resume_noirq(imx_pcie->pci);
+		/*
+		 * PLL lock might be failed on i.MX95 and i.MX94 randomly in
+		 * corner case, re-initialized it to workaround this issue.
+		 */
+		if ((imx_pcie->drvdata->variant == IMX95) &&
+		    (imx_pcie->pll_locked == false)) {
+			imx_pcie->pci->suspended = true;
+			ret = dw_pcie_resume_noirq(imx_pcie->pci);
+		}
 		if (ret)
 			return ret;
 	}
