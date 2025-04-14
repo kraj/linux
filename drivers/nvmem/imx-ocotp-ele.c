@@ -24,6 +24,7 @@ enum fuse_type {
 	FUSE_FSB = BIT(0),
 	FUSE_ELE = BIT(1),
 	FUSE_ECC = BIT(2),
+	FUSE_UID = BIT(3),
 	FUSE_INVALID = -1
 };
 
@@ -31,6 +32,7 @@ struct ocotp_map_entry {
 	u32 start; /* start word */
 	u32 num; /* num words */
 	enum fuse_type type;
+	u32 off_or_id_8ulp; /* used for storing FUSEa (0-255) offset or Fuse ID */
 };
 
 struct ocotp_devtype_data {
@@ -60,7 +62,8 @@ struct imx_ocotp_priv {
 	u8 pfn;
 };
 
-static enum fuse_type imx_ocotp_fuse_type(void *context, u32 index)
+static enum fuse_type imx_ocotp_fuse_type(void *context, u32 index,
+					  const struct ocotp_map_entry **entry)
 {
 	struct imx_ocotp_priv *priv = context;
 	const struct ocotp_devtype_data *data = priv->data;
@@ -71,8 +74,10 @@ static enum fuse_type imx_ocotp_fuse_type(void *context, u32 index)
 		start = data->entry[i].start;
 		end = data->entry[i].start + data->entry[i].num;
 
-		if (index >= start && index < end)
-			return data->entry[i].type;
+		if (index >= start && index < end) {
+			*entry = data->entry + i;
+			return (*entry)->type;
+		}
 	}
 
 	return FUSE_INVALID;
@@ -81,8 +86,9 @@ static enum fuse_type imx_ocotp_fuse_type(void *context, u32 index)
 static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, size_t bytes)
 {
 	struct imx_ocotp_priv *priv = context;
+	const struct ocotp_map_entry *entry;
 	void __iomem *reg = priv->base + priv->data->reg_off;
-	u32 count, index, num_bytes;
+	u32 count, index, num_bytes, off_or_id;
 	enum fuse_type type;
 	u32 *buf;
 	void *p;
@@ -132,16 +138,35 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 	buf = p;
 
 	for (i = index; i < (index + count); i++) {
-		type = imx_ocotp_fuse_type(context, i);
+		type = imx_ocotp_fuse_type(context, i, &entry);
 
 		if (type == FUSE_INVALID) {
 			*buf++ = 0;
-		} else if (type == (FUSE_FSB | FUSE_ECC)) {
-			*buf++ = readl_relaxed(reg + (i << 2)) & GENMASK(15, 0);
+			continue;
+		}
+
+		if (type == (FUSE_ELE | FUSE_UID)) {
+			u32 uid[4];
+
+			ret = imx_se_read_fuse(priv->se_data, OTP_UNIQ_ID, uid);
+			if (ret)
+				goto err;
+
+			*buf++ = uid[i - entry->start];
+			continue;
+		}
+
+		if (priv->data->se_soc_id == SOC_ID_OF_IMX8ULP)
+			off_or_id = entry->off_or_id_8ulp + (i - entry->start);
+		else
+			off_or_id = i;
+
+		if (type == (FUSE_FSB | FUSE_ECC)) {
+			*buf++ = readl_relaxed(reg + (off_or_id << 2)) & GENMASK(15, 0);
 		} else if (type == FUSE_FSB) {
-			*buf++ = readl_relaxed(reg + (i << 2));
+			*buf++ = readl_relaxed(reg + (off_or_id << 2));
 		} else if (type == FUSE_ELE) {
-			ret = imx_se_read_fuse(priv->se_data, i, buf++);
+			ret = imx_se_read_fuse(priv->se_data, off_or_id, buf++);
 			if (ret)
 				goto err;
 		}
@@ -278,6 +303,33 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct ocotp_devtype_data imx8ulp_ocotp_data = {
+	.reg_off = 0x800,
+	.reg_read = imx_ocotp_reg_read,
+	.size = 2048, /* 64 Banks */
+	.num_entry = 17,
+	.se_soc_id = SOC_ID_OF_IMX8ULP,
+	.entry = {
+		{ 8, 8, FUSE_ELE, 8 }, /* Lock */
+		{ 16, 8, FUSE_ELE, 16 }, /* ECID */
+		{ 24, 8, FUSE_FSB, 0 }, /* Boot cfg */
+		{ 32, 8, FUSE_FSB, 8 }, /* Boot cfg */
+		{ 40, 8, FUSE_FSB, 64 }, /* PLL, etc */
+		{ 48, 8, FUSE_FSB, 72 }, /* Osc Trim */
+		{ 56, 4, FUSE_ELE | FUSE_UID, 1 }, /* OTP_UNIQ_ID */
+		{ 64, 4, FUSE_FSB, 80 }, /* ELE Misc Ctrl 1(non-redundant addresses) */
+		{ 66, 1, FUSE_ELE, 66 }, /* OEM SRK RVK */
+		{ 192, 16, FUSE_ELE, 192 }, /* Tester config */
+		{ 208, 8, FUSE_ELE, 208 }, /* PMU */
+		{ 216, 8, FUSE_ELE, 216 }, /* Test flow/USB */
+		{ 224, 32, FUSE_FSB, 96 },
+		{ 256, 40, FUSE_ELE, 256 }, /* GP fuses */
+		{ 296, 64, FUSE_FSB, 128 },
+		{ 360, 16, FUSE_FSB, 192 },
+		{ 392, 24, FUSE_ELE, 392 }, /* GP fuses */
+	},
+};
+
 static const struct ocotp_devtype_data imx93_ocotp_data = {
 	.reg_off = 0x8000,
 	.reg_read = imx_ocotp_reg_read,
@@ -351,6 +403,7 @@ static const struct ocotp_devtype_data imx95_ocotp_data = {
 };
 
 static const struct of_device_id imx_ele_ocotp_dt_ids[] = {
+	{ .compatible = "fsl,imx8ulp-ocotp", .data = &imx8ulp_ocotp_data, },
 	{ .compatible = "fsl,imx93-ocotp", .data = &imx93_ocotp_data, },
 	{ .compatible = "fsl,imx94-ocotp", .data = &imx94_ocotp_data, },
 	{ .compatible = "fsl,imx95-ocotp", .data = &imx95_ocotp_data, },
