@@ -1432,7 +1432,17 @@ static const struct dw_xpcs_compat nxp_mx95_xpcs_compat[] = {
 		.supported = xpcs_mx95_10g_features,
 		.interface = PHY_INTERFACE_MODE_10GBASER,
 		.an_mode = DW_10GBASER,
-		.pma_config = xpcs_phy_usxgmii_pma_config,
+		.pma_config = imx95_xpcs_phy_xfi_config,
+	}, {
+		.supported = xpcs_2500basex_features,
+		.interface = PHY_INTERFACE_MODE_2500BASEX,
+		.an_mode = DW_2500BASEX,
+		.pma_config = imx95_xpcs_phy_sgmii_2p5g_config,
+	}, {
+		.supported = xpcs_sgmii_features,
+		.interface = PHY_INTERFACE_MODE_SGMII,
+		.an_mode = DW_AN_C37_SGMII,
+		.pma_config = imx95_xpcs_phy_sgmii_1g_config,
 	}, {
 	}
 };

@@ -227,9 +227,12 @@
 #define PCS_CTRL2_PCS_TYPE_SEL_MASK	GENMASK(3, 0)
 #define PCS_CTRL2_PCS_TYPE_SEL(x)	((x) & GENMASK(3, 0))
 #define PCS_DIG_CTRL1				0x10000
+#define PCS_DIG_CTRL1_EN_2_5G_MODE	BIT(2)
 #define PCS_DIG_CTRL1_USXG_EN		BIT(9)
 #define PCS_DIG_CTRL1_USRA_RST		BIT(10)
 #define PCS_DIG_CTRL1_VR_RST		BIT(15)
+#define PCS_XAUI_CTRL				0x10008
+#define PCS_XAUI_CTRL_XAUI_MODE		BIT(0)
 #define PCS_DEBUG_CTRL				0x1000A
 #define PCS_DEBUG_CTRL_SUPRESS_LOS_DET	BIT(4)
 #define PCS_DEBUG_CTRL_RX_DT_EN_CTL	BIT(6)
@@ -649,166 +652,170 @@ timeout:
 	return -ETIMEDOUT;
 }
 
-static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
+static int xpcs_phy_mplla_configuration_xaui_kx4(struct dw_xpcs *xpcs, bool has_pcs_pma)
 {
+	u8 devad = has_pcs_pma ? MDIO_MMD_PMAPMD : MDIO_MMD_VEND2;
 	int ret;
 
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
 			PMA_REF_CLK_CTRL_REF_CLK_DIV2, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
 			PMA_REF_CLK_CTRL_REF_RANGE_MASK, PMA_REF_CLK_CTRL_REF_RANGE(0x6));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
 			PMA_REF_CLK_CTRL_REF_MPLLA_DIV2, PMA_REF_CLK_CTRL_REF_MPLLA_DIV2);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV_MULT_MASK, PMA_MPLLA_CTRL2_MPLLA_DIV_MULT(0xA));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV_MASK, PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV(0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL1, XPCS_G_ALL_BITS, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL5, XPCS_G_ALL_BITS, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL4, XPCS_G_ALL_BITS, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL5, XPCS_G_ALL_BITS, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL1, XPCS_G_ALL_BITS, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL1, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL5, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL4, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL5, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL1, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL0,
 			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
 			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(0x28));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL1,
 			PMA_TX_GENCTRL1_VBOOST_LVL_MASK, PMA_TX_GENCTRL1_VBOOST_LVL(0x5));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL3,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL3,
 			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
 			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA017));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MISC_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_MISC_CTRL0,
 			PMA_MISC_CTRL0_RX_VREF_CTRL_MASK, PMA_MISC_CTRL0_RX_VREF_CTRL(0x11));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_MISC_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_MISC_CTRL2,
 			PMA_MISC_CTRL2_SUP_MISC_MASK, PMA_MISC_CTRL2_SUP_MISC(0x1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_VCO_CAL_REF0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_VCO_CAL_REF0,
 			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x22));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
 			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x550));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_PPM_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_PPM_CTRL0,
 			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX_MASK,
 			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_TX_MISC_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_TX_MISC_CTRL0,
 			PMA_TX_MISC_CTRL0_TX0_MISC_MASK, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
 			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
 			PMA_MPLL_CMN_CTRL_MPLLB_SEL_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_TX_GENCTRL2,
 			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL1,
 			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_BOOST_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_BOOST_CTRL,
 			PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK, PMA_TX_BOOST_CTRL_TX0_IBOOST(0xF));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
 			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
 			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x20));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
 			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x20));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
 			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL0,
 			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x10));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL0,
 			PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK, PMA_RX_EQ_CTRL0_CTLE_POLE_0(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL3,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL3,
 			PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK, PMA_RX_GENCTRL3_LOS_TRSHLD_0(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_RX_CDR_CTRL1,
 			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_RX_CDR_CTRL1,
 			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_MISC_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_MISC_CTRL0,
 			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x17));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL2,
 			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_GENCTRL1,
 			PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_CDR_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_CDR_CTRL,
 			PMA_RX_CDR_CTRL_CDR_SSC_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL3,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL3,
 			PMA_RX_GENCTRL3_LOS_LFPS_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_GENCTRL4,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_GENCTRL4,
 			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_ATTN_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_ATTN_CTRL,
 			PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL0,
 			PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA1_GAIN_0(0x4));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL0,
 			PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA2_GAIN_0(0x4));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0,
 			PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK, PMA_DFE_TAP_CTRL0_DFE_TAP1_0(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_RX_CDR_CTRL1,
 			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_GENCTRL1,
 			PMA_RX_GENCTRL1_RX_TERM_ACDC_0, PMA_RX_GENCTRL1_RX_TERM_ACDC_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_IQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_IQ_CTRL0,
 			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL5,
 			PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL5,
 			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_CTRL2, PCS_CTRL2_PCS_TYPE_SEL_MASK,
-			PCS_CTRL2_PCS_TYPE_SEL(0x1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1, MII_DIG_CTRL1_EN_2_5G_MODE,
-			MII_DIG_CTRL1_EN_2_5G_MODE);
+	xpcs_phy_modify(xpcs, XPCS_DEV, has_pcs_pma ? MDIO_MMD_PCS : MDIO_MMD_VEND2, PCS_CTRL2,
+			PCS_CTRL2_PCS_TYPE_SEL_MASK, PCS_CTRL2_PCS_TYPE_SEL(0x1));
+	if (has_pcs_pma)
+		xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_XAUI_CTRL,
+				PCS_XAUI_CTRL_XAUI_MODE, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, has_pcs_pma ? MDIO_MMD_PCS : MDIO_MMD_VEND2, MII_DIG_CTRL1,
+			MII_DIG_CTRL1_EN_2_5G_MODE, MII_DIG_CTRL1_EN_2_5G_MODE);
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS13, 0);
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS6, MII_CTRL_SS6);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL0,
 			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
 			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(0x28));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL3,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_MPLLA_CTRL3,
 			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
 			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA017));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
 			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x550));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_VCO_CAL_REF0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_VCO_CAL_REF0,
 			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x22));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
 			PMA_RX_EQ_CTRL4_CONT_ADAPT_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
 			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
 			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_TX_GENCTRL2,
 			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL2,
 			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_MPLLA_CTRL2,
 			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL1,
 			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL0,
 			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x10));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_RX_CDR_CTRL1,
 			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_RX_CDR_CTRL1,
 			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_MISC_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_MISC_CTRL0,
 			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x17));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_GENCTRL4,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_GENCTRL4,
 			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_RX_CDR_CTRL1,
 			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x2));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_IQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_IQ_CTRL0,
 			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_16G_25G_RX_EQ_CTRL5,
 			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1, MII_DIG_CTRL1_VR_RST,
-			MII_DIG_CTRL1_VR_RST);
+	xpcs_phy_modify(xpcs, XPCS_DEV, has_pcs_pma ? MDIO_MMD_PCS : MDIO_MMD_VEND2, MII_DIG_CTRL1,
+			MII_DIG_CTRL1_VR_RST, MII_DIG_CTRL1_VR_RST);
 
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_SRAM,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_SRAM,
 				       PMA_SRAM_INIT_DN, 1);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
@@ -820,25 +827,25 @@ static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_0,
 			GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS, GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1,
-				       MII_DIG_CTRL1_VR_RST, 0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, has_pcs_pma ? MDIO_MMD_PCS : MDIO_MMD_VEND2,
+				       MII_DIG_CTRL1, MII_DIG_CTRL1_VR_RST, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
 		goto timeout;
 	}
 
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL1,
 			PMA_TX_GENCTRL1_TX_CLK_RDY_0, PMA_TX_GENCTRL1_TX_CLK_RDY_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
 			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
 			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x20));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
 			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x20));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, has_pcs_pma ? MDIO_MMD_PCS : MDIO_MMD_VEND2, PCS_DEBUG_CTRL,
 			PCS_DEBUG_CTRL_SUPRESS_LOS_DET, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_RX_DT_EN_CTL,
-			0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, has_pcs_pma ? MDIO_MMD_PCS : MDIO_MMD_VEND2, PCS_DEBUG_CTRL,
+			PCS_DEBUG_CTRL_RX_DT_EN_CTL, 0);
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_LINK_TIMER_CTRL,
 			MII_LINK_TIMER_CTRL_CL37_LINK_TIME_MASK,
 			MII_LINK_TIMER_CTRL_CL37_LINK_TIME(0x07A1));
@@ -852,7 +859,7 @@ timeout:
 	return -ETIMEDOUT;
 }
 
-static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
+static int imx94_xpcs_phy_mpllb_configuration_sgmii(struct dw_xpcs *xpcs)
 {
 	int ret;
 
@@ -1185,9 +1192,9 @@ static int imx94_xpcs_phy_sgmii_config(struct dw_xpcs *xpcs, bool is_2p5g)
 		return ret;
 
 	if (is_2p5g)
-		ret = imx94_xpcs_phy_mpll_configuration_xaui_kx4(xpcs);
+		ret = xpcs_phy_mplla_configuration_xaui_kx4(xpcs, false);
 	else
-		ret = imx94_xpcs_phy_mpll_configuration_sgmii(xpcs);
+		ret = imx94_xpcs_phy_mpllb_configuration_sgmii(xpcs);
 	if (ret)
 		return ret;
 
@@ -1212,14 +1219,227 @@ int imx94_xpcs_phy_sgmii_1g_config(struct dw_xpcs *xpcs)
 	return imx94_xpcs_phy_sgmii_config(xpcs, false);
 }
 
-int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
+static int imx95_xpcs_phy_mplla_configuration_sgmii(struct dw_xpcs *xpcs)
 {
-	u16 val;
 	int ret;
 
-	xpcs_phy_reg_lock(xpcs);
+	/* 2 Config MPLL for SGMII */
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_RANGE_MASK, PMA_REF_CLK_CTRL_REF_RANGE(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_CLK_DIV2, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_MPLLA_DIV2, PMA_REF_CLK_CTRL_REF_MPLLA_DIV2);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV_MASK, PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV_MULT_MASK, PMA_MPLLA_CTRL2_MPLLA_DIV_MULT(0x14));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL1,
+			PMA_MPLLA_CTRL1_MPLLA_SSC_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL1,
+			PMA_MPLLA_CTRL1_MPLLA_SSC_CLK_SEL, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL5,
+			PMA_MPLLA_CTRL5_MPLLA_SSC_FRQ_CNT_PK_MASK,
+			PMA_MPLLA_CTRL5_MPLLA_SSC_FRQ_CNT_PK(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL4,
+			PMA_MPLLA_CTRL4_MPLLA_SSC_FRQ_CNT_INT_MASK,
+			PMA_MPLLA_CTRL4_MPLLA_SSC_FRQ_CNT_INT(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL5,
+			PMA_MPLLA_CTRL5_MPLLA_SSC_SPD_EN, 0);
 
-	xpcs_phy_common_init_seq_1(xpcs, true, false);
+	/* TODO: check if is needed */
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL1,
+			PMA_MPLLA_CTRL1_MPLLA_FRACN_CTRL_MASK, PMA_MPLLA_CTRL1_MPLLA_FRACN_CTRL(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL0,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_LVL_MASK, PMA_TX_GENCTRL1_VBOOST_LVL(0x5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL3,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA035));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MISC_CTRL0,
+			PMA_MISC_CTRL0_RX_VREF_CTRL_MASK, PMA_MISC_CTRL0_RX_VREF_CTRL(0x11));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_MISC_CTRL2,
+			PMA_MISC_CTRL2_SUP_MISC_MASK, PMA_MISC_CTRL2_SUP_MISC(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x2a));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x540));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_PPM_CTRL0,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX_MASK,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
+
+	/* 3 Configure LANE0 for 1G SGMII */
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_TX_MISC_CTRL0,
+			PMA_TX_MISC_CTRL0_TX0_MISC_MASK, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLLB_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_BOOST_CTRL,
+			PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK, PMA_TX_BOOST_CTRL_TX0_IBOOST(0xf));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x28));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK, PMA_RX_EQ_CTRL0_CTLE_POLE_0(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x12));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK, PMA_RX_GENCTRL3_LOS_TRSHLD_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x16));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_CDR_CTRL,
+			PMA_RX_CDR_CTRL_CDR_SSC_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_LFPS_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_ATTN_CTRL,
+			PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA1_GAIN_0(0x4));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA2_GAIN_0(0x4));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0,
+			PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK, PMA_DFE_TAP_CTRL0_DFE_TAP1_0(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_TERM_ACDC_0, PMA_RX_GENCTRL1_RX_TERM_ACDC_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x3));
+
+	/* 4 Configure XPCS for 1G SGMII */
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_CTRL2, PCS_CTRL2_PCS_TYPE_SEL_MASK,
+			PCS_CTRL2_PCS_TYPE_SEL(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS13, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS6, MII_CTRL_SS6);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL0,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL3,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA035));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x540));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x2a));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			PMA_RX_EQ_CTRL4_CONT_ADAPT_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, 0);
+
+	/* 4.1 Assert soft reset */
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DIG_CTRL1, PCS_DIG_CTRL1_VR_RST,
+			PCS_DIG_CTRL1_VR_RST);
+
+	/* 4.2 Poll for SRAM initialization done */
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_SRAM,
+				       PMA_SRAM_INIT_DN, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+
+	/* 4.3 Assert SRAM external loading done */
+	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0),
+		       GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
+
+	/* 4.4 Poll for vendor-specific soft reset */
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DIG_CTRL1,
+				       PCS_DIG_CTRL1_VR_RST, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+
+	/* 4.5 Assert TX0 clock is active and stable */
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, PMA_TX_GENCTRL1_TX_CLK_RDY_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x28));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DEBUG_CTRL,
+			PCS_DEBUG_CTRL_SUPRESS_LOS_DET, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_RX_DT_EN_CTL,
+			0);
+
+	return 0;
+
+timeout:
+
+	return -ETIMEDOUT;
+}
+
+static int imx95_xpcs_phy_xfi_10g_config(struct dw_xpcs *xpcs)
+{
+	int ret;
 
 	/* 2 Config MPLL for 10G XGMII */
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
@@ -1484,14 +1704,77 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS6, MII_CTRL_SS6);
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS13, MII_CTRL_SS13);
 
-	val = xpcs_phy_common_init_seq_2(xpcs, true);
-	if (val)
-		return val;
-
 	return 0;
 
 timeout:
 	return -ETIMEDOUT;
+}
+
+static int imx95_xpcs_phy_sgmii_config(struct dw_xpcs *xpcs, bool is_2p5g)
+{
+	int ret;
+
+	ret = xpcs_phy_reg_lock(xpcs);
+	if (ret)
+		return ret;
+
+	ret = xpcs_phy_common_init_seq_1(xpcs, true, is_2p5g ? false : true);
+	if (ret)
+		return ret;
+
+	if (is_2p5g)
+		ret = xpcs_phy_mplla_configuration_xaui_kx4(xpcs, true);
+	else
+		ret = imx95_xpcs_phy_mplla_configuration_sgmii(xpcs);
+	if (ret)
+		return ret;
+
+	ret = xpcs_phy_common_init_seq_2(xpcs, true);
+	if (ret)
+		return ret;
+
+	ret = xpcs_phy_reg_unlock(xpcs);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int imx95_xpcs_phy_sgmii_2p5g_config(struct dw_xpcs *xpcs)
+{
+	return imx95_xpcs_phy_sgmii_config(xpcs, true);
+}
+
+int imx95_xpcs_phy_sgmii_1g_config(struct dw_xpcs *xpcs)
+{
+	return imx95_xpcs_phy_sgmii_config(xpcs, false);
+}
+
+int imx95_xpcs_phy_xfi_config(struct dw_xpcs *xpcs)
+{
+	int ret;
+
+	ret = xpcs_phy_reg_lock(xpcs);
+	if (ret)
+		return ret;
+
+	ret = xpcs_phy_common_init_seq_1(xpcs, true, false);
+	if (ret)
+		return ret;
+
+	ret = imx95_xpcs_phy_xfi_10g_config(xpcs);
+	if (ret)
+		return ret;
+
+	ret = xpcs_phy_common_init_seq_2(xpcs, true);
+	if (ret)
+		return ret;
+
+	ret = xpcs_phy_reg_unlock(xpcs);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 u32 xpcs_phy_get_id(struct dw_xpcs *xpcs)
