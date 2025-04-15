@@ -276,9 +276,11 @@
 #define GLOBAL_CTRL_EX_4_PHY_PMA_PWR_STABLE		BIT(14)
 #define MPLLA_CTRL_EX_0						0xac
 #define MPLLA_CTRL_EX_0_MPLLA_CFG_DRIVER_MASK		GENMASK(11, 8)
+#define MPLLA_CTRL_EX_0_MPLLA_CFG_DRIVER_SHIFT		(8)
 #define MPLLA_CTRL_EX_0_MPLLA_CFG_DRIVER		(((x) << 8) & GENMASK(11, 8))
 #define MPLLB_CTRL_EX_0						0xac
 #define MPLLB_CTRL_EX_0_MPLLB_CFG_DRIVER_MASK		GENMASK(11, 8)
+#define MPLLB_CTRL_EX_0_MPLLB_CFG_DRIVER_SHIFT		(8)
 #define MPLLB_CTRL_EX_0_MPLLB_CFG_DRIVER		(((x) << 8) & GENMASK(11, 8))
 #define L0_RX_VCO_OVRD_OUT_0					0x20c
 #define L0_RX_VCO_OVRD_OUT_0_RX_ANA_CDR_FREQ_TUNE_MASK	GENMASK(12, 3)
@@ -287,24 +289,34 @@
 #define L0_RX_VCO_OVRD_OUT_2					0x214
 #define L0_RX_VCO_OVRD_OUT_2_RX_ANA_CDR_FREQ_TUNE_CLK	BIT(0)
 
-static int xpcs_phy_read_pma(struct dw_xpcs *xpcs, u32 reg)
+#define XPCS_G_ALL_BITS					0xFFFF
+
+static int xpcs_phy_read(struct dw_xpcs *xpcs, u8 devad, u32 reg)
 {
-	return xpcs_read(xpcs, MDIO_MMD_PMAPMD, XPCS_PHY_REG(reg));
+	return mdiodev_c45_read(xpcs->phydev, devad, reg);
 }
 
-static int xpcs_phy_write_pma(struct dw_xpcs *xpcs, int reg, u16 val)
+static int xpcs_phy_write(struct dw_xpcs *xpcs, u8 devad, u32 reg, u16 val)
 {
-	return xpcs_write(xpcs, MDIO_MMD_PMAPMD, XPCS_PHY_REG(reg), val);
+	return mdiodev_c45_write(xpcs->phydev, devad, reg, val);
 }
 
-static int xpcs_read_mii(struct dw_xpcs *xpcs, u32 reg)
+static int xpcs_phy_modify(struct dw_xpcs *xpcs, u8 dev, u8 devad, u32 reg, u16 mask, u16 set)
 {
-	return xpcs_read(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(reg));
-}
+	int ret;
 
-static int xpcs_write_mii(struct dw_xpcs *xpcs, int reg, u16 val)
-{
-	return xpcs_write(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(reg), val);
+	switch (dev) {
+	case XPCS_DEV:
+		ret = mdiodev_c45_modify(xpcs->mdiodev, devad, XPCS_PHY_REG(reg), mask, set);
+		break;
+	case XPCS_PHY_DEV:
+		ret = mdiodev_c45_modify(xpcs->phydev, devad, XPCS_PHY_REG(reg), mask, set);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 static int xpcs_phy_polling_timeout(struct dw_xpcs *xpcs, u8 dev, u8 devad,
@@ -335,46 +347,32 @@ static int xpcs_phy_polling_timeout(struct dw_xpcs *xpcs, u8 dev, u8 devad,
 
 void xpcs_phy_reset(struct dw_xpcs *xpcs)
 {
-	u16 val;
-
 	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_CTRL1), PCS_CTRL1_RESET);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val |= PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, PMA_TX_GENCTRL0_TX_RST_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, PMA_RX_GENCTRL1_RX_RST_0);
 }
 
 static int xpcs_phy_usxgmii_init_seq_2(struct dw_xpcs *xpcs)
 {
-	u16 val;
 	int ret;
 
 	/* Seq 2.1 Keep preamble data */
-	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL));
-	val |= PCS_DEBUG_CTRL_TX_PMBL_CTL;
-	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_TX_PMBL_CTL,
+			PCS_DEBUG_CTRL_TX_PMBL_CTL);
 
 	/* Seq 2.2 Power up MPLLA to P1 state */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 2, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val |= PMA_MPLL_CMN_CTRL_MPLL_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLL_EN_0, PMA_MPLL_CMN_CTRL_MPLL_EN_0);
 
 	/* Seq 2.3 Assert request of transmitand receive */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val |= PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	/* Seq 2.4 Poll for acknowledge */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
@@ -391,55 +389,37 @@ static int xpcs_phy_usxgmii_init_seq_2(struct dw_xpcs *xpcs)
 	}
 
 	/* Seq 2.5 Turn transmit to P0 state */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val &= ~PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val &= ~PMA_POWER_STATE_CTRL_TX_DISABLE_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val |= PMA_MPLL_CMN_CTRL_MPLL_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX_DISABLE_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLL_EN_0, PMA_MPLL_CMN_CTRL_MPLL_EN_0);
 
 	/* Seq 2.6 Turn receive to P0 state */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK;
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK;
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0, 0);
 
 	/* Seq 2.7 Enable transmitter output driver in the PHY */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val |= PMA_TX_GENCTRL0_TX_DT_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_DT_EN_0, PMA_TX_GENCTRL0_TX_DT_EN_0);
 
 	/* Seq 2.8 Enable receiver data output from PHY */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0);
-	val |= PMA_RX_GENCTRL0_RX_DT_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL0,
+			PMA_RX_GENCTRL0_RX_DT_EN_0, PMA_RX_GENCTRL0_RX_DT_EN_0);
 
 	/* Seq 2.9 Assert request of transmit and receive */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val |= PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	/* Seq 2.10 Poll for acknowledge */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
@@ -465,14 +445,20 @@ static void mx95_xpcs_phy_reg_lock(struct dw_xpcs *xpcs)
 {
 	int ret;
 
-	if (xpcs_phy_read(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY)) & MAC_ADAPTER_LOCK_LOCK)
+	if (xpcs_phy_read(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY)) &
+	    MAC_ADAPTER_LOCK_LOCK)
 		return;
 
-	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY), MAC_ADAPTER_LOCK_LOCK);
-	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_MPLLA), MAC_ADAPTER_LOCK_LOCK);
-	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_MPLLB), MAC_ADAPTER_LOCK_LOCK);
-	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_ROM), MAC_ADAPTER_LOCK_LOCK);
-	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_RAM), MAC_ADAPTER_LOCK_LOCK);
+	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY),
+		       MAC_ADAPTER_LOCK_LOCK);
+	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_MPLLA),
+		       MAC_ADAPTER_LOCK_LOCK);
+	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_MPLLB),
+		       MAC_ADAPTER_LOCK_LOCK);
+	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_ROM),
+		       MAC_ADAPTER_LOCK_LOCK);
+	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_RAM),
+		       MAC_ADAPTER_LOCK_LOCK);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_SRAM,
 				       PMA_SRAM_INIT_DN, 1);
@@ -482,8 +468,8 @@ static void mx95_xpcs_phy_reg_lock(struct dw_xpcs *xpcs)
 	}
 
 	/* Work around */
-	// xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_SRAM, PMA_SRAM_EXT_LD_DN);
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
+	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0),
+		       GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_CTRL1, PCS_CTRL1_RESET, 0);
 	if (ret) {
@@ -601,17 +587,20 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 
 	if (is_2p5g) {
 		val = xpcs_phy_read(xpcs, XPCS_PHY_MPLLA, XPCS_PHY_REG(MPLLA_CTRL_EX_0));
-		val = u16_replace_bits(val, xpcs->portid, MPLLA_CTRL_EX_0_MPLLA_CFG_DRIVER_MASK);
+		val &= ~MPLLA_CTRL_EX_0_MPLLA_CFG_DRIVER_MASK;
+		val |= xpcs->portid << MPLLA_CTRL_EX_0_MPLLA_CFG_DRIVER_SHIFT;
 		xpcs_phy_write(xpcs, XPCS_PHY_MPLLA, XPCS_PHY_REG(MPLLA_CTRL_EX_0), val);
 	} else {
 		val = xpcs_phy_read(xpcs, XPCS_PHY_MPLLB, XPCS_PHY_REG(MPLLB_CTRL_EX_0));
-		val = u16_replace_bits(val, xpcs->portid, MPLLB_CTRL_EX_0_MPLLB_CFG_DRIVER_MASK);
+		val &= ~MPLLB_CTRL_EX_0_MPLLB_CFG_DRIVER_MASK;
+		val |= xpcs->portid << MPLLB_CTRL_EX_0_MPLLB_CFG_DRIVER_SHIFT;
 		xpcs_phy_write(xpcs, XPCS_PHY_MPLLB, XPCS_PHY_REG(MPLLB_CTRL_EX_0), val);
 	}
 
-	val = xpcs_phy_read(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_4));
-	val |= GLOBAL_CTRL_EX_4_PHY_PCS_PWR_STABLE | GLOBAL_CTRL_EX_4_PHY_PMA_PWR_STABLE;
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_4), val);
+	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_4,
+			GLOBAL_CTRL_EX_4_PHY_PCS_PWR_STABLE, GLOBAL_CTRL_EX_4_PHY_PCS_PWR_STABLE);
+	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_4,
+			GLOBAL_CTRL_EX_4_PHY_PMA_PWR_STABLE, GLOBAL_CTRL_EX_4_PHY_PMA_PWR_STABLE);
 
 	val = xpcs_phy_read(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0));
 	if (xpcs->portid == 0)
@@ -622,9 +611,9 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 				(val | GLOBAL_CTRL_EX_0_MPLLA_SEL);
 	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
 
-	val = xpcs_phy_read(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0));
-	val |= xpcs->portid ? GLOBAL_CTRL_EX_0_XPCS1_SEL : GLOBAL_CTRL_EX_0_XPCS0_SEL;
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
+	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_0,
+			xpcs->portid ? GLOBAL_CTRL_EX_0_XPCS1_SEL : GLOBAL_CTRL_EX_0_XPCS0_SEL,
+			xpcs->portid ? GLOBAL_CTRL_EX_0_XPCS1_SEL : GLOBAL_CTRL_EX_0_XPCS0_SEL);
 
 	mdelay(1);
 
@@ -637,9 +626,8 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 
 	mdelay(1);
 
-	val = xpcs_phy_read(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0));
-	val |= GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS;
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
+	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_0,
+			GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS, GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_CTRL1, PCS_CTRL1_RESET,
 				       0);
@@ -648,27 +636,19 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 		goto timeout;
 	}
 
-	val = xpcs_read_mii(xpcs, MII_CTRL);
-	val = is_2p5g ? (val & ~MII_CTRL_AN_ENABLE) : (val | MII_CTRL_AN_ENABLE);
-	xpcs_write_mii(xpcs, MII_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val |= PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_AN_ENABLE,
+			is_2p5g ? 0 : MII_CTRL_AN_ENABLE);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, PMA_TX_GENCTRL0_TX_RST_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, PMA_RX_GENCTRL1_RX_RST_0);
 
 	mdelay(1);
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val &= ~PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, 0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
 				       PMA_TX_STS_TX_ACK_0, 0);
@@ -677,17 +657,12 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 		goto timeout;
 	}
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0x3, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val &= ~PMA_MPLL_CMN_CTRL_MPLL_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val &= ~PMA_TX_GENCTRL0_TX_DT_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLL_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_DT_EN_0, 0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
 				       PMA_RX_STS_RX_ACK_0, 0);
@@ -696,25 +671,18 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 		goto timeout;
 	}
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0);
-	val &= ~PMA_RX_GENCTRL0_RX_DT_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0x1, PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0x3, PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val |= PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL0,
+			PMA_RX_GENCTRL0_RX_DT_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
 				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
@@ -731,13 +699,10 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 
 	mdelay(1);
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val &= ~PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val &= ~PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, 0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
 				       PMA_TX_STS_TX_ACK_0, 0);
@@ -761,249 +726,162 @@ timeout:
 
 static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 {
-	u16 val;
 	int ret;
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
-	val &= ~PMA_REF_CLK_CTRL_REF_CLK_DIV2;
-	val = u16_replace_bits(val, 0x6, PMA_REF_CLK_CTRL_REF_RANGE_MASK);
-	val |= PMA_REF_CLK_CTRL_REF_MPLLA_DIV2;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val = u16_replace_bits(val, 0xA, PMA_MPLLA_CTRL2_MPLLA_DIV_MULT_MASK);
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN;
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN;
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN;
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN;
-	val = u16_replace_bits(val, 0x0, PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL1, 0x0);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL5, 0x0);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL4, 0x0);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL5, 0x0);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL1, 0x0);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0);
-	val = u16_replace_bits(val, 0x28, PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val = u16_replace_bits(val, 0x5, PMA_TX_GENCTRL1_VBOOST_LVL_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL3, 0xA017);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MISC_CTRL0);
-	val = u16_replace_bits(val, 0x11, PMA_MISC_CTRL0_RX_VREF_CTRL_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MISC_CTRL0, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_MISC_CTRL2, 0x1);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_VCO_CAL_REF0, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x22));
-
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_VCO_CAL_LD0, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x550));
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_PPM_CTRL0, PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_TX_MISC_CTRL0, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_TX_MISC_CTRL0, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x2, PMA_TX_RATE_CTRL_TX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val &= ~PMA_MPLL_CMN_CTRL_MPLLB_SEL_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_TX_GENCTRL2_TX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_VBOOST_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_BOOST_CTRL);
-	val = u16_replace_bits(val, 0xF, PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_BOOST_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1);
-	val = u16_replace_bits(val, 0x20, PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x20, PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x2, PMA_RX_RATE_CTRL_RX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x10, PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK);
-	val = u16_replace_bits(val, 0x0, PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3);
-	val = u16_replace_bits(val, 0x2, PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val &= ~PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0;
-	val |= PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0, PMA_RX_MISC_CTRL0_RX0_MISC(0x17));
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_RX_GENCTRL2_RX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_CDR_CTRL);
-	val &= ~PMA_RX_CDR_CTRL_CDR_SSC_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_CDR_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3);
-	val &= ~PMA_RX_GENCTRL3_LOS_LFPS_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4);
-	val |= PMA_RX_GENCTRL4_RX_DFE_BYP_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_ATTN_CTRL);
-	val = u16_replace_bits(val, 0x0, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_ATTN_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x4, PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK);
-	val = u16_replace_bits(val, 0x4, PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val = u16_replace_bits(val, 0x2, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_TERM_ACDC_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val &= ~PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val = u16_replace_bits(val, 0x0, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_read_mii(xpcs, PCS_CTRL2);
-	val = u16_replace_bits(val, 0x1, PCS_CTRL2_PCS_TYPE_SEL_MASK);
-	xpcs_write_mii(xpcs, PCS_CTRL2, val);
-
-	val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-	val |= MII_DIG_CTRL1_EN_2_5G_MODE;
-	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, MII_CTRL);
-	val &= ~MII_CTRL_SS13;
-	val |= MII_CTRL_SS6;
-	xpcs_write_mii(xpcs, MII_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0);
-	val = u16_replace_bits(val, 0x28, PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLA_CTRL3, 0xA017);
-
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_VCO_CAL_LD0, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x550));
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_VCO_CAL_REF0, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x22));
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
-	val &= ~PMA_RX_EQ_CTRL4_CONT_ADAPT_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x2, PMA_TX_RATE_CTRL_TX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x2, PMA_RX_RATE_CTRL_RX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_TX_GENCTRL2_TX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_RX_GENCTRL2_RX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN;
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN;
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_VBOOST_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x10, PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val &= ~PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0;
-	val |= PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0);
-	val = u16_replace_bits(val, 0x17, PMA_RX_MISC_CTRL0_RX0_MISC_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4);
-	val |= PMA_RX_GENCTRL4_RX_DFE_BYP_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val = u16_replace_bits(val, 0x2, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val = u16_replace_bits(val, 0x0, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-	val |= MII_DIG_CTRL1_VR_RST;
-	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_CLK_DIV2, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_RANGE_MASK, PMA_REF_CLK_CTRL_REF_RANGE(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_MPLLA_DIV2, PMA_REF_CLK_CTRL_REF_MPLLA_DIV2);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV_MULT_MASK, PMA_MPLLA_CTRL2_MPLLA_DIV_MULT(0xA));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV_MASK, PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL1, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL5, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL4, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL5, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL1, XPCS_G_ALL_BITS, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL0,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(0x28));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_LVL_MASK, PMA_TX_GENCTRL1_VBOOST_LVL(0x5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL3,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA017));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MISC_CTRL0,
+			PMA_MISC_CTRL0_RX_VREF_CTRL_MASK, PMA_MISC_CTRL0_RX_VREF_CTRL(0x11));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_MISC_CTRL2,
+			PMA_MISC_CTRL2_SUP_MISC_MASK, PMA_MISC_CTRL2_SUP_MISC(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x22));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x550));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_PPM_CTRL0,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX_MASK,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_TX_MISC_CTRL0,
+			PMA_TX_MISC_CTRL0_TX0_MISC_MASK, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLLB_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_BOOST_CTRL,
+			PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK, PMA_TX_BOOST_CTRL_TX0_IBOOST(0xF));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x10));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK, PMA_RX_EQ_CTRL0_CTLE_POLE_0(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK, PMA_RX_GENCTRL3_LOS_TRSHLD_0(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x17));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_CDR_CTRL,
+			PMA_RX_CDR_CTRL_CDR_SSC_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_LFPS_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_ATTN_CTRL,
+			PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA1_GAIN_0(0x4));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA2_GAIN_0(0x4));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0,
+			PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK, PMA_DFE_TAP_CTRL0_DFE_TAP1_0(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_TERM_ACDC_0, PMA_RX_GENCTRL1_RX_TERM_ACDC_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_CTRL2, PCS_CTRL2_PCS_TYPE_SEL_MASK,
+			PCS_CTRL2_PCS_TYPE_SEL(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1, MII_DIG_CTRL1_EN_2_5G_MODE,
+			MII_DIG_CTRL1_EN_2_5G_MODE);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS13, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS6, MII_CTRL_SS6);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL0,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(0x28));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLA_CTRL3,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA017));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x550));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x22));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			PMA_RX_EQ_CTRL4_CONT_ADAPT_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x10));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x17));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1, MII_DIG_CTRL1_VR_RST,
+			MII_DIG_CTRL1_VR_RST);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_SRAM,
 				       PMA_SRAM_INIT_DN, 1);
@@ -1014,9 +892,8 @@ static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 
 	mdelay(1);
 
-	val = xpcs_phy_read(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0));
-	val |= GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS;
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
+	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_0,
+			GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS, GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1,
 				       MII_DIG_CTRL1_VR_RST, 0);
@@ -1025,34 +902,23 @@ static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 		goto timeout;
 	}
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_TX_CLK_RDY_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x20, PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1);
-	val = u16_replace_bits(val, 0x20, PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PCS_DEBUG_CTRL);
-	val &= ~PCS_DEBUG_CTRL_SUPRESS_LOS_DET;
-	val &= ~PCS_DEBUG_CTRL_RX_DT_EN_CTL;
-	xpcs_write_mii(xpcs, PCS_DEBUG_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, MII_LINK_TIMER_CTRL);
-	val = u16_replace_bits(val, 0x07A1, MII_LINK_TIMER_CTRL_CL37_LINK_TIME_MASK);
-	xpcs_write_mii(xpcs, MII_LINK_TIMER_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-	val |= MII_DIG_CTRL1_CL37_TMR_OVR_RIDE;
-	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, PMA_TX_GENCTRL1_TX_CLK_RDY_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL,
+			PCS_DEBUG_CTRL_SUPRESS_LOS_DET, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_RX_DT_EN_CTL,
+			0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_LINK_TIMER_CTRL,
+			MII_LINK_TIMER_CTRL_CL37_LINK_TIME_MASK,
+			MII_LINK_TIMER_CTRL_CL37_LINK_TIME(0x07A1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1,
+			MII_DIG_CTRL1_CL37_TMR_OVR_RIDE, MII_DIG_CTRL1_CL37_TMR_OVR_RIDE);
 
 	return 0;
 
@@ -1063,250 +929,165 @@ timeout:
 
 static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
 {
-	u16 val;
 	int ret;
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
-	val &= ~PMA_REF_CLK_CTRL_REF_CLK_DIV2;
-	val = u16_replace_bits(val, 0x6, PMA_REF_CLK_CTRL_REF_RANGE_MASK);
-	val |= PMA_REF_CLK_CTRL_REF_MPLLA_DIV2 | PMA_REF_CLK_CTRL_REF_MPLLB_DIV2;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL0);
-	val &= ~PMA_MPLLB_CTRL0_MPLLB_CAL_DISABLE;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL2);
-	val = u16_replace_bits(val, 0x1e, PMA_MPLLB_CTRL2_MPLLB_DIV_MULT_MASK);
-	val |= PMA_MPLLB_CTRL2_MPLLB_DIV_CLK_EN;
-	val &= ~PMA_MPLLB_CTRL2_MPLLB_DIV8_CLK_EN;
-	val |= PMA_MPLLB_CTRL2_MPLLB_DIV10_CLK_EN;
-	val = u16_replace_bits(val, 0x0, PMA_MPLLB_CTRL2_MPLLB_TX_CLK_DIV_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL2, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL1, 0x0);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLB_CTRL5, 0x0);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLB_CTRL4, 0x0);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL0);
-	val = u16_replace_bits(val, 0x30, PMA_MPLLB_CTRL0_MPLLB_MULTIPLIER_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val = u16_replace_bits(val, 0x5, PMA_TX_GENCTRL1_VBOOST_LVL_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLB_CTRL3, 0xA017);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MISC_CTRL0);
-	val = u16_replace_bits(val, 0x11, PMA_MISC_CTRL0_RX_VREF_CTRL_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MISC_CTRL0, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_MISC_CTRL2, 0x1);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_VCO_CAL_REF0, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x2a));
-
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_VCO_CAL_LD0, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x540));
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_PPM_CTRL0, PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_TX_MISC_CTRL0, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x6, PMA_TX_RATE_CTRL_TX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val |= PMA_MPLL_CMN_CTRL_MPLLB_SEL_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_TX_GENCTRL2_TX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_VBOOST_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_BOOST_CTRL);
-	val = u16_replace_bits(val, 0xF, PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_BOOST_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1);
-	val = u16_replace_bits(val, 0x0, PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x28, PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x3, PMA_RX_RATE_CTRL_RX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x12, PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK);
-	val = u16_replace_bits(val, 0x0, PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3);
-	val = u16_replace_bits(val, 0x1, PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val |= PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0;
-	val |= PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0, PMA_RX_MISC_CTRL0_RX0_MISC(0x16));
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_RX_GENCTRL2_RX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_CDR_CTRL);
-	val &= ~PMA_RX_CDR_CTRL_CDR_SSC_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_CDR_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3);
-	val &= ~PMA_RX_GENCTRL3_LOS_LFPS_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL3, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4);
-	val |= PMA_RX_GENCTRL4_RX_DFE_BYP_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_ATTN_CTRL);
-	val = u16_replace_bits(val, 0x0, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_ATTN_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x4, PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK);
-	val = u16_replace_bits(val, 0x4, PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val = u16_replace_bits(val, 0x1, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_TERM_ACDC_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val &= ~PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val = u16_replace_bits(val, 0x3, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_read_mii(xpcs, PCS_CTRL2);
-	val = u16_replace_bits(val, 0x1, PCS_CTRL2_PCS_TYPE_SEL_MASK);
-	xpcs_write_mii(xpcs, PCS_CTRL2, val);
-
-	val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-	val &= ~MII_DIG_CTRL1_EN_2_5G_MODE;
-	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, MII_CTRL);
-	val &= ~MII_CTRL_SS13;
-	val |= MII_CTRL_SS6;
-	xpcs_write_mii(xpcs, MII_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL0);
-	val = u16_replace_bits(val, 0x30, PMA_MPLLB_CTRL0_MPLLB_MULTIPLIER_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL0, val);
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_MPLLB_CTRL3, 0xA017);
-
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_VCO_CAL_LD0, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x540));
-
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_VCO_CAL_REF0, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x2a));
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
-	val &= ~PMA_RX_EQ_CTRL4_CONT_ADAPT_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x6, PMA_TX_RATE_CTRL_TX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL);
-	val = u16_replace_bits(val, 0x3, PMA_RX_RATE_CTRL_RX0_RATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_TX_GENCTRL2_TX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val = u16_replace_bits(val, 0x1, PMA_RX_GENCTRL2_RX0_WIDTH_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL2);
-	val &= ~PMA_MPLLB_CTRL2_MPLLB_DIV8_CLK_EN;
-	val |= PMA_MPLLB_CTRL2_MPLLB_DIV10_CLK_EN;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_MPLLB_CTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val &= ~PMA_TX_GENCTRL1_VBOOST_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x6, PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val |= PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0;
-	val |= PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0);
-	val = u16_replace_bits(val, 0x16, PMA_RX_MISC_CTRL0_RX0_MISC_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4);
-	val |= PMA_RX_GENCTRL4_RX_DFE_BYP_0;
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_GENCTRL4, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val = u16_replace_bits(val, 0x1, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val = u16_replace_bits(val, 0x0, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val &= ~PMA_TX_GENCTRL1_TX_CLK_RDY_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-	val |= MII_DIG_CTRL1_VR_RST;
-	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_CLK_DIV2, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_RANGE_MASK, PMA_REF_CLK_CTRL_REF_RANGE(6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_MPLLA_DIV2, PMA_REF_CLK_CTRL_REF_MPLLA_DIV2);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_MPLLB_DIV2, PMA_REF_CLK_CTRL_REF_MPLLB_DIV2);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL0,
+			PMA_MPLLB_CTRL0_MPLLB_CAL_DISABLE, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_DIV_MULT_MASK, PMA_MPLLB_CTRL2_MPLLB_DIV_MULT(0x1e));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_DIV_CLK_EN, PMA_MPLLB_CTRL2_MPLLB_DIV_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_DIV10_CLK_EN, PMA_MPLLB_CTRL2_MPLLB_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_TX_CLK_DIV_MASK, PMA_MPLLB_CTRL2_MPLLB_TX_CLK_DIV(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL1, XPCS_G_ALL_BITS,
+			0x0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLB_CTRL5, XPCS_G_ALL_BITS,
+			0x0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLB_CTRL4, XPCS_G_ALL_BITS,
+			0x0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL0,
+			PMA_MPLLB_CTRL0_MPLLB_MULTIPLIER_MASK,
+			PMA_MPLLB_CTRL0_MPLLB_MULTIPLIER(0x30));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_LVL_MASK, PMA_TX_GENCTRL1_VBOOST_LVL(0x5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLB_CTRL3,
+			PMA_MPLL_CTRL3_MPLLB_BANDWIDTH_MASK,
+			PMA_MPLL_CTRL3_MPLLB_BANDWIDTH(0xA017));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MISC_CTRL0,
+			PMA_MISC_CTRL0_RX_VREF_CTRL_MASK, PMA_MISC_CTRL0_RX_VREF_CTRL(0x11));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_MISC_CTRL2,
+			PMA_MISC_CTRL2_SUP_MISC_MASK, PMA_MISC_CTRL2_SUP_MISC(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x2a));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x540));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_PPM_CTRL0,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX_MASK,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_TX_MISC_CTRL0,
+			PMA_TX_MISC_CTRL0_TX0_MISC_MASK, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLLB_SEL_0, PMA_MPLL_CMN_CTRL_MPLLB_SEL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_BOOST_CTRL,
+			PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK, PMA_TX_BOOST_CTRL_TX0_IBOOST(0xF));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x28));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x12));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK, PMA_RX_EQ_CTRL0_CTLE_POLE_0(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK, PMA_RX_GENCTRL3_LOS_TRSHLD_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x16));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_CDR_CTRL,
+			PMA_RX_CDR_CTRL_CDR_SSC_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_LFPS_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_ATTN_CTRL,
+			PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA1_GAIN_0(0x4));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA2_GAIN_0(0x4));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0,
+			PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK, PMA_DFE_TAP_CTRL0_DFE_TAP1_0(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_TERM_ACDC_0, PMA_RX_GENCTRL1_RX_TERM_ACDC_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_CTRL2, PCS_CTRL2_PCS_TYPE_SEL_MASK,
+			PCS_CTRL2_PCS_TYPE_SEL(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1, MII_DIG_CTRL1_EN_2_5G_MODE,
+			0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS13, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS6, MII_CTRL_SS6);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL0,
+			PMA_MPLLB_CTRL0_MPLLB_MULTIPLIER_MASK,
+			PMA_MPLLB_CTRL0_MPLLB_MULTIPLIER(0x30));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_MPLLB_CTRL3,
+			PMA_MPLL_CTRL3_MPLLB_BANDWIDTH_MASK,
+			PMA_MPLL_CTRL3_MPLLB_BANDWIDTH(0xA017));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x540));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x2a));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			PMA_RX_EQ_CTRL4_CONT_ADAPT_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_MPLLB_CTRL2,
+			PMA_MPLLB_CTRL2_MPLLB_DIV10_CLK_EN, PMA_MPLLB_CTRL2_MPLLB_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x16));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, PMA_RX_GENCTRL4_RX_DFE_BYP_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1, MII_DIG_CTRL1_VR_RST,
+			MII_DIG_CTRL1_VR_RST);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_SRAM,
 				       PMA_SRAM_INIT_DN, 1);
@@ -1317,9 +1098,8 @@ static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
 
 	mdelay(1);
 
-	val = xpcs_phy_read(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0));
-	val |= GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS;
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
+	xpcs_phy_modify(xpcs, XPCS_PHY_DEV, XPCS_PHY_GLOBAL, GLOBAL_CTRL_EX_0,
+			GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS, GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1,
 				       MII_DIG_CTRL1_VR_RST, 0);
@@ -1328,26 +1108,18 @@ static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
 		goto timeout;
 	}
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_TX_CLK_RDY_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x14, PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1);
-	val = u16_replace_bits(val, 0x0, PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PCS_DEBUG_CTRL);
-	val &= ~PCS_DEBUG_CTRL_SUPRESS_LOS_DET;
-	val &= ~PCS_DEBUG_CTRL_RX_DT_EN_CTL;
-	xpcs_write_mii(xpcs, PCS_DEBUG_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, PMA_TX_GENCTRL1_TX_CLK_RDY_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x14));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL,
+			PCS_DEBUG_CTRL_SUPRESS_LOS_DET, 0x0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_RX_DT_EN_CTL,
+			0x0);
 
 	return 0;
 
@@ -1358,30 +1130,21 @@ timeout:
 
 static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 {
-	u16 val;
 	int ret;
 
-	val = xpcs_read_mii(xpcs, PCS_DEBUG_CTRL);
-	val |= PCS_DEBUG_CTRL_TX_PMBL_CTL;
-	xpcs_write_mii(xpcs, PCS_DEBUG_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0x2, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val |= PMA_MPLL_CMN_CTRL_MPLL_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_TX_PMBL_CTL,
+			PCS_DEBUG_CTRL_TX_PMBL_CTL);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLL_EN_0, PMA_MPLL_CMN_CTRL_MPLL_EN_0);
 
 	mdelay(1);
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val |= PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
 				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
@@ -1398,13 +1161,10 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 
 	mdelay(1);
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val &= ~PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val &= ~PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, 0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
 				       PMA_TX_STS_TX_ACK_0, 0);
@@ -1418,49 +1178,30 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
 		goto timeout;
 	}
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0x0, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val &= ~PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val &= ~PMA_POWER_STATE_CTRL_TX_DISABLE_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val |= PMA_MPLL_CMN_CTRL_MPLL_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 0x0, PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK);
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val |= PMA_TX_GENCTRL0_TX_DT_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0);
-	val |= PMA_RX_GENCTRL0_RX_DT_EN_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val |= PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX_DISABLE_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLL_EN_0, PMA_MPLL_CMN_CTRL_MPLL_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_DT_EN_0, PMA_TX_GENCTRL0_TX_DT_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL0,
+			PMA_RX_GENCTRL0_RX_DT_EN_0, PMA_RX_GENCTRL0_RX_DT_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
 				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
@@ -1477,13 +1218,10 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 
 	mdelay(1);
 
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val &= ~PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val &= ~PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, 0);
 
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
 				       PMA_TX_STS_TX_ACK_0, 0);
@@ -1553,66 +1291,48 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_phy_reg_lock(xpcs);
 
 	/* 1.6 Turn off C37 auto-negotiation */
-	val = xpcs_read(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(MII_CTRL));
-	val &= ~MII_CTRL_AN_ENABLE;
-	xpcs_write(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(MII_CTRL), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_AN_ENABLE, 0);
 
 	/* 1.7 Assert tx_reset and rx_reset*/
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val |= PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, PMA_TX_GENCTRL0_TX_RST_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, PMA_RX_GENCTRL1_RX_RST_0);
 
 	/* 1.8 Wait for more than 1us */
 	udelay(5);
 
 	/* 1.9 Deassert tx_reset and rx_reset*/
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val &= ~PMA_TX_GENCTRL0_TX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, 0);
 
 	/* 1.10 Power down MPLLA */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 3, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val &= ~PMA_MPLL_CMN_CTRL_MPLL_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0);
-	val &= ~PMA_TX_GENCTRL0_TX_DT_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLL_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			PMA_TX_GENCTRL0_TX_DT_EN_0, 0);
 
 	/* 1.11 Change RX0 power state to P2 */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0);
-	val &= ~PMA_RX_GENCTRL0_RX_DT_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL0,
+			PMA_RX_GENCTRL0_RX_DT_EN_0, 0);
 
 	/* TODO: check if it is needed */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 1, PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val = u16_replace_bits(val, 3, PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(3));
 
 	/* 1.12 Assert request of transmit and receive */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val |= PMA_TX_GENCTRL2_TX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	/* 1.13 Poll for acknlowledge */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
@@ -1629,290 +1349,176 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	}
 
 	/* 2 Config MPLL for 10G XGMII */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
-	val = u16_replace_bits(val, 6, PMA_REF_CLK_CTRL_REF_RANGE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
-	val &= ~PMA_REF_CLK_CTRL_REF_CLK_DIV2;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
-	val |= PMA_REF_CLK_CTRL_REF_MPLLA_DIV2;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV_MASK;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val = u16_replace_bits(val, 5, PMA_MPLLA_CTRL2_MPLLA_DIV_MULT_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_MPLLA_CTRL1);
-	val &= ~PMA_MPLLA_CTRL1_MPLLA_SSC_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_MPLLA_CTRL1);
-	val &= ~PMA_MPLLA_CTRL1_MPLLA_SSC_CLK_SEL;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_MPLLA_CTRL5);
-	val &= ~PMA_MPLLA_CTRL5_MPLLA_SSC_FRQ_CNT_PK_MASK;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL5, val);
-
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL4, 0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_MPLLA_CTRL5);
-	val &= ~PMA_MPLLA_CTRL5_MPLLA_SSC_SPD_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL5, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_MPLLA_CTRL1);
-	val &= ~PMA_MPLLA_CTRL1_MPLLA_FRACN_CTRL_MASK;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0);
-	val = u16_replace_bits(val, 33, PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val = u16_replace_bits(val, 5, PMA_TX_GENCTRL1_VBOOST_LVL_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA016);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL3, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_MISC_CTRL0);
-	val = u16_replace_bits(val, 0x11, PMA_MISC_CTRL0_RX_VREF_CTRL_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_MISC_CTRL0, val);
-
-	val = PMA_MISC_CTRL2_SUP_MISC(1);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_MISC_CTRL2, val);
-
-	val = PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x29);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_VCO_CAL_REF0, val);
-
-	val = PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x549);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_VCO_CAL_LD0, val);
-
-	val = PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_PPM_CTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_RANGE_MASK, PMA_REF_CLK_CTRL_REF_RANGE(6));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_CLK_DIV2, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
+			PMA_REF_CLK_CTRL_REF_MPLLA_DIV2, PMA_REF_CLK_CTRL_REF_MPLLA_DIV2);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV_MASK, PMA_MPLLA_CTRL2_MPLLA_TX_CLK_DIV(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV_MULT_MASK, PMA_MPLLA_CTRL2_MPLLA_DIV_MULT(5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL1,
+			PMA_MPLLA_CTRL1_MPLLA_SSC_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL1,
+			PMA_MPLLA_CTRL1_MPLLA_SSC_CLK_SEL, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL5,
+			PMA_MPLLA_CTRL5_MPLLA_SSC_FRQ_CNT_PK_MASK,
+			PMA_MPLLA_CTRL5_MPLLA_SSC_FRQ_CNT_PK(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL4,
+			PMA_MPLLA_CTRL4_MPLLA_SSC_FRQ_CNT_INT_MASK,
+			PMA_MPLLA_CTRL4_MPLLA_SSC_FRQ_CNT_INT(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL5,
+			PMA_MPLLA_CTRL5_MPLLA_SSC_SPD_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL1,
+			PMA_MPLLA_CTRL1_MPLLA_FRACN_CTRL_MASK, PMA_MPLLA_CTRL1_MPLLA_FRACN_CTRL(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL0,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(33));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_LVL_MASK, PMA_TX_GENCTRL1_VBOOST_LVL(5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL3,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA016));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MISC_CTRL0,
+			PMA_MISC_CTRL0_RX_VREF_CTRL_MASK, PMA_MISC_CTRL0_RX_VREF_CTRL(0x11));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_MISC_CTRL2,
+			PMA_MISC_CTRL2_SUP_MISC_MASK, PMA_MISC_CTRL2_SUP_MISC(1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x29));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x549));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_PPM_CTRL0,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX_MASK,
+			PMA_RX_PPM_CTRL0_RX0_CDR_PPM_MAX(0x12));
 
 	/* 3 Configure LANE0 for 10G XGMII */
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_TX_MISC_CTRL0, 0x0);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL, 0x0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL);
-	val &= ~PMA_MPLL_CMN_CTRL_MPLLB_SEL_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val = u16_replace_bits(val, 3, PMA_TX_GENCTRL2_TX0_WIDTH_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_VBOOST_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = PMA_TX_BOOST_CTRL_TX0_IBOOST(0xf);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_BOOST_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0, PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	val = PMA_TX_EQ_CTRL1_TX_EQ_POST(0x20);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x20, PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_EQ_CTRL0, val);
-
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL, 0x0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x2, PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x10, PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL3);
-	val = u16_replace_bits(val, 0x7, PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL3, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val |= PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val |= PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = PMA_RX_MISC_CTRL0_RX0_MISC(0x12);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val = u16_replace_bits(val, 0x3, PMA_RX_GENCTRL2_RX0_WIDTH_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_CDR_CTRL, 0x0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL3);
-	val &= ~PMA_RX_GENCTRL3_LOS_LFPS_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL3, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_GENCTRL4);
-	val &= ~PMA_RX_GENCTRL4_RX_DFE_BYP_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_GENCTRL4, val);
-
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_ATTN_CTRL, 0x0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x5, PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x5, PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0, 0x0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val = u16_replace_bits(val, 0x1, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val |= PMA_RX_GENCTRL1_RX_TERM_ACDC_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val &= ~PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val = u16_replace_bits(val, 0x3, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_TX_MISC_CTRL0,
+			PMA_TX_MISC_CTRL0_TX0_MISC_MASK, PMA_TX_MISC_CTRL0_TX0_MISC(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+			PMA_MPLL_CMN_CTRL_MPLLB_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_BOOST_CTRL,
+			PMA_TX_BOOST_CTRL_TX0_IBOOST_MASK, PMA_TX_BOOST_CTRL_TX0_IBOOST(0xf));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_PRE_MASK, PMA_TX_EQ_CTRL0_TX_EQ_PRE(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			PMA_TX_EQ_CTRL1_TX_EQ_POST_MASK, PMA_TX_EQ_CTRL1_TX_EQ_POST(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			PMA_TX_EQ_CTRL0_TX_EQ_MAIN_MASK, PMA_TX_EQ_CTRL0_TX_EQ_MAIN(0x20));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_POLE_0_MASK, PMA_RX_EQ_CTRL0_CTLE_POLE_0(0x2));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x10));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_TRSHLD_0_MASK, PMA_RX_GENCTRL3_LOS_TRSHLD_0(0x7));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x12));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0, PMA_RX_GENCTRL1_RX_DIV16P5_CLK_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_CDR_CTRL,
+			PMA_RX_CDR_CTRL_CDR_SSC_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL3,
+			PMA_RX_GENCTRL3_LOS_LFPS_EN_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_ATTN_CTRL,
+			PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL_MASK, PMA_RX_ATTN_CTRL_RX0_EQ_ATT_LVL(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA1_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA1_GAIN_0(0x5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_VGA2_GAIN_0_MASK, PMA_RX_EQ_CTRL0_VGA2_GAIN_0(0x5));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_DFE_TAP_CTRL0,
+			PMA_DFE_TAP_CTRL0_DFE_TAP1_0_MASK, PMA_DFE_TAP_CTRL0_DFE_TAP1_0(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(0x1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_TERM_ACDC_0, PMA_RX_GENCTRL1_RX_TERM_ACDC_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX_ADPT_SEL_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x3));
 
 	/* 4 Configure XPCS for 10G XGMII */
 	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_CTRL2), 0x0);
-
-	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DIG_CTRL1));
-	val |= PCS_DIG_CTRL1_USXG_EN;
-	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DIG_CTRL1), val);
-
-	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_KR_CTRL1));
-	val = u16_replace_bits(val, 0x0, PCS_KR_CTRL1_USXG_MODE_MASK);
-	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_KR_CTRL1), val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0);
-	val = u16_replace_bits(val, 0x21, PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL0, val);
-
-	val = PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA016);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_MPLLA_CTRL3, val);
-
-	val = PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x549);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_VCO_CAL_LD0, val);
-
-	val = PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x29);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_VCO_CAL_REF0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
-	val |= PMA_RX_EQ_CTRL4_CONT_ADAPT_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4, val);
-
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_RATE_CTRL, 0x0);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_RATE_CTRL, 0x0);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-	val = u16_replace_bits(val, 0x3, PMA_TX_GENCTRL2_TX0_WIDTH_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val = u16_replace_bits(val, 0x3, PMA_RX_GENCTRL2_RX0_WIDTH_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val |= PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2);
-	val &= ~PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_MPLLA_CTRL2, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_VBOOST_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0);
-	val = u16_replace_bits(val, 0x10, PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val |= PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val |= PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = PMA_RX_MISC_CTRL0_RX0_MISC(0x12);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_MISC_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_GENCTRL4);
-	val &= ~PMA_RX_GENCTRL4_RX_DFE_BYP_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_GENCTRL4, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1);
-	val = u16_replace_bits(val, 0x1, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_RX_CDR_CTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0);
-	val = u16_replace_bits(val, 0x0, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_IQ_CTRL0, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5);
-	val = u16_replace_bits(val, 0x3, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK);
-	xpcs_phy_write_pma(xpcs, PMA_MP_16G_25G_RX_EQ_CTRL5, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val &= ~PMA_TX_GENCTRL1_TX_CLK_RDY_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DIG_CTRL1, PCS_DIG_CTRL1_USXG_EN,
+			PCS_DIG_CTRL1_USXG_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_KR_CTRL1, PCS_KR_CTRL1_USXG_MODE_MASK,
+			PCS_KR_CTRL1_USXG_MODE(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL0,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER_MASK,
+			PMA_MPLLA_CTRL0_MPLLA_MULTIPLIER(33));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_MPLLA_CTRL3,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH_MASK,
+			PMA_MPLLA_CTRL3_MPLLA_BANDWIDTH(0xA016));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			PMA_VCO_CAL_LD0_VCO_LD_VAL_0_MASK, PMA_VCO_CAL_LD0_VCO_LD_VAL_0(0x549));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_VCO_CAL_REF0,
+			PMA_VCO_CAL_REF0_VCO_REF_LD_0_MASK, PMA_VCO_CAL_REF0_VCO_REF_LD_0(0x29));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			PMA_RX_EQ_CTRL4_CONT_ADAPT_0, PMA_RX_EQ_CTRL4_CONT_ADAPT_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			PMA_TX_RATE_CTRL_TX0_RATE_MASK, PMA_TX_RATE_CTRL_TX0_RATE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			PMA_RX_RATE_CTRL_RX0_RATE_MASK, PMA_RX_RATE_CTRL_RX0_RATE(0x0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+			PMA_TX_GENCTRL2_TX0_WIDTH_MASK, PMA_TX_GENCTRL2_TX0_WIDTH(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX0_WIDTH_MASK, PMA_RX_GENCTRL2_RX0_WIDTH(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV16P5_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN, PMA_MPLLA_CTRL2_MPLLA_DIV10_CLK_EN);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_MPLLA_CTRL2,
+			PMA_MPLLA_CTRL2_MPLLA_DIV8_CLK_EN, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_VBOOST_EN_0, PMA_TX_GENCTRL1_VBOOST_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL0,
+			PMA_RX_EQ_CTRL0_CTLE_BOOST_0_MASK, PMA_RX_EQ_CTRL0_CTLE_BOOST_0(0x10));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0, PMA_RX_CDR_CTRL1_VCO_STEP_CTRL_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0, PMA_RX_CDR_CTRL1_VCO_TEMP_COMP_EN_0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_MISC_CTRL0,
+			PMA_RX_MISC_CTRL0_RX0_MISC_MASK, PMA_RX_MISC_CTRL0_RX0_MISC(0x12));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_GENCTRL4,
+			PMA_RX_GENCTRL4_RX_DFE_BYP_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_RX_CDR_CTRL1,
+			PMA_RX_CDR_CTRL1_VCO_FRQBAND_0_MASK, PMA_RX_CDR_CTRL1_VCO_FRQBAND_0(1));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_IQ_CTRL0,
+			PMA_RX_IQ_CTRL0_RX0_DELTA_IQ_MASK, PMA_RX_IQ_CTRL0_RX0_DELTA_IQ(0));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_16G_25G_RX_EQ_CTRL5,
+			PMA_RX_EQ_CTRL5_RX0_ADPT_MODE_MASK, PMA_RX_EQ_CTRL5_RX0_ADPT_MODE(0x3));
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, 0);
 
 	/* 5 Assert soft reset */
-	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DIG_CTRL1));
-	val |= PCS_DIG_CTRL1_VR_RST;
-	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DIG_CTRL1), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DIG_CTRL1, PCS_DIG_CTRL1_VR_RST,
+			PCS_DIG_CTRL1_VR_RST);
 
 	/* 6 Poll for SRAM initialization done */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_SRAM,
@@ -1924,8 +1530,8 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 
 	/* 7 Assert SRAM external loading done */
 	/* Workaround */
-	// xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_SRAM, PMA_SRAM_EXT_LD_DN);
-	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
+	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0),
+		       GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
 	/* 8 Poll for vendor-specific soft reset */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DIG_CTRL1,
@@ -1936,27 +1542,21 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	}
 
 	/* 9 Turn receive to P0 state */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
-	val &= ~PMA_RX_GENCTRL1_RX_RST_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
-
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL);
-	val &= ~PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+			PMA_RX_GENCTRL1_RX_RST_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX_DISABLE_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
+			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(0));
 
 	/* 10 Enable receiver data output from PHY */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0);
-	val |= PMA_RX_GENCTRL0_RX_DT_EN_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL0,
+			PMA_RX_GENCTRL0_RX_DT_EN_0, PMA_RX_GENCTRL0_RX_DT_EN_0);
 
 	/* 11 Assert request of receive */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-	val |= PMA_RX_GENCTRL2_RX_REQ_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
 	/* 11.1 Poll for acknowledge */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
@@ -1967,20 +1567,17 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	}
 
 	/* 12 Assert TX0 clock is active and stable */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
-	val |= PMA_TX_GENCTRL1_TX_CLK_RDY_0;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			PMA_TX_GENCTRL1_TX_CLK_RDY_0, PMA_TX_GENCTRL1_TX_CLK_RDY_0);
 
 	/* 13.1 Configure XPCS to consider Loss-of-Signal indicated by the
 	 * PHY while evaluating the receive link status */
-	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL));
-	val |= PCS_DEBUG_CTRL_SUPRESS_LOS_DET;
-	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DEBUG_CTRL,
+			PCS_DEBUG_CTRL_SUPRESS_LOS_DET, PCS_DEBUG_CTRL_SUPRESS_LOS_DET);
 	/* 13.2 Configure XPCS to deassert "receiver data enable" on
 	 * detecting of Loss-of-Signal */
-	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL));
-	val |= PCS_DEBUG_CTRL_RX_DT_EN_CTL;
-	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DEBUG_CTRL, PCS_DEBUG_CTRL_RX_DT_EN_CTL,
+			PCS_DEBUG_CTRL_RX_DT_EN_CTL);
 
 	/* 14 Poll for DPLL lock status for Lane 0 */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_RX_LSTS,
@@ -1991,9 +1588,8 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	}
 
 	/* 15 Assert request of receive adaptation */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
-	val |= PMA_RX_EQ_CTRL4_RX_AD_REQ;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			PMA_RX_EQ_CTRL4_RX_AD_REQ, PMA_RX_EQ_CTRL4_RX_AD_REQ);
 
 	/* 16 Poll for acknowledge */
 	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MISC_STS,
@@ -2004,20 +1600,16 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	}
 
 	/* 17 Deassert request of receive adaptation */
-	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
-	val &= ~PMA_RX_EQ_CTRL4_RX_AD_REQ;
-	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4, val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			PMA_RX_EQ_CTRL4_RX_AD_REQ, 0);
 
 	/* 18 Set the value of Config_Reg to 0 for Clause 37 autonegotiation. */
-	val = xpcs_read(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(MII_AN_CTRL));
-	val &= ~MII_AN_CTRL_TX_CONFIG;
-	xpcs_write(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(MII_AN_CTRL), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_AN_CTRL, MII_AN_CTRL_TX_CONFIG, 0);
 
 	/* 19 Select XGMII speed */
-	val = xpcs_read(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(MII_CTRL));
-	val &= ~MII_CTRL_SS5;
-	val |= MII_CTRL_SS6 | MII_CTRL_SS13;
-	xpcs_write(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(MII_CTRL), val);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS5, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS6, MII_CTRL_SS6);
+	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_SS13, MII_CTRL_SS13);
 
 	val = xpcs_phy_usxgmii_init_seq_2(xpcs);
 	if (val)

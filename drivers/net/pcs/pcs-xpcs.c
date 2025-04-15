@@ -198,21 +198,6 @@ static bool __xpcs_linkmode_supported(const struct dw_xpcs_compat *compat,
 #define xpcs_linkmode_supported(compat, mode) \
 	__xpcs_linkmode_supported(compat, ETHTOOL_LINK_MODE_ ## mode ## _BIT)
 
-int xpcs_phy_read(struct dw_xpcs *xpcs, int dev, u32 reg)
-{
-	struct mii_bus *bus = xpcs->phydev->bus;
-	int addr = xpcs->phydev->addr;
-
-	return mdiobus_c45_read(bus, addr, dev, reg);
-}
-
-int xpcs_phy_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
-{
-	struct mii_bus *bus = xpcs->phydev->bus;
-	int addr = xpcs->phydev->addr;
-
-	return mdiobus_c45_write(bus, addr, dev, reg, val);
-}
 
 int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg)
 {
