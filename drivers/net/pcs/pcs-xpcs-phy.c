@@ -8,6 +8,11 @@
 #include <linux/sched.h>
 #include "pcs-xpcs.h"
 
+#define XPCS_DEV		0x0
+#define XPCS_PHY_DEV		0x10
+#define XPCS_POLLING_DELAY_US	2
+#define XPCS_POLLING_TIMEOUT_US	30000
+
 #define XPCS_PHY_GLOBAL		0x0
 #define XPCS_PHY_MPLLA		0x1
 #define XPCS_PHY_MPLLB		0x2
@@ -302,6 +307,32 @@ static int xpcs_write_mii(struct dw_xpcs *xpcs, int reg, u16 val)
 	return xpcs_write(xpcs, MDIO_MMD_VEND2, XPCS_PHY_REG(reg), val);
 }
 
+static int xpcs_phy_polling_timeout(struct dw_xpcs *xpcs, u8 dev, u8 devad,
+				    u32 reg, u16 mask, u8 wait_for)
+{
+	u16 val;
+	int ret;
+
+	switch (dev) {
+	case XPCS_DEV:
+		ret = read_poll_timeout(xpcs_read, val,
+					((val & mask) == (wait_for ? mask : 0)),
+					XPCS_POLLING_DELAY_US, XPCS_POLLING_TIMEOUT_US,
+					false, xpcs, devad, XPCS_PHY_REG(reg));
+		break;
+	case XPCS_PHY_DEV:
+		ret = read_poll_timeout(xpcs_phy_read, val,
+					((val & mask) == (wait_for ? mask : 0)),
+					XPCS_POLLING_DELAY_US, XPCS_POLLING_TIMEOUT_US,
+					false, xpcs, devad, XPCS_PHY_REG(reg));
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 void xpcs_phy_reset(struct dw_xpcs *xpcs)
 {
 	u16 val;
@@ -319,8 +350,8 @@ void xpcs_phy_reset(struct dw_xpcs *xpcs)
 
 static int xpcs_phy_usxgmii_init_seq_2(struct dw_xpcs *xpcs)
 {
-	unsigned long orig_jiffies = jiffies;
 	u16 val;
+	int ret;
 
 	/* Seq 2.1 Keep preamble data */
 	val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL));
@@ -346,24 +377,18 @@ static int xpcs_phy_usxgmii_init_seq_2(struct dw_xpcs *xpcs)
 	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
 	/* Seq 2.4 Poll for acknowledge */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_GENCTRL2_TX_REQ_0);
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* Seq 2.5 Turn transmit to P0 state */
 	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
@@ -417,24 +442,18 @@ static int xpcs_phy_usxgmii_init_seq_2(struct dw_xpcs *xpcs)
 	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
 	/* Seq 2.10 Poll for acknowledge */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_GENCTRL2_TX_REQ_0);
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	return 0;
 
@@ -444,8 +463,7 @@ timeout:
 
 static void mx95_xpcs_phy_reg_lock(struct dw_xpcs *xpcs)
 {
-	u16 val;
-	unsigned long orig_jiffies;
+	int ret;
 
 	if (xpcs_phy_read(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY)) & MAC_ADAPTER_LOCK_LOCK)
 		return;
@@ -456,29 +474,22 @@ static void mx95_xpcs_phy_reg_lock(struct dw_xpcs *xpcs)
 	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_ROM), MAC_ADAPTER_LOCK_LOCK);
 	xpcs_phy_write(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_RAM), MAC_ADAPTER_LOCK_LOCK);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_SRAM);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_SRAM_INIT_DN));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_SRAM,
+				       PMA_SRAM_INIT_DN, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* Work around */
 	// xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_SRAM, PMA_SRAM_EXT_LD_DN);
 	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_CTRL1));
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PCS_CTRL1_RESET);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_CTRL1, PCS_CTRL1_RESET, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -488,25 +499,20 @@ timeout:
 
 static int mx94_xpcs_phy_reg_lock(struct dw_xpcs *xpcs)
 {
-	unsigned long orig_jiffies;
 	u8 whoami, owner;
 	u16 val;
+	int ret;
 
 	val = xpcs_phy_read(xpcs, XPCS_PHY_MAC_ADAPTER, XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY));
 	whoami = (val & MAC_ADAPTER_LOCK_LOCK_WHOAMI_MASK) >> MAC_ADAPTER_LOCK_LOCK_WHOAMI_SHIFT;
 	owner = (val & MAC_ADAPTER_LOCK_LOCK_OWNER_MASK) >> MAC_ADAPTER_LOCK_LOCK_OWNER_SHIFT;
 	if (whoami != owner) {
-		orig_jiffies = jiffies;
-		do {
-			val = xpcs_phy_read(xpcs, XPCS_PHY_MAC_ADAPTER,
-					    XPCS_PHY_REG(MAC_ADAPTER_LOCK_PHY));
-			if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-				dev_err(&xpcs->phydev->dev, "Polling lock timeout, line: %d\n",
-					__LINE__);
-				goto timeout;
-			}
-			schedule();
-		} while (val & MAC_ADAPTER_LOCK_LOCK);
+		ret = xpcs_phy_polling_timeout(xpcs, XPCS_PHY_DEV, XPCS_PHY_MAC_ADAPTER,
+					       MAC_ADAPTER_LOCK_PHY, MAC_ADAPTER_LOCK_LOCK, 0);
+		if (ret) {
+			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+			goto timeout;
+		}
 	} else {
 		return 0;
 	}
@@ -590,8 +596,8 @@ static int xpcs_phy_reg_unlock(struct dw_xpcs *xpcs)
 
 static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 {
-	unsigned long orig_jiffies;
 	u16 val;
+	int ret;
 
 	if (is_2p5g) {
 		val = xpcs_phy_read(xpcs, XPCS_PHY_MPLLA, XPCS_PHY_REG(MPLLA_CTRL_EX_0));
@@ -622,15 +628,12 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 
 	mdelay(1);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_SRAM);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_SRAM_INIT_DN));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_SRAM,
+				       PMA_SRAM_INIT_DN, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -638,15 +641,12 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 	val |= GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS;
 	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PCS_CTRL1);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PCS_CTRL1_RESET);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PCS_CTRL1, PCS_CTRL1_RESET,
+				       0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	val = xpcs_read_mii(xpcs, MII_CTRL);
 	val = is_2p5g ? (val & ~MII_CTRL_AN_ENABLE) : (val | MII_CTRL_AN_ENABLE);
@@ -670,15 +670,12 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 	val &= ~PMA_RX_GENCTRL1_RX_RST_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_STS_TX_ACK_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
+				       PMA_TX_STS_TX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
 	val = u16_replace_bits(val, 0x3, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
@@ -692,15 +689,12 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 	val &= ~PMA_TX_GENCTRL0_TX_DT_EN_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL0, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_STS_RX_ACK_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
+				       PMA_RX_STS_RX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL0);
 	val &= ~PMA_RX_GENCTRL0_RX_DT_EN_0;
@@ -722,25 +716,18 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 	val |= PMA_RX_GENCTRL2_RX_REQ_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_GENCTRL2_TX_REQ_0);
-
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -752,25 +739,18 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 	val &= ~PMA_RX_GENCTRL2_RX_REQ_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_STS_TX_ACK_0);
-
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_STS_RX_ACK_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
+				       PMA_TX_STS_TX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
+				       PMA_RX_STS_RX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	return 0;
 
@@ -781,8 +761,8 @@ timeout:
 
 static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 {
-	unsigned long orig_jiffies;
 	u16 val;
+	int ret;
 
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
 	val &= ~PMA_REF_CLK_CTRL_REF_CLK_DIV2;
@@ -1025,15 +1005,12 @@ static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 	val |= MII_DIG_CTRL1_VR_RST;
 	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_SRAM);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_SRAM_INIT_DN));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_SRAM,
+				       PMA_SRAM_INIT_DN, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -1041,15 +1018,12 @@ static int imx94_xpcs_phy_mpll_configuration_xaui_kx4(struct dw_xpcs *xpcs)
 	val |= GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS;
 	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & MII_DIG_CTRL1_VR_RST);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1,
+				       MII_DIG_CTRL1_VR_RST, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
 	val |= PMA_TX_GENCTRL1_TX_CLK_RDY_0;
@@ -1089,8 +1063,8 @@ timeout:
 
 static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
 {
-	unsigned long orig_jiffies;
 	u16 val;
+	int ret;
 
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
 	val &= ~PMA_REF_CLK_CTRL_REF_CLK_DIV2;
@@ -1334,15 +1308,12 @@ static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
 	val |= MII_DIG_CTRL1_VR_RST;
 	xpcs_write_mii(xpcs, MII_DIG_CTRL1, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_SRAM);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_SRAM_INIT_DN));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_SRAM,
+				       PMA_SRAM_INIT_DN, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -1350,15 +1321,12 @@ static int imx94_xpcs_phy_mpll_configuration_sgmii(struct dw_xpcs *xpcs)
 	val |= GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS;
 	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, MII_DIG_CTRL1);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & MII_DIG_CTRL1_VR_RST);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_DIG_CTRL1,
+				       MII_DIG_CTRL1_VR_RST, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
 	val |= PMA_TX_GENCTRL1_TX_CLK_RDY_0;
@@ -1390,8 +1358,8 @@ timeout:
 
 static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 {
-	unsigned long orig_jiffies;
 	u16 val;
+	int ret;
 
 	val = xpcs_read_mii(xpcs, PCS_DEBUG_CTRL);
 	val |= PCS_DEBUG_CTRL_TX_PMBL_CTL;
@@ -1415,25 +1383,18 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 	val |= PMA_RX_GENCTRL2_RX_REQ_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
-
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_GENCTRL2_TX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -1445,26 +1406,18 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 	val &= ~PMA_RX_GENCTRL2_RX_REQ_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_STS_TX_ACK_0);
-
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_STS_RX_ACK_0);
-
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
+				       PMA_TX_STS_TX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
+				       PMA_RX_STS_RX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 	val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL);
 	val = u16_replace_bits(val, 0x0, PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK);
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL, val);
@@ -1509,25 +1462,18 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 	val |= PMA_RX_GENCTRL2_RX_REQ_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
-
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_GENCTRL2_TX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	mdelay(1);
 
@@ -1539,25 +1485,18 @@ static int imx94_xpcs_phy_common_init_seq_2(struct dw_xpcs *xpcs)
 	val &= ~PMA_RX_GENCTRL2_RX_REQ_0;
 	xpcs_write_mii(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_TX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_STS_TX_ACK_0);
-
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read_mii(xpcs, PMA_MP_12G_16G_25G_RX_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_STS_RX_ACK_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
+				       PMA_TX_STS_TX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
+				       PMA_RX_STS_RX_ACK_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	return 0;
 
@@ -1608,8 +1547,8 @@ int imx94_xpcs_phy_sgmii_1g_config(struct dw_xpcs *xpcs)
 
 int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 {
-	unsigned long orig_jiffies = jiffies;
 	u16 val;
+	int ret;
 
 	xpcs_phy_reg_lock(xpcs);
 
@@ -1676,24 +1615,18 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
 	/* 1.13 Poll for acknlowledge */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_TX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_TX_GENCTRL2_TX_REQ_0);
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
+				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* 2 Config MPLL for 10G XGMII */
 	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_REF_CLK_CTRL);
@@ -1982,15 +1915,12 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DIG_CTRL1), val);
 
 	/* 6 Poll for SRAM initialization done */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_SRAM);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_SRAM_INIT_DN));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_SRAM,
+				       PMA_SRAM_INIT_DN, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* 7 Assert SRAM external loading done */
 	/* Workaround */
@@ -1998,15 +1928,12 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_phy_write(xpcs, XPCS_PHY_GLOBAL, XPCS_PHY_REG(GLOBAL_CTRL_EX_0), GLOBAL_CTRL_EX_0_PHY_SRAM_BYPASS);
 
 	/* 8 Poll for vendor-specific soft reset */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_read(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DIG_CTRL1));
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PCS_DIG_CTRL1_VR_RST);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PCS, PCS_DIG_CTRL1,
+				       PCS_DIG_CTRL1_VR_RST, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* 9 Turn receive to P0 state */
 	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_GENCTRL1);
@@ -2032,15 +1959,12 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2, val);
 
 	/* 11.1 Poll for acknowledge */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_RX_GENCTRL2);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (val & PMA_RX_GENCTRL2_RX_REQ_0);
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
+				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* 12 Assert TX0 clock is active and stable */
 	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_TX_GENCTRL1);
@@ -2059,15 +1983,12 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_write(xpcs, MDIO_MMD_PCS, XPCS_PHY_REG(PCS_DEBUG_CTRL), val);
 
 	/* 14 Poll for DPLL lock status for Lane 0 */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_RX_LSTS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_RX_LSTS_RX_VALID_0));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_RX_LSTS,
+				       PMA_RX_LSTS_RX_VALID_0, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* 15 Assert request of receive adaptation */
 	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
@@ -2075,15 +1996,12 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 	xpcs_phy_write_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4, val);
 
 	/* 16 Poll for acknowledge */
-	orig_jiffies = jiffies;
-	do {
-		val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_MISC_STS);
-		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
-			dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-			goto timeout;
-		}
-		schedule();
-	} while (!(val & PMA_MISC_STS_RX_ADPT_ACK));
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MISC_STS,
+				       PMA_MISC_STS_RX_ADPT_ACK, 1);
+	if (ret) {
+		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
+		goto timeout;
+	}
 
 	/* 17 Deassert request of receive adaptation */
 	val = xpcs_phy_read_pma(xpcs, PMA_MP_12G_16G_25G_RX_EQ_CTRL4);
