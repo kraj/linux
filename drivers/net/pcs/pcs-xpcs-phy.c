@@ -493,7 +493,7 @@ static int xpcs_phy_reg_unlock(struct dw_xpcs *xpcs)
 	return ret;
 }
 
-static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
+static int imx94_xpcs_phy_port_init(struct dw_xpcs *xpcs, bool is_2p5g)
 {
 	u16 val;
 	int ret;
@@ -549,61 +549,73 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 		goto timeout;
 	}
 
+		return 0;
+
+timeout:
+
+	return -ETIMEDOUT;
+}
+
+static int xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool has_pcs_pma, bool an)
+{
+	int ret;
+	u8 devad = has_pcs_pma ? MDIO_MMD_PMAPMD : MDIO_MMD_VEND2;
+
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_AN_ENABLE,
-			is_2p5g ? 0 : MII_CTRL_AN_ENABLE);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+			an ? MII_CTRL_AN_ENABLE : 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL0,
 			PMA_TX_GENCTRL0_TX_RST_0, PMA_TX_GENCTRL0_TX_RST_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_GENCTRL1,
 			PMA_RX_GENCTRL1_RX_RST_0, PMA_RX_GENCTRL1_RX_RST_0);
 
 	mdelay(1);
 
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL0,
 			PMA_TX_GENCTRL0_TX_RST_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL1,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_GENCTRL1,
 			PMA_RX_GENCTRL1_RX_RST_0, 0);
 
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_STS,
 				       PMA_TX_STS_TX_ACK_0, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
 		goto timeout;
 	}
 
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
 			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(3));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
 			PMA_MPLL_CMN_CTRL_MPLL_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_GENCTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_GENCTRL0,
 			PMA_TX_GENCTRL0_TX_DT_EN_0, 0);
 
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_STS,
 				       PMA_RX_STS_RX_ACK_0, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
 		goto timeout;
 	}
 
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_GENCTRL0,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_GENCTRL0,
 			PMA_RX_GENCTRL0_RX_DT_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
 			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
 			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
 			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
 			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(3));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_TX_GENCTRL2,
 			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL2,
 			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
 
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_TX_GENCTRL2,
 				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
 		goto timeout;
 	}
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL2,
 				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
@@ -612,18 +624,18 @@ static int imx94_xpcs_phy_common_init_seq_1(struct dw_xpcs *xpcs, bool is_2p5g)
 
 	mdelay(1);
 
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_TX_GENCTRL2,
-			PMA_TX_GENCTRL2_TX_REQ_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_RX_GENCTRL2,
-			PMA_RX_GENCTRL2_RX_REQ_0, 0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_TX_GENCTRL2, PMA_TX_GENCTRL2_TX_REQ_0,
+			0);
+	xpcs_phy_modify(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_RX_GENCTRL2, PMA_RX_GENCTRL2_RX_REQ_0,
+			0);
 
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_TX_STS,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_TX_STS,
 				       PMA_TX_STS_TX_ACK_0, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
 		goto timeout;
 	}
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_VEND2, PMA_MP_12G_16G_25G_RX_STS,
+	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, devad, PMA_MP_12G_16G_25G_RX_STS,
 				       PMA_RX_STS_RX_ACK_0, 0);
 	if (ret) {
 		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
@@ -1165,7 +1177,10 @@ static int imx94_xpcs_phy_sgmii_config(struct dw_xpcs *xpcs, bool is_2p5g)
 	if (ret)
 		return ret;
 
-	ret = imx94_xpcs_phy_common_init_seq_1(xpcs, is_2p5g);
+	ret = imx94_xpcs_phy_port_init(xpcs, is_2p5g);
+	if (ret)
+		return ret;
+	ret = xpcs_phy_common_init_seq_1(xpcs, false, is_2p5g ? false : true);
 	if (ret)
 		return ret;
 
@@ -1204,63 +1219,7 @@ int xpcs_phy_usxgmii_pma_config(struct dw_xpcs *xpcs)
 
 	xpcs_phy_reg_lock(xpcs);
 
-	/* 1.6 Turn off C37 auto-negotiation */
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_VEND2, MII_CTRL, MII_CTRL_AN_ENABLE, 0);
-
-	/* 1.7 Assert tx_reset and rx_reset*/
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
-			PMA_TX_GENCTRL0_TX_RST_0, PMA_TX_GENCTRL0_TX_RST_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
-			PMA_RX_GENCTRL1_RX_RST_0, PMA_RX_GENCTRL1_RX_RST_0);
-
-	/* 1.8 Wait for more than 1us */
-	udelay(5);
-
-	/* 1.9 Deassert tx_reset and rx_reset*/
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
-			PMA_TX_GENCTRL0_TX_RST_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL1,
-			PMA_RX_GENCTRL1_RX_RST_0, 0);
-
-	/* 1.10 Power down MPLLA */
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_POWER_STATE_CTRL,
-			PMA_POWER_STATE_CTRL_TX0_PSTATE_MASK, PMA_POWER_STATE_CTRL_TX0_PSTATE(3));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_MPLL_CMN_CTRL,
-			PMA_MPLL_CMN_CTRL_MPLL_EN_0, 0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_TX_GENCTRL0,
-			PMA_TX_GENCTRL0_TX_DT_EN_0, 0);
-
-	/* 1.11 Change RX0 power state to P2 */
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_GENCTRL0,
-			PMA_RX_GENCTRL0_RX_DT_EN_0, 0);
-
-	/* TODO: check if it is needed */
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
-			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
-			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(1));
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_RX_POWER_STATE_CTRL,
-			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE_MASK,
-			PMA_RX_POWER_STATE_CTRL_RX0_PSTATE(3));
-
-	/* 1.12 Assert request of transmit and receive */
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
-			PMA_TX_GENCTRL2_TX_REQ_0, PMA_TX_GENCTRL2_TX_REQ_0);
-	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
-			PMA_RX_GENCTRL2_RX_REQ_0, PMA_RX_GENCTRL2_RX_REQ_0);
-
-	/* 1.13 Poll for acknlowledge */
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_TX_GENCTRL2,
-				       PMA_TX_GENCTRL2_TX_REQ_0, 0);
-	if (ret) {
-		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-		goto timeout;
-	}
-	ret = xpcs_phy_polling_timeout(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_RX_GENCTRL2,
-				       PMA_RX_GENCTRL2_RX_REQ_0, 0);
-	if (ret) {
-		dev_err(&xpcs->phydev->dev, "Polling timeout, line: %d\n", __LINE__);
-		goto timeout;
-	}
+	xpcs_phy_common_init_seq_1(xpcs, true, false);
 
 	/* 2 Config MPLL for 10G XGMII */
 	xpcs_phy_modify(xpcs, XPCS_DEV, MDIO_MMD_PMAPMD, PMA_MP_12G_16G_25G_REF_CLK_CTRL,
