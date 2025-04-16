@@ -4576,6 +4576,11 @@ static int kbase_device_runtime_suspend(struct device *dev)
 	dev_dbg(dev, "Callback %s\n", __func__);
 	KBASE_KTRACE_ADD(kbdev, PM_RUNTIME_SUSPEND_CALLBACK, NULL, 0);
 
+	if (kbase_pm_is_active(kbdev)) {
+		dev_dbg(kbdev->dev, "Ignoring RT suspend callback as the device is still active");
+		return -EBUSY;
+	}
+
 	if (likely(kbdev->csf.scheduler.kthread_running)) {
 		atomic_set(&kbdev->csf.scheduler.pending_runtime_suspend_work, true);
 		kbase_csf_scheduler_wait_for_kthread_pending_work(
