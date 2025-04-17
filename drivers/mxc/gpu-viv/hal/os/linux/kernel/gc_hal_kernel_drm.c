@@ -827,7 +827,7 @@ static struct drm_driver viv_drm_driver = {
     .desc               = "vivante DRM",
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
     .date               = "20170808",
-#endif
+#    endif
     .major              = 1,
     .minor              = 0,
 };
