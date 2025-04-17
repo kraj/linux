@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * A V4L2 driver for Omnivision OX05B1S RGB-IR camera.
- * Copyright (C) 2024, NXP
+ *
+ * Copyright 2024-2025 NXP
  *
  * Inspired from Sony imx219, imx290, imx214 and imx334 camera drivers
  *
@@ -280,11 +281,11 @@ static int ox05b1s_update_bits(struct ox05b1s *sensor, u16 reg, unsigned int mas
 
 #define OX05B1S_MAX_REG_BULK 16
 static int ox05b1s_write_reg_array(struct ox05b1s *sensor,
-				   struct ox05b1s_reg *reg_array,
+				   const struct ox05b1s_reg *reg_array,
 				   u32 size)
 {
 	struct device *dev = &sensor->i2c_client->dev;
-	struct ox05b1s_reg *table = reg_array;
+	const struct ox05b1s_reg *table = reg_array;
 	u8 vals[OX05B1S_MAX_REG_BULK];
 	int i, j;
 	int ret;
@@ -359,6 +360,61 @@ static int os08a20_set_hdr_mode(struct ox05b1s *sensor, u32 hdr_mode)
 		return os08a20_disable_staggered_hdr(sensor);
 	case 1:
 		return os08a20_enable_staggered_hdr(sensor);
+	default:
+		return -EINVAL;
+	}
+}
+
+static const char * const ox05b1s_hdr_modes[] = {
+	"NO context switch",	/* single exposure */
+	"Context switch, 2 exposures/VCs", /* context switch 2 exposures/VCs, for RGB and IR */
+};
+
+/* ctx0 for long exposure (IR) on VC0, ctx1 for short exposure (RGB) on VC1 */
+static const struct ox05b1s_reg ovx5b_init_setting_ctx_switch_en[] = {
+	{0x320a, 0x01}, /* frames stay in group0 */
+	{0x320b, 0x01}, /* frames stay in group1 */
+
+	{0x3208, 0x00}, /* group0 start */
+	{0x3501, 0x01}, /* exposure */
+	{0x3502, 0x00}, /* exposure */
+	{0x4813, 0x00}, /* mipi vc0 */
+	{0x3208, 0x10}, /* group0 end */
+
+	{0x3208, 0x01}, /* group1 start */
+	{0x3501, 0x00}, /* exposure */
+	{0x3502, 0x80}, /* exposure */
+	{0x4813, 0x01}, /* mipi vc1 */
+	{0x3208, 0x11}, /* group1 end */
+
+	{0x3211, 0x30}, /* context switch en */
+	{0x3208, 0xa0}, /* repeat launch */
+};
+
+static int ox05b1s_enable_context_switching(struct ox05b1s *sensor)
+{
+	return ox05b1s_write_reg_array(sensor, ovx5b_init_setting_ctx_switch_en,
+				       ARRAY_SIZE(ovx5b_init_setting_ctx_switch_en));
+}
+
+static int ox05b1s_disable_context_switching(struct ox05b1s *sensor)
+{
+	int ret;
+
+	ret = ox05b1s_write_reg(sensor, 0x3211, 0x61);
+	ret |= ox05b1s_write_reg(sensor, 0x320a, 0x0);
+	ret |= ox05b1s_write_reg(sensor, 0x320b, 0x0);
+
+	return ret ? -EIO : 0;
+}
+
+static int ox05b1s_set_hdr_mode(struct ox05b1s *sensor, u32 hdr_mode)
+{
+	switch (hdr_mode) {
+	case 0:
+		return ox05b1s_disable_context_switching(sensor);
+	case 1:
+		return ox05b1s_enable_context_switching(sensor);
 	default:
 		return -EINVAL;
 	}
@@ -1108,9 +1164,9 @@ static const struct ox05b1s_plat_data ox05b1s_data = {
 	.default_mode_index	= 0,
 	.supported_codes	= ox05b1s_supported_codes,
 	.supported_codes_count	= ARRAY_SIZE(ox05b1s_supported_codes),
-	.hdr_modes		= NULL,
-	.hdr_modes_count	= 0,
-	.set_hdr_mode		= NULL,
+	.hdr_modes		= ox05b1s_hdr_modes,
+	.hdr_modes_count	= ARRAY_SIZE(ox05b1s_hdr_modes),
+	.set_hdr_mode		= ox05b1s_set_hdr_mode,
 };
 
 static const struct i2c_device_id ox05b1s_id[] = {
