@@ -368,6 +368,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-os08a20.dtb imx8mp-frdm-os08a20-dual.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-rpmsg.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-8mic-revE.dtb
 
+imx8mp-frdm-waveshare-7inch-c-panel-dtbs := imx8mp-frdm.dtb imx8mp-frdm-waveshare-7inch-c-panel.dtbo
+dtb-${CONFIG_ARCH_MXC} += imx8mp-frdm-waveshare-7inch-c-panel.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx8mq-evk.dtb
 
 imx8mq-evk-pcie1-ep-dtbs += imx8mq-evk.dtb imx-pcie1-ep.dtbo
