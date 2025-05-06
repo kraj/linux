@@ -189,8 +189,8 @@ static int dpu95_be_get_fence(struct dpu_bliteng *dpu_be)
 failed:
 	if (sync)
 		fput(sync->file);
-
-	kfree(fence);
+	else
+		dma_fence_put(&fence->base);
 
 	return -1;
 }
