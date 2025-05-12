@@ -77,6 +77,13 @@ properties:
 	controller can handle; if not present, the memory
 	interface is fast enough to handle all possible video modes
 
+  backlight:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      For legacy framebuffer device whose backlight is controlled by an
+      external backlight controller, this property contains a phandle that
+      references the controller.
+
   display:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle to display panel
