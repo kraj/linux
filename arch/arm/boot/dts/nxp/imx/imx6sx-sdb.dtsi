@@ -442,6 +442,7 @@
 	pinctrl-0 = <&pinctrl_lcd>;
 	lcd-supply = <&reg_lcd_3v3>;
 	display = <&display0>;
+	backlight = <&backlight_display0>;
 	status = "disabled";
 
 	display0: display@0 {
@@ -472,6 +473,7 @@
 &lcdif2 {
 	display = <&display1>;
 	disp-dev = "ldb";
+	backlight = <&backlight_display1>;
 	status = "okay";
 	display1: display@1 {
 		bits-per-pixel = <16>;
