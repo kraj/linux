@@ -306,30 +306,25 @@ static void dcif_enable_plane_panic(struct dcif_dev *dcif)
 	      DCIF_PANIC_THRES_HIGH(2 * PANIC0_THRES_MAX / 3) |
 	      DCIF_PANIC_THRES_REQ_EN;
 	regmap_write(dcif->regmap, DCIF_PANIC_THRES(0), reg);
+	regmap_write(dcif->regmap, DCIF_PANIC_THRES(1), reg);
 
-	/*
-	 * Enable FIFO Panic, this does not generate interrupt, but
-	 * boosts NoC priority based on FIFO Panic watermarks.
-	 */
-	regmap_read(dcif->regmap, DCIF_IE1(0), &reg);
-	reg |= DCIF_INT1_FIFO_PANIC0;
-	regmap_write(dcif->regmap, DCIF_IE1(0), reg);
-	regmap_write(dcif->regmap, DCIF_IE1(1), reg);
-	regmap_write(dcif->regmap, DCIF_IE1(2), reg);
+	/* Enable FIFO Panic interrupts on both layers. */
+	regmap_read(dcif->regmap, DCIF_IE1(dcif->cpu_domain), &reg);
+	reg |= DCIF_INT1_FIFO_PANIC0 | DCIF_INT1_FIFO_PANIC1;
+	regmap_write(dcif->regmap, DCIF_IE1(dcif->cpu_domain), reg);
 }
 
 static void dcif_disable_plane_panic(struct dcif_dev *dcif)
 {
 	u32 reg;
 
-	/* Disable FIFO Panic NoC priority booster. */
-	regmap_read(dcif->regmap, DCIF_IE1(0), &reg);
-	reg &= ~DCIF_INT1_FIFO_PANIC0;
-	regmap_write(dcif->regmap, DCIF_IE1(0), reg);
-	regmap_write(dcif->regmap, DCIF_IE1(1), reg);
-	regmap_write(dcif->regmap, DCIF_IE1(2), reg);
+	/* Disable FIFO Panic interrupts. */
+	regmap_read(dcif->regmap, DCIF_IE1(dcif->cpu_domain), &reg);
+	reg &= ~DCIF_INT1_FIFO_PANIC0 | DCIF_INT1_FIFO_PANIC1;
+	regmap_write(dcif->regmap, DCIF_IE1(dcif->cpu_domain), reg);
 
 	regmap_clear_bits(dcif->regmap, DCIF_PANIC_THRES(0), DCIF_PANIC_THRES_REQ_EN);
+	regmap_clear_bits(dcif->regmap, DCIF_PANIC_THRES(1), DCIF_PANIC_THRES_REQ_EN);
 }
 
 static void dcif_enable_controller(struct dcif_dev *dcif)
@@ -616,10 +611,12 @@ irqreturn_t dcif_irq_handler(int irq, void *data)
 	struct dcif_dev *dcif = to_dcif_dev(drm);
 	int domain = dcif->cpu_domain;
 	unsigned long flags;
-	u32 stat, crc;
+	u32 stat0, stat1, crc;
 
-	regmap_read(dcif->regmap, DCIF_IS0(domain), &stat);
-	if (stat & DCIF_INT0_VS_BLANK) {
+	regmap_read(dcif->regmap, DCIF_IS0(domain), &stat0);
+	regmap_read(dcif->regmap, DCIF_IS1(domain), &stat1);
+
+	if (stat0 & DCIF_INT0_VS_BLANK) {
 		drm_crtc_handle_vblank(&dcif->crtc);
 
 		spin_lock_irqsave(&drm->event_lock, flags);
@@ -634,12 +631,20 @@ irqreturn_t dcif_irq_handler(int irq, void *data)
 			dev_dbg(drm->dev, "crc=0x%x\n",  crc);
 		}
 		spin_unlock_irqrestore(&drm->event_lock, flags);
-	} else {
-		dev_info(drm->dev, "irq stat=0x%x\n", stat);
+	}
+
+	if (stat1 & (DCIF_INT1_FIFO_PANIC0 | DCIF_INT1_FIFO_PANIC1)) {
+		u32 panic = stat1 & (DCIF_INT1_FIFO_PANIC0 | DCIF_INT1_FIFO_PANIC1);
+
+		dev_dbg_ratelimited(drm->dev, "FIFO panic on %s\n",
+				    panic == (DCIF_INT1_FIFO_PANIC0 | DCIF_INT1_FIFO_PANIC1) ?
+				    "layers 0 & 1" : panic == DCIF_INT1_FIFO_PANIC0 ? "layer 0" :
+				    "layer 1");
 	}
 
 	/* W1C */
-	regmap_write(dcif->regmap, DCIF_IS0(domain), stat);
+	regmap_write(dcif->regmap, DCIF_IS0(domain), stat0);
+	regmap_write(dcif->regmap, DCIF_IS1(domain), stat1);
 
 	return IRQ_HANDLED;
 }
