@@ -128,6 +128,10 @@ struct mxc_md {
 	struct v4l2_async_notifier subdev_notifier;
 };
 
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Debug level (0-2)");
+
 static inline struct mxc_md *notifier_to_mxc_md(struct v4l2_async_notifier *n)
 {
 	return container_of(n, struct mxc_md, subdev_notifier);
@@ -1052,10 +1056,11 @@ static int register_sensor_entities(struct mxc_md *mxc_md)
 		 * Need to wait sensor driver probed for the first time
 		 */
 		client = of_find_i2c_device_by_node(rem);
-		if (!client) {
-			v4l2_info(&mxc_md->v4l2_dev,
-				  "Can't find i2c client device for %s\n",
-				  of_node_full_name(rem));
+		if (!client->dev.driver || !device_is_bound(&client->dev)) {
+			v4l2_dbg(1, debug, &mxc_md->v4l2_dev,
+				 "Can't find i2c client device for %s\n",
+				 of_node_full_name(rem));
+
 			return -EPROBE_DEFER;
 		}
 
