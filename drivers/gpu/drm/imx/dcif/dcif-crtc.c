@@ -168,6 +168,15 @@ static void dcif_set_formats(struct dcif_dev *dcif,
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		reg |= DCIF_DPI_CTRL_DATA_PATTERN(PATTERN_RGB888);
 		break;
+	case MEDIA_BUS_FMT_RBG888_1X24:
+		reg |= DCIF_DPI_CTRL_DATA_PATTERN(PATTERN_RBG888);
+		break;
+	case MEDIA_BUS_FMT_BGR888_1X24:
+		reg |= DCIF_DPI_CTRL_DATA_PATTERN(PATTERN_BGR888);
+		break;
+	case MEDIA_BUS_FMT_GBR888_1X24:
+		reg |= DCIF_DPI_CTRL_DATA_PATTERN(PATTERN_GBR888);
+		break;
 	default:
 		dev_err(drm->dev, "Unknown media bus format 0x%x\n", bus_format);
 		break;
@@ -445,6 +454,51 @@ static void dcif_crtc_queue_state_event(struct drm_crtc *crtc)
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
+static struct drm_bridge *dcif_crtc_get_bridge(struct drm_crtc *crtc,
+					       struct drm_crtc_state *crtc_state)
+{
+	struct drm_connector_state *conn_state;
+	struct drm_encoder *encoder;
+	struct drm_connector *conn;
+	struct drm_bridge *bridge;
+	int i;
+
+	for_each_new_connector_in_state(crtc_state->state, conn, conn_state, i) {
+		if (crtc != conn_state->crtc)
+			continue;
+
+		encoder = conn_state->best_encoder;
+
+		bridge = drm_bridge_chain_get_first_bridge(encoder);
+		if (bridge)
+			return bridge;
+	}
+
+	return NULL;
+}
+
+static void dcif_crtc_query_output_bus_format(struct drm_crtc *crtc,
+					      struct drm_crtc_state *crtc_state)
+{
+	struct dcif_crtc_state *dcif_state = to_dcif_crtc_state(crtc_state);
+	struct drm_bridge_state *bridge_state;
+	struct drm_bridge *bridge;
+
+	dcif_state->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	dcif_state->bus_flags = 0;
+
+	bridge = dcif_crtc_get_bridge(crtc, crtc_state);
+	if (!bridge)
+		return;
+
+	bridge_state = drm_atomic_get_new_bridge_state(crtc_state->state, bridge);
+	if (!bridge_state)
+		return;
+
+	dcif_state->bus_format = bridge_state->input_bus_cfg.format;
+	dcif_state->bus_flags = bridge_state->input_bus_cfg.flags;
+}
+
 static int dcif_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_atomic_state *state)
 {
@@ -455,6 +509,8 @@ static int dcif_crtc_atomic_check(struct drm_crtc *crtc,
 
 	if (crtc_state->active && !enable_primary)
 		return -EINVAL;
+
+	dcif_crtc_query_output_bus_format(crtc, crtc_state);
 
 	if (crtc_state->active_changed && crtc_state->active) {
 		/*
