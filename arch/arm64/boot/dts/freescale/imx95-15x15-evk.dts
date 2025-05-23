@@ -59,6 +59,12 @@
 		stdout-path = &lpuart1;
 	};
 
+	dmic: dmic {
+		compatible = "dmic-codec";
+		#sound-dai-cells = <0>;
+		num-channels = <2>;
+	};
+
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
@@ -264,6 +270,9 @@
 
 			cpu {
 				sound-dai = <&micfil>;
+			};
+			codec {
+				sound-dai = <&dmic>;
 			};
 		};
 	};
