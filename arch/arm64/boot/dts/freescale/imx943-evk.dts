@@ -90,6 +90,7 @@
 	dmic: dmic {
 		compatible = "dmic-codec";
 		#sound-dai-cells = <0>;
+		num-channels = <4>;
 	};
 
 	reg_vref_1v8: regulator-adc-vref {
