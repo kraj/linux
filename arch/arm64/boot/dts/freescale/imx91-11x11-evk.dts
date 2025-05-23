@@ -132,6 +132,12 @@
 		reset-gpios = <&pcal6524 12 GPIO_ACTIVE_LOW>;
 	};
 
+	dmic: dmic {
+		compatible = "dmic-codec";
+		#sound-dai-cells = <0>;
+		num-channels = <4>;
+	};
+
 	reserved-memory {
 		ranges;
 		#address-cells = <2>;
@@ -176,6 +182,9 @@
 			format = "i2s";
 			cpu {
 				sound-dai = <&micfil>;
+			};
+			codec {
+				sound-dai = <&dmic>;
 			};
 		};
 	};
