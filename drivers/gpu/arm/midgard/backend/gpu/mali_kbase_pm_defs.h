@@ -153,15 +153,30 @@ struct kbasep_pm_metrics {
 	u64 time_busy;
 	u64 time_idle;
 	u64 time_in_protm;
+	u64 mcu_time_busy;
+	u64 idvs_time_busy;
+	u64 lsu_time_busy;
+	u64 ceu_time_busy;
+
 	u64 shader_frag_time_busy;
 	u64 shader_compute_time_busy;
+	u64 shader_core_time_busy;
+	u64 l2_ext_read_time_busy;
+	u64 l2_ext_write_time_busy;
 	u64 tiler_time_busy;
 };
 
 enum kbase_pm_metrics_counter_type {
 	KBASE_PM_METRICS_CNT_GPU = 0,
+	KBASE_PM_METRICS_CNT_MCU,
+	KBASE_PM_METRICS_CNT_IDVS,
+	KBASE_PM_METRICS_CNT_CEU,
+	KBASE_PM_METRICS_CNT_LSU,
+	KBASE_PM_METRICS_CNT_MEM_EXT_READ,
+	KBASE_PM_METRICS_CNT_MEM_EXT_WRITE,
 	KBASE_PM_METRICS_CNT_SHADER_FRAG,
 	KBASE_PM_METRICS_CNT_SHADER_COMPUTE,
+	KBASE_PM_METRICS_CNT_SHADER_CORE,
 	KBASE_PM_METRICS_CNT_TILER,
 	KBASE_PM_METRICS_CNT_COUNT
 };

@@ -1378,8 +1378,15 @@ struct kbase_csf_scheduler {
 
 /* Index of the GPU_ACTIVE counter within the CSHW counter block */
 #define GPU_ACTIVE_CNT_IDX (4)
+#define MCU_ACTIVE_CNT_IDX (5)
+#define IDVS_ACTIVE_CNT_IDX (19)
+#define LSU_ACTIVE_CNT_IDX (45)
+#define CEU_ACTIVE_CNT_IDX (40)
+#define MEM_L2_EXT_READ_CNT_IDX (29)
+#define MEM_L2_EXT_WRITE_CNT_IDX (42)
 #define FRAG_ACTIVE_CNT_IDX (4)
 #define COMPUTE_ACTIVE_CNT_IDX (22)
+#define SHADER_CORE_CNT_IDX (53)
 #define TILER_ACTIVE_CNT_IDX (4)
 
 /*
