@@ -74,6 +74,7 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_PCS_TBI          (1 << 2)
 #define STMMAC_PCS_RTBI         (1 << 3)
 
+#define	FLOW_OFF	0
 static const char uio_device_name[] = "imx-fec-uio";
 static int mii_cnt;
 struct fec_uio_info {
@@ -287,7 +288,7 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		bool tx_pause, bool rx_pause)
 {
 	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
-	unsigned int flow_ctrl;
+	unsigned int flow_ctrl = FLOW_OFF;
 	u32 old_ctrl, ctrl;
 
 	old_ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
