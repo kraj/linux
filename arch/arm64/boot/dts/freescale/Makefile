@@ -815,6 +815,8 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-verdin-rm692c9.dtb
 imx95-19x19-verdin-root-dtbs := imx95-19x19-verdin.dtb imx95-19x19-verdin-root.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-verdin-root.dtb imx95-19x19-verdin-inmate.dtb
 
+dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-frdm.dtb
+
 imx8mm-kontron-dl-dtbs			:= imx8mm-kontron-bl.dtb imx8mm-kontron-dl.dtbo
 imx8mm-kontron-bl-lte-dtbs		:= imx8mm-kontron-bl.dtb imx8mm-kontron-bl-lte.dtbo
 
