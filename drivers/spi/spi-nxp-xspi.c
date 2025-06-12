@@ -585,7 +585,8 @@ static void nxp_xspi_disable_ddr(struct nxp_xspi *xspi)
 	reg &= ~XSPI_FLSHCR_TDH_MASK;
 	xspi_writel(xspi, reg, base + XSPI_FLSHCR);
 
-	reg = XSPI_SMPR_DLLFSMPFA(7);
+	/* Select sampling at inverted clock */
+	reg = XSPI_SMPR_DLLFSMPFA(0) | XSPI_SMPR_FSPHS;
 	xspi_writel(xspi, reg, base + XSPI_SMPR);
 
 	/* enable module */
@@ -645,7 +646,7 @@ static void nxp_xspi_dll_bypass(struct nxp_xspi *xspi)
 	reg = XSPI_DLLCRA_SLV_EN;
 	xspi_writel(xspi, reg, base + XSPI_DLLCRA);
 
-	reg = XSPI_DLLCRA_FREQEN | XSPI_DLLCRA_SLV_DLY_COARSE(7) |
+	reg = XSPI_DLLCRA_FREQEN | XSPI_DLLCRA_SLV_DLY_COARSE(0) |
 		XSPI_DLLCRA_SLV_EN | XSPI_DLLCRA_SLV_DLL_BYPASS;
 	xspi_writel(xspi, reg, base + XSPI_DLLCRA);
 
