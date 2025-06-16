@@ -739,8 +739,8 @@ static int __init imx_gpcv2_init(struct device_node *node,
 	if (WARN_ON(!gpc_base))
 		return -ENOMEM;
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, GPC_MAX_IRQS,
-					  node, &imx_gpcv2_domain_ops,
+	domain = irq_domain_create_hierarchy(parent_domain, 0, GPC_MAX_IRQS,
+					  of_fwnode_handle(node), &imx_gpcv2_domain_ops,
 					  NULL);
 	if (!domain) {
 		iounmap(gpc_base);
