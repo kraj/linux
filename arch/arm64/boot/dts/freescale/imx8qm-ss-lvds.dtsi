@@ -158,7 +158,7 @@
 	ldb1: ldb1-display-controller {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "fsl,imx8qm-ldb";
+		compatible = "fsl,imx8qm-ldb-nxp";
 		clocks = <&clk IMX_SC_R_LVDS_0 IMX_SC_PM_CLK_MISC2>,
 			 <&clk IMX_SC_R_LVDS_0 IMX_SC_PM_CLK_BYPASS>;
 		clock-names = "pixel", "bypass";
@@ -349,7 +349,7 @@
 	ldb2: ldb2-display-controller {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "fsl,imx8qm-ldb";
+		compatible = "fsl,imx8qm-ldb-nxp";
 		clocks = <&clk IMX_SC_R_LVDS_1 IMX_SC_PM_CLK_MISC2>,
 			 <&clk IMX_SC_R_LVDS_1 IMX_SC_PM_CLK_BYPASS>;
 		clock-names = "pixel", "bypass";
