@@ -487,7 +487,7 @@ gckKERNEL_CreateProcessDB(IN gckKERNEL Kernel, IN gctUINT32 ProcessID)
     gctPOINTER      pointer  = gcvNULL;
     gctBOOL         acquired = gcvFALSE;
     gctSIZE_T       slot;
-    gctUINT32       i;
+    gctUINT32       i, j;
 
     gcmkHEADER_ARG("Kernel=%p ProcessID=%d", Kernel, ProcessID);
 
@@ -577,8 +577,6 @@ gckKERNEL_CreateProcessDB(IN gckKERNEL Kernel, IN gctUINT32 ProcessID)
         database->vidMemPool[i].allocCount = 0;
     }
 
-
-    gctUINT32 j;
     for (j = 0; j < gcvCORE_3D_MAX; j++) {
         if (!Kernel->device->kernels[j])
             continue;
