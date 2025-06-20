@@ -249,6 +249,7 @@ _InitModuleParam(gcsMODULE_PARAMETERS *ModuleParam)
 
     p->gpuTimeout = gpuTimeout;
     p->isrPoll = isrPoll;
+    p->mmuSwSwitch = mmuSwSwitch;
 #if !gcdENABLE_3D
     p->irqs[0]          = -1;
     irqLine             = -1;
@@ -433,6 +434,7 @@ gckOS_DumpParam(void)
     pr_warn("  GPU smallBatch    = %d\n",      smallBatch);
     pr_warn("  allMapInOne       = %d\n",      allMapInOne);
     pr_warn("  enableNN          = 0x%x\n",    enableNN);
+    pr_warn("  mmuSwSwitch       = %d\n",      mmuSwSwitch);
 
     pr_warn("  userClusterMasks  = ");
     for (i = 0; i < gcdMAX_MAJOR_CORE_COUNT; i++)
