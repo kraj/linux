@@ -645,6 +645,7 @@ gckKERNEL_Construct(IN gckOS Os, IN gceCORE Core,
 
     kernel->recovery  = gcvTRUE;
     kernel->stuckDump = gcvSTUCK_DUMP_NONE;
+    kernel->flatMapping = 1;
 
     /* Override default recovery and stuckDump setting. */
     status   = gckOS_QueryOption(Os, "recovery", &data);
@@ -3959,7 +3960,6 @@ gckKERNEL_AttachProcessEx(IN gckKERNEL Kernel, IN gctBOOL Attach, IN gctUINT32 P
 #if gcdENABLE_GPU_WORK_PERIOD_TRACE
     gctUINT32 userID;
 #endif
-    //gctBOOL  acquired;
 
     gcmkHEADER_ARG("Kernel=%p Attach=%d PID=%d", Kernel, Attach, PID);
 
@@ -3999,8 +3999,13 @@ gckKERNEL_AttachProcessEx(IN gckKERNEL Kernel, IN gctBOOL Attach, IN gctUINT32 P
             gcmkONERROR(gckKERNEL_CreateProcessDB(Kernel, PID));
         }
 
-        if (Kernel->command->kernelProcessID == PID)
-            Kernel->command->kernelProcessAttached = gcvTRUE;
+#if gcdENABLE_VG
+        if (Kernel->vg == gcvNULL)
+#endif
+        {
+            if (Kernel->command->kernelProcessID == PID)
+                Kernel->command->kernelProcessAttached = gcvTRUE;
+        }
 
     } else {
         gcsEVENT_ATTR eventAttr;
@@ -4039,10 +4044,15 @@ gckKERNEL_AttachProcessEx(IN gckKERNEL Kernel, IN gctBOOL Attach, IN gctUINT32 P
 
             }
         } else {
-            /* Check if there is kernel init process database. */
-            if (PID != Kernel->command->kernelProcessID && Kernel->command->kernelProcessAttached) {
-                gcmkONERROR(gckOS_AtomDecrement(Kernel->os, Kernel->atomClients, &old));
-                Kernel->command->kernelProcessAttached = gcvFALSE;
+#if gcdENABLE_VG
+            if (Kernel->vg == gcvNULL)
+#endif
+            {
+                /* Check if there is kernel init process database. */
+                if (PID != Kernel->command->kernelProcessID && Kernel->command->kernelProcessAttached) {
+                    gcmkONERROR(gckOS_AtomDecrement(Kernel->os, Kernel->atomClients, &old));
+                    Kernel->command->kernelProcessAttached = gcvFALSE;
+                }
             }
         }
 
