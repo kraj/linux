@@ -2404,6 +2404,7 @@ static int wave6_vpu_enc_queue_init(void *priv, struct vb2_queue *src_vq, struct
 	src_vq->ops = &wave6_vpu_enc_vb2_ops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->buf_struct_size = sizeof(struct vpu_buffer);
+	src_vq->allow_cache_hints = 1;
 	src_vq->drv_priv = inst;
 	src_vq->lock = &inst->dev->dev_lock;
 	src_vq->dev = inst->dev->v4l2_dev.dev;
@@ -2417,6 +2418,7 @@ static int wave6_vpu_enc_queue_init(void *priv, struct vb2_queue *src_vq, struct
 	dst_vq->ops = &wave6_vpu_enc_vb2_ops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->buf_struct_size = sizeof(struct vpu_buffer);
+	dst_vq->allow_cache_hints = 1;
 	dst_vq->drv_priv = inst;
 	dst_vq->lock = &inst->dev->dev_lock;
 	dst_vq->dev = inst->dev->v4l2_dev.dev;
