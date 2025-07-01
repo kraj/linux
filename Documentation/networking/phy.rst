@@ -340,6 +340,14 @@ Some of the interface modes are described below:
     Broadcom (and other two-wire Ethernet) PHYs, because they are full-duplex
     only.
 
+``PHY_INTERFACE_MODE_25GKR``
+    This is the 25GBASE-R PCS as defined by IEEE 802.3 Clause 107, resolved
+    through Clause 73 autonegotiation.
+
+``PHY_INTERFACE_MODE_40GKR4``
+    This is the 40GBASE-R PCS as defined by IEEE 802.3 Clause 84, resolved
+    through Clause 73 autonegotiation.
+
 Pause frames / flow control
 ===========================
 
