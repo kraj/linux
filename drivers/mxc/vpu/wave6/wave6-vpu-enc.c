@@ -1775,6 +1775,11 @@ static void wave6_set_enc_hevc_param(struct enc_codec_param *output,
 		output->profile = HEVC_PROFILE_MAIN;
 		output->internal_bit_depth = 8;
 		break;
+	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE:
+		output->profile = HEVC_PROFILE_STILLPICTURE;
+		output->internal_bit_depth = 8;
+		output->en_still_picture = true;
+		break;
 	default:
 		break;
 	}
@@ -1849,6 +1854,12 @@ static void wave6_set_enc_hevc_param(struct enc_codec_param *output,
 	if (output->idr_period) {
 		output->decoding_refresh_type = DEC_REFRESH_TYPE_IDR;
 		output->intra_period = output->idr_period;
+		output->idr_period = 0;
+	}
+	if (output->profile == HEVC_PROFILE_STILLPICTURE) {
+		output->gop_preset_idx = PRESET_IDX_ALL_I;
+		output->decoding_refresh_type = DEC_REFRESH_TYPE_IDR;
+		output->intra_period = 0;
 		output->idr_period = 0;
 	}
 	output->beta_offset_div2 = ctrls->lf_beta_offset_div2;
@@ -2452,7 +2463,7 @@ static int wave6_vpu_open_enc(struct file *filp)
 	v4l2_ctrl_handler_init(v4l2_ctrl_hdl, 50);
 	v4l2_ctrl_new_std_menu(v4l2_ctrl_hdl, &wave6_vpu_enc_ctrl_ops,
 			       V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
-			       V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN, 0,
+			       V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE, 0,
 			       V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN);
 	v4l2_ctrl_new_std_menu(v4l2_ctrl_hdl, &wave6_vpu_enc_ctrl_ops,
 			       V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
