@@ -610,6 +610,7 @@ void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
 
 int enetc_suspend(struct net_device *ndev, bool wol);
 int enetc_resume(struct net_device *ndev, bool wol);
+struct fwnode_handle *enetc_fwnode(struct enetc_ndev_priv *priv);
 
 /* ethtool */
 extern const struct ethtool_ops enetc_pf_ethtool_ops;
