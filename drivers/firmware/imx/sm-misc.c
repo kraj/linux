@@ -12,6 +12,7 @@
 #include <linux/scmi_protocol.h>
 #include <linux/scmi_imx_protocol.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 static const struct scmi_imx_misc_proto_ops *imx_misc_ctrl_ops;
 static struct scmi_protocol_handle *ph;
