@@ -355,7 +355,6 @@ struct nxp_xspi {
 	struct mutex lock;
 	int selected;
 #define XSPI_DTR_PROTO		(1 << 0)
-#define XSPI_DTR_ODD_ADDR	(1 << 1)
 	int flags;
 	unsigned long support_max_rate; /* the max clock rate xspi output to device */
 };
@@ -839,12 +838,7 @@ static void nxp_xspi_read_rxfifo(struct nxp_xspi *xspi,
 	u32 watermark, watermark_bytes, reg;
 	void __iomem *base = xspi->iobase;
 	u8 *buf = (u8 *) op->data.buf.in;
-	int i, ret, len, cnt = 0;
-	u8 tmp[4];
-
-	if (xspi->flags & XSPI_DTR_ODD_ADDR)
-		dev_dbg(xspi->dev, "%s: op->data.nbytes = %d from addr %llx\n",
-			__func__, op->data.nbytes, op->addr.val);
+	int i, ret, len;
 
 	/* config the rx watermark half of the 64 memory-mapped RX data buffer RBDRn
 	 * refer to the RBCT config in nxp_xspi_do_op()
@@ -852,31 +846,7 @@ static void nxp_xspi_read_rxfifo(struct nxp_xspi *xspi,
 	watermark = 32;
 	watermark_bytes = watermark * 4;
 
-	/* DTR with ODD address need read one more byte */
-	len = (xspi->flags & XSPI_DTR_ODD_ADDR) ? op->data.nbytes + 1 : op->data.nbytes;
-
-	/* handle the DTR with ODD address case */
-	if (xspi->flags & XSPI_DTR_ODD_ADDR) {
-		/* For data with ODD address, length no more than 8 bytes */
-		ret = xspi_readl_poll_tout(xspi, base + XSPI_SR, XSPI_SR_BUSY,
-						0, POLL_TOUT, false);
-		/*
-		 * DTR read always start from 2bytes alignment address,
-		 * if read from an odd address A, it actually read from
-		 * address A-1, need to discard the first byte here
-		 */
-		*(u32 *)(tmp) = xspi_readl(xspi, base + XSPI_RBDR0);
-		cnt = min(len, 4);
-		/* discard the first byte */
-		memcpy(buf, tmp + 1, cnt - 1);
-		len -= cnt;
-		buf = op->data.buf.in + cnt - 1;
-
-		dev_dbg(xspi->dev, "DTR with ODD addr, read %d bytes, left %d bytes\n",
-				cnt - 1, len);
-
-		xspi->flags &= ~XSPI_DTR_ODD_ADDR;
-	}
+	len = op->data.nbytes;
 
 	while (len >= watermark_bytes) {
 		/* Make sure the RX FIFO contains valid data before read */
@@ -898,7 +868,7 @@ static void nxp_xspi_read_rxfifo(struct nxp_xspi *xspi,
 	/* wait for the total data transfer finished */
 	ret = xspi_readl_poll_tout(xspi, base + XSPI_SR, XSPI_SR_BUSY,
 					0, POLL_TOUT, false);
-	i = cnt;
+	i = 0;
 	while (len >= 4) {
 		*(u32 *)(buf) = xspi_readl(xspi, base + XSPI_RBDR0 + i);
 		i += 4;
@@ -956,18 +926,7 @@ static int nxp_xspi_do_op(struct nxp_xspi *xspi, const struct spi_mem_op *op)
 	xspi_writel(xspi, op->addr.val + xspi->memmap_phy, base + XSPI_SFP_TG_SFAR);
 
 	/* cofnig the data size and lut id, trigger the transfer */
-
-	/*
-	 * OCTAL DTR read always start from 2bytes alignment address,
-	 * if read from an odd address A, it actually read from
-	 * address A-1, need to read one more byte to get all
-	 * data needed.
-	 */
-	if (xspi->flags & XSPI_DTR_ODD_ADDR)
-		reg = XSPI_SFP_TG_IPCR_SEQID(XSPI_SEQID_LUT) |
-			XSPI_SFP_TG_IPCR_IDATSZ(op->data.nbytes + 1);
-	else
-		reg = XSPI_SFP_TG_IPCR_SEQID(XSPI_SEQID_LUT) |
+	reg = XSPI_SFP_TG_IPCR_SEQID(XSPI_SEQID_LUT) |
 			XSPI_SFP_TG_IPCR_IDATSZ(op->data.nbytes);
 
 	xspi_writel(xspi, reg, base + XSPI_SFP_TG_IPCR);
@@ -1042,14 +1001,6 @@ static int nxp_xspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 		/* Limit data bytes to RX FIFO in case of IP read only */
 		if (needs_ip_only(xspi) && (op->data.nbytes > xspi->devtype_data->rxfifo))
 			op->data.nbytes = xspi->devtype_data->rxfifo;
-
-		/* need to handle the OCTAL DTR read with odd address case */
-		if ((op->addr.val & 1) && op->cmd.dtr && op->addr.dtr &&
-				op->dummy.dtr && op->data.dtr) {
-			xspi->flags |= XSPI_DTR_ODD_ADDR;
-			/* limit the data length < 8, will switch to IP read mode */
-			op->data.nbytes = min(op->data.nbytes, 8 - (op->addr.val % 8));
-		}
 	}
 
 	return 0;
