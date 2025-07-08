@@ -969,8 +969,7 @@ static int nxp_xspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	nxp_xspi_prepare_lut(xspi, op);
 
-	if ((op->data.dir == SPI_MEM_DATA_IN) && op->data.nbytes >= 8 &&
-						!needs_ip_only(xspi))
+	if ((op->data.dir == SPI_MEM_DATA_IN) && !needs_ip_only(xspi))
 		err = nxp_xspi_ahb_read(xspi, op);
 	else
 		err = nxp_xspi_do_op(xspi, op);
