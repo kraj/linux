@@ -47,6 +47,17 @@ struct vpu_format {
 	unsigned int max_height;
 	unsigned int min_height;
 	unsigned int num_planes;
+
+	enum frame_buffer_format src_format;
+	enum endian_mode source_endian;
+	enum packed_format_num packed_format;
+	unsigned int csc_order;
+
+	u32 is_yuv : 1;
+	u32 is_rgb : 1;
+	u32 is_10bit : 1;
+	u32 cbcr_interleave : 1;
+	u32 nv21 : 1;
 };
 
 static inline struct vpu_instance *wave6_to_vpu_inst(struct v4l2_fh *vfh)
