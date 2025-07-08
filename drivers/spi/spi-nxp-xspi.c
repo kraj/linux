@@ -433,14 +433,6 @@ static bool nxp_xspi_supports_op(struct spi_mem *mem,
 	if (op->addr.nbytes > 4)
 		return false;
 
-	/*
-	 * If requested address value is greater than controller assigned
-	 * memory mapped space, return error as it didn't fit in the range
-	 * of assigned address space.
-	 */
-	if (op->addr.val >= xspi->memmap_phy_size)
-		return false;
-
 	/* Max 32 dummy clock cycles supported */
 	if (op->dummy.buswidth &&
 	    (op->dummy.nbytes * 8 / op->dummy.buswidth > 64))
@@ -969,7 +961,15 @@ static int nxp_xspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	nxp_xspi_prepare_lut(xspi, op);
 
-	if ((op->data.dir == SPI_MEM_DATA_IN) && !needs_ip_only(xspi))
+	/*
+	 * for read:
+	 *     the address in AHB mapped range will use AHB read.
+	 *     the address out of AHB maped range will use IP read.
+	 * for write:
+	 *     all use IP write.
+	 */
+	if ((op->data.dir == SPI_MEM_DATA_IN) && !needs_ip_only(xspi)
+		&& ((op->addr.val + op->data.nbytes) <= xspi->memmap_phy_size))
 		err = nxp_xspi_ahb_read(xspi, op);
 	else
 		err = nxp_xspi_do_op(xspi, op);
@@ -1000,6 +1000,11 @@ static int nxp_xspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 		/* Limit data bytes to RX FIFO in case of IP read only */
 		if (needs_ip_only(xspi) && (op->data.nbytes > xspi->devtype_data->rxfifo))
 			op->data.nbytes = xspi->devtype_data->rxfifo;
+
+		/* address in AHB mapped range prefer to use AHB read. */
+		if (!needs_ip_only(xspi) && (op->addr.val < xspi->memmap_phy_size)
+			&& ((op->addr.val + op->data.nbytes) > xspi->memmap_phy_size))
+			op->data.nbytes = xspi->memmap_phy_size - op->addr.val;
 	}
 
 	return 0;
@@ -1105,7 +1110,7 @@ static int nxp_xspi_default_setup(struct nxp_xspi *xspi)
 	reg = XSPI_FLSHCR_TCSH(3) | XSPI_FLSHCR_TCSS(3);
 	xspi_writel(xspi, reg, base + XSPI_FLSHCR);
 
-	top_address = xspi->memmap_phy + xspi->memmap_phy_size;
+	top_address = SZ_4G - 1;
 	xspi_writel(xspi, top_address, base + XSPI_SFA1AD);
 	xspi_writel(xspi, top_address, base + XSPI_SFA2AD);
 
