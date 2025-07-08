@@ -442,12 +442,8 @@ static bool nxp_xspi_supports_op(struct spi_mem *mem,
 	    op->data.nbytes > xspi->devtype_data->rxfifo)
 		return false;
 
-	if (needs_ip_only(xspi) && op->data.dir == SPI_MEM_DATA_OUT &&
-	    op->data.nbytes > xspi->devtype_data->txfifo)
-		return false;
-
-	if (!needs_ip_only(xspi) && op->data.dir == SPI_MEM_DATA_OUT &&
-	    op->data.nbytes > xspi->devtype_data->ahb_buf_size)
+	if (op->data.dir == SPI_MEM_DATA_OUT &&
+			op->data.nbytes > xspi->devtype_data->txfifo)
 		return false;
 
 	return spi_mem_default_supports_op(mem, op);
