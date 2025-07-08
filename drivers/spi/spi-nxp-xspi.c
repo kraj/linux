@@ -710,6 +710,8 @@ static void nxp_xspi_select_mem(struct nxp_xspi *xspi, struct spi_device *spi,
 {
 	unsigned long rate = spi->max_speed_hz;
 	unsigned long root_clk_rate;
+	uint64_t cs0_top_address;
+	uint64_t cs1_top_address;
 	int ret;
 
 	/*
@@ -756,6 +758,16 @@ static void nxp_xspi_select_mem(struct nxp_xspi *xspi, struct spi_device *spi,
 		return;
 
 	xspi->selected = spi_get_chipselect(spi, 0);
+
+	if (xspi->selected) {		/* CS1 select */
+		cs0_top_address = xspi->memmap_phy;
+		cs1_top_address = SZ_4G - 1;
+	} else {			/* CS0 select */
+		cs0_top_address = SZ_4G - 1;
+		cs1_top_address = SZ_4G - 1;
+	}
+	xspi_writel(xspi, cs0_top_address, xspi->iobase + XSPI_SFA1AD);
+	xspi_writel(xspi, cs1_top_address, xspi->iobase + XSPI_SFA2AD);
 
 	if (!op->cmd.dtr || rate < 60000000)
 		nxp_xspi_dll_bypass(xspi);
@@ -1043,7 +1055,6 @@ static void nxp_xspi_config_ahb_buffer(struct nxp_xspi *xspi)
 static int nxp_xspi_default_setup(struct nxp_xspi *xspi)
 {
 	void __iomem *base = xspi->iobase;
-	uint64_t top_address;
 	u32 reg;
 
 	/* Bypass SFP check, clear MGC_GVLD, MGC_GVLDMDAD, MGC_GVLDFRAD */
@@ -1109,10 +1120,6 @@ static int nxp_xspi_default_setup(struct nxp_xspi *xspi)
 
 	reg = XSPI_FLSHCR_TCSH(3) | XSPI_FLSHCR_TCSS(3);
 	xspi_writel(xspi, reg, base + XSPI_FLSHCR);
-
-	top_address = SZ_4G - 1;
-	xspi_writel(xspi, top_address, base + XSPI_SFA1AD);
-	xspi_writel(xspi, top_address, base + XSPI_SFA2AD);
 
 	/* enable module */
 	reg = xspi_readl(xspi, base + XSPI_MCR);
