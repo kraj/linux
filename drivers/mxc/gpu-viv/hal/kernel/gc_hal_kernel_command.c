@@ -3726,7 +3726,6 @@ gckCOMMAND_Stall(IN gckCOMMAND Command, IN gctBOOL FromPower)
             /* Advance timer. */
             timer += gcdGPU_ADVANCETIMER;
         }
-
     } while (((status == gcvSTATUS_TIMEOUT) || (status == gcvSTATUS_INTERRUPTED)) &&
              (timer < hardware->kernel->timeOut));
 
