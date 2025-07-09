@@ -882,6 +882,8 @@ struct vpu_device {
 	struct mutex pause_lock; /* the lock for the pause/resume m2m job. */
 	const struct wave6_match_data *res;
 	struct dentry *debugfs;
+
+	bool force_dma_sync;
 };
 
 struct vpu_instance;

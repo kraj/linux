@@ -170,7 +170,8 @@ static void wave6_handle_bitstream_buffer(struct vpu_instance *inst)
 		wave6_vpu_dec_set_rd_ptr(inst, rd_ptr, true);
 
 		src_size = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
-		dma_sync_single_for_device(inst->dev->dev, rd_ptr, src_size, DMA_BIDIRECTIONAL);
+		wave6_vpu_force_dma_sync_single_for_device(inst->dev, rd_ptr, src_size,
+							   DMA_BIDIRECTIONAL);
 	}
 
 	if (!src_size) {
@@ -603,10 +604,10 @@ static void wave6_handle_display_frame(struct vpu_instance *inst,
 	}
 	for (int i = 0; i < inst->dst_fmt.num_planes; i++) {
 		dma_addr_t daddr = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, i);
+		size_t sizeimage = inst->dst_fmt.plane_fmt[i].sizeimage;
 
-		dma_sync_single_for_cpu(inst->dev->dev, daddr,
-					inst->dst_fmt.plane_fmt[i].sizeimage,
-					DMA_BIDIRECTIONAL);
+		wave6_vpu_force_dma_sync_single_for_cpu(inst->dev, daddr,
+							sizeimage, DMA_BIDIRECTIONAL);
 	}
 
 	if (inst->dst_fmt.num_planes == 1) {
