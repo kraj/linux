@@ -156,16 +156,16 @@ static void kbase_pm_hardware_unit_metrics_init(struct kbase_ipa_control_perf_co
 
 	perf_counter[KBASE_PM_METRICS_CNT_MEM_EXT_WRITE].idx = MEM_L2_EXT_WRITE_CNT_IDX ;
 
-	perf_counter[KBASE_PM_METRICS_CNT_SHADER_CORE].scaling_factor = GPU_ACTIVE_SCALING_FACTOR;
+	perf_counter[KBASE_PM_METRICS_CNT_SHADER_STARVING].scaling_factor = GPU_ACTIVE_SCALING_FACTOR;
 
 	/* Normalize values by GPU frequency */
-	perf_counter[KBASE_PM_METRICS_CNT_SHADER_CORE].gpu_norm = true;
+	perf_counter[KBASE_PM_METRICS_CNT_SHADER_STARVING].gpu_norm = true;
 
 	/* We need the SHADER_ACTIVE counter, which is in the Shader core group */
-	perf_counter[KBASE_PM_METRICS_CNT_SHADER_CORE].type = KBASE_IPA_CORE_TYPE_SHADER;
+	perf_counter[KBASE_PM_METRICS_CNT_SHADER_STARVING].type = KBASE_IPA_CORE_TYPE_SHADER;
 
 	/* We need the SHADER_ACTIVE counter */
-	perf_counter[KBASE_PM_METRICS_CNT_SHADER_CORE].idx = SHADER_CORE_CNT_IDX;
+	perf_counter[KBASE_PM_METRICS_CNT_SHADER_STARVING].idx = SHADER_STARVING_CNT_IDX;
 
 }
 int kbasep_pm_metrics_init(struct kbase_device *kbdev)
@@ -289,8 +289,8 @@ static void kbase_pm_get_dvfs_hardware_unit_utilisation_calc(struct kbase_device
 		gpu_active_counter[KBASE_PM_METRICS_CNT_MEM_EXT_READ];
 	kbdev->pm.backend.metrics.values.l2_ext_write_time_busy +=
 		gpu_active_counter[KBASE_PM_METRICS_CNT_MEM_EXT_WRITE];
-	kbdev->pm.backend.metrics.values.shader_core_time_busy +=
-		gpu_active_counter[KBASE_PM_METRICS_CNT_SHADER_CORE];
+	kbdev->pm.backend.metrics.values.shader_starving_time_busy +=
+		gpu_active_counter[KBASE_PM_METRICS_CNT_SHADER_STARVING];
 }
 static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev)
 {
@@ -416,7 +416,7 @@ static void kbase_pm_get_dvfs_hardware_unit_metrics(struct kbasep_pm_metrics *la
 	diff->lsu_time_busy = cur->lsu_time_busy - last->lsu_time_busy;
 	diff->l2_ext_read_time_busy = cur->l2_ext_read_time_busy - last->l2_ext_read_time_busy;
 	diff->l2_ext_write_time_busy = cur->l2_ext_write_time_busy - last->l2_ext_write_time_busy;
-	diff->shader_core_time_busy = cur->shader_core_time_busy - last->shader_core_time_busy;
+	diff->shader_starving_time_busy = cur->shader_starving_time_busy - last->shader_starving_time_busy;
 }
 void kbase_pm_get_dvfs_metrics(struct kbase_device *kbdev, struct kbasep_pm_metrics *last,
 			       struct kbasep_pm_metrics *diff)

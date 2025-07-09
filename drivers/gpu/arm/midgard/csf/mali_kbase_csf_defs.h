@@ -1468,6 +1468,8 @@ struct kbase_csf_scheduler {
 #define COMPUTE_ACTIVE_CNT_IDX (22)
 #define SHADER_CORE_CNT_IDX (53)
 #define TILER_ACTIVE_CNT_IDX (4)
+#define SHADER_STARVING_CNT_IDX (8)
+
 
 /*
  * Maximum number of sessions that can be managed by the IPA Control component.

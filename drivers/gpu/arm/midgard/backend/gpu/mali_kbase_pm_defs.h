@@ -160,7 +160,7 @@ struct kbasep_pm_metrics {
 
 	u64 shader_frag_time_busy;
 	u64 shader_compute_time_busy;
-	u64 shader_core_time_busy;
+	u64 shader_starving_time_busy;
 	u64 l2_ext_read_time_busy;
 	u64 l2_ext_write_time_busy;
 	u64 tiler_time_busy;
@@ -176,7 +176,7 @@ enum kbase_pm_metrics_counter_type {
 	KBASE_PM_METRICS_CNT_MEM_EXT_WRITE,
 	KBASE_PM_METRICS_CNT_SHADER_FRAG,
 	KBASE_PM_METRICS_CNT_SHADER_COMPUTE,
-	KBASE_PM_METRICS_CNT_SHADER_CORE,
+	KBASE_PM_METRICS_CNT_SHADER_STARVING,
 	KBASE_PM_METRICS_CNT_TILER,
 	KBASE_PM_METRICS_CNT_COUNT
 };
