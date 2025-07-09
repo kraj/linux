@@ -260,6 +260,7 @@ static int phylink_interface_max_speed(phy_interface_t interface)
 	case PHY_INTERFACE_MODE_GMII:
 		return SPEED_1000;
 
+	case PHY_INTERFACE_MODE_2500SGMII:
 	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_10G_QXGMII:
 		return SPEED_2500;
