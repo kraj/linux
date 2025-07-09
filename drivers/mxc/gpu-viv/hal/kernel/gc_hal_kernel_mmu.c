@@ -2811,6 +2811,11 @@ _Destroy(IN gckMMU Mmu)
     /* Delete the page table mutex. */
     gcmkVERIFY_OK(gckOS_DeleteMutex(Mmu->os, Mmu->pageTableMutex));
 
+    if (Mmu->nodeListMutex && kernel->processPageTable) {
+        gcmkVERIFY_OK(gckOS_DeleteMutex(Mmu->os, Mmu->nodeListMutex));
+        Mmu->nodeListMutex = gcvNULL;
+    }
+
     if (Mmu->safePageLogical != gcvNULL)
         gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(kernel, Mmu->safePageVideoMem));
 

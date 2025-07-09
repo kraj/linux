@@ -1441,17 +1441,24 @@ gckKERNEL_DestroyProcessDB(IN gckKERNEL Kernel, IN gctUINT32 ProcessID)
 
     gcmkONERROR(gckKERNEL_DestroyProcessReservedUserMap(Kernel, ProcessID));
 
-    /* Destroy this process MMU. */
-    if (Kernel->processPageTable && database->mmu[Kernel->hardware->type]) {
-        gcsEVENT_INTERFACE iface = {0};
+    /* Destroy process MMU if it has,
+     * for nxp tree, only npu core has process MMU.
+     * Also, we only call gckKERNEL_DestroyProcessDB once, so find and destroy npu process MMU here. */
+    for (i = 0; i < gcvCORE_3D_MAX; i++) {
+        kernel = Kernel->device->kernels[i];
+        if (!kernel)
+            continue;
+        if (kernel->processPageTable && database->mmu[kernel->hardware->type]) {
+            gcsEVENT_INTERFACE iface = {0};
 
-        iface.command = gcvHAL_DESTROY_MMU;
-        iface.u.DestroyMmu.mmu = gcmPTR_TO_UINT64(database->mmu[Kernel->hardware->type]);
-        iface.u.DestroyMmu.pid = ProcessID;
-        iface.u.DestroyMmu.database = gcmPTR_TO_UINT64(database);
+            iface.command = gcvHAL_DESTROY_MMU;
+            iface.u.DestroyMmu.mmu = gcmPTR_TO_UINT64(database->mmu[kernel->hardware->type]);
+            iface.u.DestroyMmu.pid = ProcessID;
+            iface.u.DestroyMmu.database = gcmPTR_TO_UINT64(database);
 
-        gcmkONERROR(gckEVENT_AddList(Kernel->eventObj, &iface,
-                                     gcvKERNEL_PIXEL, gcvFALSE, gcvTRUE));
+            gcmkONERROR(gckEVENT_AddList(kernel->eventObj, &iface,
+                                         gcvKERNEL_PIXEL, gcvFALSE, gcvTRUE));
+        }
     }
 
     gcmkONERROR(gckKERNEL_RemoveDatabaseFromList(Kernel, database, ProcessID));
