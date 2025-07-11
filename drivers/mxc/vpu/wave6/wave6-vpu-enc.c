@@ -13,7 +13,7 @@
 #define VPU_ENC_DEV_NAME "C&M Wave6 VPU encoder"
 #define VPU_ENC_DRV_NAME "wave6-enc"
 
-static const struct vpu_format wave6_vpu_enc_fmt_list[2][23] = {
+static const struct vpu_format wave6_vpu_enc_fmt_list[2][28] = {
 	[VPU_FMT_TYPE_CODEC] = {
 		{
 			.v4l2_pix_fmt = V4L2_PIX_FMT_HEVC,
@@ -253,6 +253,19 @@ static const struct vpu_format wave6_vpu_enc_fmt_list[2][23] = {
 			.cbcr_interleave = 1,
 		},
 		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_BGR24,
+			.max_width = W6_MAX_ENC_PIC_WIDTH,
+			.min_width = W6_MIN_ENC_PIC_WIDTH,
+			.max_height = W6_MAX_ENC_PIC_HEIGHT,
+			.min_height = W6_MIN_ENC_PIC_HEIGHT,
+			.num_planes = 1,
+			.is_rgb = 1,
+			.src_format = FORMAT_RGB_24BIT_PACKED,
+			.source_endian = VPU_SOURCE_ENDIAN,
+			.csc_order = CSC_ORDER_BGR,
+			.cbcr_interleave = 1,
+		},
+		{
 			.v4l2_pix_fmt = V4L2_PIX_FMT_ARGB32,
 			.max_width = W6_MAX_ENC_PIC_WIDTH,
 			.min_width = W6_MIN_ENC_PIC_WIDTH,
@@ -302,6 +315,58 @@ static const struct vpu_format wave6_vpu_enc_fmt_list[2][23] = {
 			.src_format = FORMAT_RGB_32BIT_PACKED,
 			.source_endian = VPU_SOURCE_ENDIAN,
 			.csc_order = CSC_ORDER_RGBA,
+			.cbcr_interleave = 1,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_XBGR32,
+			.max_width = W6_MAX_ENC_PIC_WIDTH,
+			.min_width = W6_MIN_ENC_PIC_WIDTH,
+			.max_height = W6_MAX_ENC_PIC_HEIGHT,
+			.min_height = W6_MIN_ENC_PIC_HEIGHT,
+			.num_planes = 1,
+			.is_rgb = 1,
+			.src_format = FORMAT_RGB_32BIT_PACKED,
+			.source_endian = VPU_SOURCE_ENDIAN,
+			.csc_order = CSC_ORDER_BGRA,
+			.cbcr_interleave = 1,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_ABGR32,
+			.max_width = W6_MAX_ENC_PIC_WIDTH,
+			.min_width = W6_MIN_ENC_PIC_WIDTH,
+			.max_height = W6_MAX_ENC_PIC_HEIGHT,
+			.min_height = W6_MIN_ENC_PIC_HEIGHT,
+			.num_planes = 1,
+			.is_rgb = 1,
+			.src_format = FORMAT_RGB_32BIT_PACKED,
+			.source_endian = VPU_SOURCE_ENDIAN,
+			.csc_order = CSC_ORDER_BGRA,
+			.cbcr_interleave = 1,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_BGRX32,
+			.max_width = W6_MAX_ENC_PIC_WIDTH,
+			.min_width = W6_MIN_ENC_PIC_WIDTH,
+			.max_height = W6_MAX_ENC_PIC_HEIGHT,
+			.min_height = W6_MIN_ENC_PIC_HEIGHT,
+			.num_planes = 1,
+			.is_rgb = 1,
+			.src_format = FORMAT_RGB_32BIT_PACKED,
+			.source_endian = VPU_SOURCE_ENDIAN,
+			.csc_order = CSC_ORDER_ABGR,
+			.cbcr_interleave = 1,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_BGRA32,
+			.max_width = W6_MAX_ENC_PIC_WIDTH,
+			.min_width = W6_MIN_ENC_PIC_WIDTH,
+			.max_height = W6_MAX_ENC_PIC_HEIGHT,
+			.min_height = W6_MIN_ENC_PIC_HEIGHT,
+			.num_planes = 1,
+			.is_rgb = 1,
+			.src_format = FORMAT_RGB_32BIT_PACKED,
+			.source_endian = VPU_SOURCE_ENDIAN,
+			.csc_order = CSC_ORDER_ABGR,
 			.cbcr_interleave = 1,
 		},
 		{
