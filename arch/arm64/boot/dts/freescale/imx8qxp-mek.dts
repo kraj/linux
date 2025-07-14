@@ -74,7 +74,7 @@
 		};
 	};
 
-	i2c-mux {
+	i2cvmux: i2c-mux {
 		compatible = "i2c-mux-gpio";
 		mux-gpios = <&lsio_gpio5 0 GPIO_ACTIVE_HIGH>; /* needs to be an unused GPIO */
 		i2c-parent = <&cm40_i2c>;
