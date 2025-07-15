@@ -669,7 +669,7 @@
 
 };
 
-&cm40_i2c {
+pcam_i2c: &cm40_i2c {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	clock-frequency = <100000>;
