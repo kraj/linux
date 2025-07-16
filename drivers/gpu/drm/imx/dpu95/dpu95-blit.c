@@ -461,7 +461,6 @@ static int imx_drm_dpu95_set_cmdlist_ioctl(struct drm_device *drm_dev, void *dat
 	u32 cmd_nr, *cmd, *cmd_list;
 	void *user_data;
 	s32 id = 0;
-	struct drm_imx_dpu_frame_info frame_info;
 	int ret;
 
 	req = data;
@@ -473,12 +472,6 @@ static int imx_drm_dpu95_set_cmdlist_ioctl(struct drm_device *drm_dev, void *dat
 
 	if (id != 0)
 		return -EINVAL;
-
-	user_data += sizeof(id);
-	if (copy_from_user(&frame_info, (void __user *)user_data,
-		sizeof(frame_info))) {
-		return -EFAULT;
-	}
 
 	ret = pm_runtime_resume_and_get(dpu_blit_eng->dev);
 	if (ret < 0) {
