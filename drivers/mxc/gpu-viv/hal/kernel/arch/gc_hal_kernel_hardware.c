@@ -7081,14 +7081,13 @@ gckHARDWARE_EnablePowerManagement(IN gckHARDWARE Hardware, IN gctBOOL Enable)
 gceSTATUS
 gckHARDWARE_SetGpuProfiler(IN gckHARDWARE Hardware, IN gctBOOL GpuProfiler)
 {
+    gctBOOL powerManagement = gcvFALSE;
+    gceSTATUS status;
+    gctBOOL commitEntered = gcvFALSE;
     gcmkHEADER_ARG("Hardware=%p", Hardware);
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
-
-    gctBOOL powerManagement = gcvFALSE;
-    gceSTATUS status;
-    gctBOOL commitEntered = gcvFALSE;
 
     gcmkONERROR(gckHARDWARE_QueryPowerManagement(Hardware, &powerManagement));
 
@@ -7148,6 +7147,7 @@ gckHARDWARE_SetGpuProfiler(IN gckHARDWARE Hardware, IN gctBOOL GpuProfiler)
     /* Success. */
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
+
 OnError:
     if (commitEntered)
        gcmkONERROR(gckCOMMAND_ExitCommit(Hardware->kernel->command, gcvFALSE));
