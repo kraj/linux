@@ -49,7 +49,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pdm>;
 
-	power-domains = <&audiomix_pd>;
+	power-domains = <&pgc_audio>;
 
 	assigned-clocks = <&clk IMX8MP_CLK_PDM>;
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;

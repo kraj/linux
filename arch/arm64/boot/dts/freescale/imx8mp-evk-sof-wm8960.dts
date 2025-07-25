@@ -57,7 +57,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai3>;
 
-	power-domains = <&audiomix_pd>;
+	power-domains = <&pgc_audio>;
 
 	clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_OCRAMA_IPG>,
 		<&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_DSP_ROOT>,
