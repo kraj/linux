@@ -1041,10 +1041,10 @@ static void wave6_vpu_enc_finish_encode(struct vpu_instance *inst, bool error)
 		goto finish_encode;
 	}
 
+	memset(&info, 0, sizeof(info));
 	ret = wave6_vpu_enc_get_output_info(inst, &info);
 	if (ret) {
-		dev_err(inst->dev->dev, "vpu_enc_get_output_info fail %d  reason: %d | info : %d\n",
-			ret, info.error_reason, info.warn_info);
+		dev_err(inst->dev->dev, "vpu_enc_get_output_info fail %d\n", ret);
 		goto finish_encode;
 	}
 

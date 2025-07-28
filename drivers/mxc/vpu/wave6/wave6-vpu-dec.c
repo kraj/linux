@@ -805,6 +805,7 @@ static void wave6_vpu_dec_finish_decode(struct vpu_instance *inst, bool error)
 	struct v4l2_m2m_ctx *m2m_ctx = inst->v4l2_fh.m2m_ctx;
 	int ret;
 
+	memset(&info, 0, sizeof(info));
 	ret = wave6_vpu_dec_get_output_info(inst, &info);
 	if (ret)
 		goto finish_decode;
