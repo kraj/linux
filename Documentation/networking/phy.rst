@@ -348,6 +348,11 @@ Some of the interface modes are described below:
     This is the 40GBASE-R PCS as defined by IEEE 802.3 Clause 84, resolved
     through Clause 73 autonegotiation.
 
+``PHY_INTERFACE_MODE_40GBASER``
+    This is the 40GBASE-R PCS as defined by IEEE 802.3 Clause 82 - an extension
+    of the Clause 49 10GBase-R PCS distributed over 4 lanes and with alignment
+    markers added.
+
 Pause frames / flow control
 ===========================
 

@@ -109,6 +109,7 @@ extern const int phy_basic_ports_array[3];
  * @PHY_INTERFACE_MODE_MIILITE: MII-Lite - MII without RXER TXER CRS COL
  * @PHY_INTERFACE_MODE_25GKR: 25GBASE-KR - with Clause 73 AN
  * @PHY_INTERFACE_MODE_40GKR4: 40GBASE-KR4 - with Clause 73 AN
+ * @PHY_INTERFACE_MODE_40GBASER: clause 82 40GBASE-R (PCS over 4 lanes)
  * @PHY_INTERFACE_MODE_MAX: Book keeping
  *
  * Describes the interface between the MAC and PHY.
@@ -156,6 +157,7 @@ typedef enum {
 	PHY_INTERFACE_MODE_MIILITE,
 	PHY_INTERFACE_MODE_25GKR,
 	PHY_INTERFACE_MODE_40GKR4,
+	PHY_INTERFACE_MODE_40GBASER,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -294,6 +296,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "25gbase-kr";
 	case PHY_INTERFACE_MODE_40GKR4:
 		return "40gbase-kr4";
+	case PHY_INTERFACE_MODE_40GBASER:
+		return "40gbase-r";
 	default:
 		return "unknown";
 	}
