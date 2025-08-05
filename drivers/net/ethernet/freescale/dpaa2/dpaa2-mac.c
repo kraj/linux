@@ -81,6 +81,7 @@ static enum dpmac_eth_if dpmac_eth_if_mode(phy_interface_t if_mode)
 	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_10GKR:
 	case PHY_INTERFACE_MODE_40GKR4:
+	case PHY_INTERFACE_MODE_40GBASER:
 		return DPMAC_ETH_IF_XFI;
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_1000BASEKX:
