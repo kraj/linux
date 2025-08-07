@@ -32,9 +32,7 @@ int wave6_vpu_dec_open(struct vpu_instance *inst, struct dec_open_param *pop)
 	if (ret)
 		return ret;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	if (!wave6_vpu_is_init(vpu_dev)) {
 		mutex_unlock(&vpu_dev->hw_lock);
@@ -74,9 +72,7 @@ int wave6_vpu_dec_close(struct vpu_instance *inst, u32 *fail_res)
 	if (!inst->codec_info)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_dec_fini_seq(inst, fail_res);
 	if (ret) {
@@ -102,9 +98,7 @@ int wave6_vpu_dec_issue_seq_init(struct vpu_instance *inst)
 	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_dec_init_seq(inst);
 
@@ -119,9 +113,7 @@ int wave6_vpu_dec_complete_seq_init(struct vpu_instance *inst, struct dec_initia
 	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_dec_get_seq_info(inst, info);
 	if (!ret)
@@ -276,9 +268,7 @@ int wave6_vpu_dec_register_frame_buffer_ex(struct vpu_instance *inst,
 	    height < p_dec_info->initial_info.pic_height)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	fb = inst->frame_buf;
 	ret = wave6_vpu_dec_register_frame_buffer(inst, &fb[0], COMPRESSED_FRAME_MAP,
@@ -300,9 +290,7 @@ int wave6_vpu_dec_register_display_buffer_ex(struct vpu_instance *inst, struct f
 	if (!p_dec_info->initial_info_obtained)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_dec_register_display_buffer(inst, fb);
 
@@ -318,13 +306,10 @@ int wave6_vpu_dec_get_bitstream_buffer(struct vpu_instance *inst, dma_addr_t *p_
 	dma_addr_t rd_ptr;
 	dma_addr_t wr_ptr;
 	struct vpu_device *vpu_dev = inst->dev;
-	int ret;
 
 	p_dec_info = &inst->codec_info->dec_info;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	rd_ptr = wave6_vpu_dec_get_rd_ptr(inst);
 	mutex_unlock(&vpu_dev->hw_lock);
@@ -344,7 +329,6 @@ int wave6_vpu_dec_update_bitstream_buffer(struct vpu_instance *inst, int size)
 	struct dec_info *p_dec_info;
 	dma_addr_t wr_ptr;
 	dma_addr_t rd_ptr;
-	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
 	if (!inst->codec_info)
@@ -364,15 +348,13 @@ int wave6_vpu_dec_update_bitstream_buffer(struct vpu_instance *inst, int size)
 		p_dec_info->stream_rd_ptr = rd_ptr;
 	}
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	wave6_vpu_dec_set_bitstream_end(inst, (size == 0));
 
 	mutex_unlock(&vpu_dev->hw_lock);
 
-	return ret;
+	return 0;
 }
 
 int wave6_vpu_dec_start_one_frame(struct vpu_instance *inst, struct dec_param *param, u32 *res_fail)
@@ -384,9 +366,7 @@ int wave6_vpu_dec_start_one_frame(struct vpu_instance *inst, struct dec_param *p
 	if (!p_dec_info->stride)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_decode(inst, param, res_fail);
 
@@ -398,12 +378,9 @@ int wave6_vpu_dec_start_one_frame(struct vpu_instance *inst, struct dec_param *p
 int wave6_vpu_dec_set_rd_ptr(struct vpu_instance *inst, dma_addr_t addr, bool update_wr_ptr)
 {
 	struct dec_info *p_dec_info = &inst->codec_info->dec_info;
-	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	p_dec_info->stream_rd_ptr = addr;
 	if (update_wr_ptr)
@@ -411,7 +388,7 @@ int wave6_vpu_dec_set_rd_ptr(struct vpu_instance *inst, dma_addr_t addr, bool up
 
 	mutex_unlock(&vpu_dev->hw_lock);
 
-	return ret;
+	return 0;
 }
 
 int wave6_vpu_dec_get_output_info(struct vpu_instance *inst, struct dec_output_info *info)
@@ -425,9 +402,7 @@ int wave6_vpu_dec_get_output_info(struct vpu_instance *inst, struct dec_output_i
 
 	p_dec_info = &inst->codec_info->dec_info;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_dec_get_result(inst, info);
 	if (ret) {
@@ -490,9 +465,7 @@ int wave6_vpu_dec_flush_instance(struct vpu_instance *inst)
 	struct vpu_device *vpu_dev = inst->dev;
 	int ret;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_dec_flush(inst);
 
@@ -511,9 +484,7 @@ int wave6_vpu_enc_open(struct vpu_instance *inst, struct enc_open_param *pop)
 	if (ret)
 		return ret;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	if (!wave6_vpu_is_init(vpu_dev)) {
 		mutex_unlock(&vpu_dev->hw_lock);
@@ -552,9 +523,7 @@ int wave6_vpu_enc_close(struct vpu_instance *inst, u32 *fail_res)
 	if (!inst->codec_info)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_enc_fini_seq(inst, fail_res);
 	if (ret) {
@@ -762,9 +731,7 @@ int wave6_vpu_enc_register_frame_buffer_ex(struct vpu_instance *inst, int num, u
 	if (height < 0)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	p_enc_info->num_frame_buffers = num;
 	p_enc_info->stride = stride;
@@ -855,9 +822,7 @@ int wave6_vpu_enc_start_one_frame(struct vpu_instance *inst, struct enc_param *p
 	if (ret)
 		return ret;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_encode(inst, param, fail_res);
 
@@ -874,9 +839,7 @@ int wave6_vpu_enc_get_output_info(struct vpu_instance *inst, struct enc_output_i
 	if (!info)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_enc_get_result(inst, info);
 	if (ret)
@@ -936,9 +899,7 @@ int wave6_vpu_enc_issue_seq_init(struct vpu_instance *inst)
 	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_enc_init_seq(inst);
 
@@ -952,9 +913,7 @@ int wave6_vpu_enc_issue_seq_change(struct vpu_instance *inst, bool *changed)
 	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_enc_change_seq(inst, changed);
 
@@ -972,9 +931,7 @@ int wave6_vpu_enc_complete_seq_init(struct vpu_instance *inst, struct enc_initia
 	if (!info)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
-	if (ret)
-		return ret;
+	mutex_lock(&vpu_dev->hw_lock);
 
 	ret = wave6_vpu_enc_get_seq_info(inst, info);
 	if (ret) {
