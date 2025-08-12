@@ -1227,6 +1227,9 @@ int dw_pcie_resume_noirq(struct dw_pcie *pci)
 	/* Ignore errors, the link may come up later */
 	dw_pcie_wait_for_link(pci);
 
+	if (pci->pp.ops->post_init)
+		pci->pp.ops->post_init(&pci->pp);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_pcie_resume_noirq);
