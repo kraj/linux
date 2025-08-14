@@ -339,7 +339,7 @@ static int imx95_pinter_probe(struct platform_device *pdev)
 free_child:
 	of_node_put(child);
 
-	if (i == 1 && pinter->ch[0]->next_bridge)
+	if (i == 1 && pinter->ch[0] && pinter->ch[0]->next_bridge)
 		drm_bridge_remove(&pinter->ch[0]->bridge);
 
 	return ret;
