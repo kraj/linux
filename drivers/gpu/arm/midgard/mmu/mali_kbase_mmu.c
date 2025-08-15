@@ -4180,6 +4180,7 @@ static void kbase_mmu_mark_non_movable(struct kbase_device *const kbdev, struct 
 	if (!kbase_is_page_migration_enabled())
 		return;
 
+#if MALI_PAGE_MIGRATE
 	lock_page(page);
 
 	/* Composite large-page is excluded from migration, trigger a warn if a development
@@ -4200,6 +4201,7 @@ static void kbase_mmu_mark_non_movable(struct kbase_device *const kbdev, struct 
 	__ClearPageMovable(page);
 	spin_unlock(&page_md->migrate_lock);
 	unlock_page(page);
+#endif
 }
 
 int kbase_mmu_init(struct kbase_device *const kbdev, struct kbase_mmu_table *const mmut,

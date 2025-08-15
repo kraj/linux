@@ -50,6 +50,7 @@ struct page;
 
 #define IS_PAGE_MOVABLE(status) ((bool)(status & PAGE_MOVABLE_MASK))
 
+#if MALI_PAGE_MIGRATE
 /**
  * kbase_alloc_page_metadata - Allocate and initialize page metadata
  * @kbdev:    Pointer to kbase device.
@@ -126,6 +127,27 @@ void kbase_mem_migrate_term(struct kbase_device *kbdev);
  * Return: 0 if successful, otherwise error code.
  */
 int kbase_migrate_page_allocated_mapped(struct page *old_page, struct page *new_page);
+#endif
+#else
+
+static inline bool kbase_alloc_page_metadata(struct kbase_device *kbdev,
+		struct page *p, dma_addr_t dma_addr, u8 group_id)
+{
+	return false;
+}
+
+static inline bool kbase_is_page_migration_enabled(void)
+{
+	return false;
+}
+
+static inline void kbase_free_page_later(struct kbase_device *kbdev, struct page *p)
+{}
+
+static inline void kbase_mem_migrate_init(struct kbase_device *kbdev)
+{}
+static inline void kbase_mem_migrate_term(struct kbase_device *kbdev)
+{}
 #endif
 
 #endif /* _KBASE_migrate_H */
