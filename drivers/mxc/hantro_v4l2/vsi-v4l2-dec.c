@@ -706,6 +706,8 @@ static int vsi_dec_start_cmd(struct vsi_v4l2_ctx *ctx)
 		}
 	}
 
+	ctx->reschange_notified = false;
+
 	return ret;
 }
 
