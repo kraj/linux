@@ -95,6 +95,7 @@ struct loger_t {
 #endif
 
 #define WAVE6_MAX_INST_NUMBER		32
+#define WAVE6_PRE_INST_NUMBER		4
 
 struct vpu_ctrl {
 	struct device *dev;
@@ -109,8 +110,8 @@ struct vpu_ctrl {
 	const struct vpu_ctrl_resource *res;
 	struct gen_pool *sram_pool;
 	struct vpu_dma_buf sram_buf;
-	struct dma_pool *dma_pool;
-	struct vpu_buf buffers[WAVE6_MAX_INST_NUMBER];
+	struct vpu_buf work_buf[WAVE6_MAX_INST_NUMBER];
+	u32 acquired_buffer_count;
 	u32 required_buffer_count;
 	bool support_follower;
 	wait_queue_head_t load_fw_wq;
@@ -417,26 +418,35 @@ static void wave6_vpu_ctrl_clear_firmware_buffers(struct vpu_ctrl *ctrl,
 	}
 }
 
-static void wave6_vpu_ctrl_prepare_work_buffer(struct vpu_ctrl *ctrl)
+static void wave6_vpu_ctrl_acquire_work_buffer(struct vpu_ctrl *ctrl)
 {
-	struct vpu_buf buf;
+	struct vpu_buf *buf;
 
-	if (ctrl->required_buffer_count >= WAVE6_MAX_INST_NUMBER)
+	if (ctrl->acquired_buffer_count >= WAVE6_MAX_INST_NUMBER)
 		return;
 
-	memset(&buf, 0, sizeof(buf));
-
-	buf.vaddr = dma_pool_alloc(ctrl->dma_pool, GFP_KERNEL, &buf.daddr);
-	if (!buf.vaddr)
+	buf = &ctrl->work_buf[ctrl->acquired_buffer_count];
+	buf->size = WAVE6_WORKBUF_SIZE;
+	if (wave6_alloc_dma(ctrl->dev, buf))
 		return;
 
-	dma_pool_free(ctrl->dma_pool, buf.vaddr, buf.daddr);
+	ctrl->acquired_buffer_count++;
+}
+
+static void wave6_vpu_ctrl_free_buffers(struct vpu_ctrl *ctrl)
+{
+	int i;
+
+	for (i = 0; i < ctrl->acquired_buffer_count; i++)
+		wave6_free_dma(&ctrl->work_buf[i]);
+
+	ctrl->acquired_buffer_count = 0;
 }
 
 int wave6_vpu_ctrl_require_buffer(struct device *dev, struct wave6_vpu_entity *entity)
 {
 	struct vpu_ctrl *ctrl = dev_get_drvdata(dev);
-	struct vpu_buf *pbuf;
+	struct vpu_buf *vb;
 	u32 size;
 	int ret;
 
@@ -459,23 +469,19 @@ int wave6_vpu_ctrl_require_buffer(struct device *dev, struct wave6_vpu_entity *e
 	if (size > WAVE6_WORKBUF_SIZE)
 		goto exit;
 
-	if (ctrl->required_buffer_count >= WAVE6_MAX_INST_NUMBER)
+	if (WARN_ON(ctrl->required_buffer_count >= ctrl->acquired_buffer_count))
 		goto exit;
 
-	pbuf = &ctrl->buffers[ctrl->required_buffer_count];
-	pbuf->vaddr = dma_pool_alloc(ctrl->dma_pool, GFP_ATOMIC | __GFP_ZERO, &pbuf->daddr);
-	if (!pbuf->vaddr)
-		goto exit;
-
-	pbuf->size = WAVE6_WORKBUF_SIZE;
-	entity->write_reg(entity->dev, W6_CMD_SET_CTRL_WORK_BUF_ADDR, pbuf->daddr);
+	vb = &ctrl->work_buf[ctrl->required_buffer_count];
+	entity->write_reg(entity->dev, W6_CMD_SET_CTRL_WORK_BUF_ADDR, vb->daddr);
 	ctrl->required_buffer_count++;
 	ret = 0;
 exit:
 	entity->write_reg(entity->dev, W6_CMD_SET_CTRL_WORK_BUF_SIZE, 0);
 	pm_runtime_put_sync(ctrl->dev);
 	dprintk(dev, "require work buffer, ret = %d\n", ret);
-	wave6_vpu_ctrl_prepare_work_buffer(ctrl);
+	if (ctrl->required_buffer_count >= ctrl->acquired_buffer_count)
+		wave6_vpu_ctrl_acquire_work_buffer(ctrl);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wave6_vpu_ctrl_require_buffer);
@@ -483,8 +489,6 @@ EXPORT_SYMBOL_GPL(wave6_vpu_ctrl_require_buffer);
 static void wave6_vpu_ctrl_clear_buffers(struct vpu_ctrl *ctrl)
 {
 	struct wave6_vpu_entity *entity;
-	struct vpu_buf *pbuf;
-	u32 i;
 
 	dprintk(ctrl->dev, "clear all buffers\n");
 
@@ -492,12 +496,6 @@ static void wave6_vpu_ctrl_clear_buffers(struct vpu_ctrl *ctrl)
 					  struct wave6_vpu_entity, list);
 	if (entity)
 		wave6_vpu_ctrl_clear_firmware_buffers(ctrl, entity);
-
-	for (i = 0; i < ctrl->required_buffer_count; i++) {
-		pbuf = &ctrl->buffers[i];
-		dma_pool_free(ctrl->dma_pool, pbuf->vaddr, pbuf->daddr);
-		memset(pbuf, 0, sizeof(*pbuf));
-	}
 
 	ctrl->required_buffer_count = 0;
 }
@@ -1072,13 +1070,6 @@ static int wave6_vpu_ctrl_probe(struct platform_device *pdev)
 
 	ctrl->num_clks = ret;
 
-	ctrl->dma_pool = dma_pool_create(dev_name(ctrl->dev), ctrl->dev,
-					 WAVE6_WORKBUF_SIZE, 4096, 0);
-	if (!ctrl->dma_pool) {
-		dev_err(ctrl->dev, "failed to create DMA pool\n");
-		return -ENOMEM;
-	}
-
 	np = of_parse_phandle(pdev->dev.of_node, "boot", 0);
 	if (np) {
 		struct resource mem;
@@ -1123,7 +1114,9 @@ static int wave6_vpu_ctrl_probe(struct platform_device *pdev)
 	wave6_vpu_ctrl_create_debugfs(ctrl);
 #endif
 
-	wave6_vpu_ctrl_prepare_work_buffer(ctrl);
+	for (int i = 0; i < WAVE6_PRE_INST_NUMBER; i++)
+		wave6_vpu_ctrl_acquire_work_buffer(ctrl);
+
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
@@ -1141,7 +1134,7 @@ static void wave6_vpu_ctrl_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	wave6_vpu_ctrl_clear_buffers(ctrl);
-	dma_pool_destroy(ctrl->dma_pool);
+	wave6_vpu_ctrl_free_buffers(ctrl);
 	wave6_cooling_remove(ctrl);
 	if (ctrl->sram_pool && ctrl->sram_buf.vaddr) {
 		dma_unmap_resource(&pdev->dev,
