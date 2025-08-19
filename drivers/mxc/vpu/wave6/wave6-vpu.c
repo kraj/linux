@@ -287,6 +287,9 @@ static int wave6_vpu_probe(struct platform_device *pdev)
 			dev_info(&pdev->dev, "vpu ctrl is not found\n");
 			return -EINVAL;
 		}
+		dev->recorder = wave6_vpu_ctrl_get_recorder(dev->ctrl);
+	} else {
+		dev->recorder = imx_mur_create_node(NULL, dev_name(dev->dev));
 	}
 
 	ret = devm_clk_bulk_get_all(&pdev->dev, &dev->clks);
@@ -327,6 +330,8 @@ static int wave6_vpu_probe(struct platform_device *pdev)
 	}
 
 	dev->temp_vbuf.size = ALIGN(WAVE6_TEMPBUF_SIZE, 4096);
+	dev->temp_vbuf.recorder = dev->recorder;
+	dev->temp_vbuf.label = "temp_vbuf";
 	ret = wave6_alloc_dma(dev->dev, &dev->temp_vbuf);
 	if (ret) {
 		dev_err(&pdev->dev, "alloc temp of size %zu failed\n",
@@ -409,6 +414,8 @@ static void wave6_vpu_remove(struct platform_device *pdev)
 	kfifo_free(&dev->irq_status);
 	wave6_vpu_release_m2m_dev(dev);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	if (!dev->ctrl)
+		imx_mur_destroy_node(dev->recorder);
 }
 
 #ifdef CONFIG_PM

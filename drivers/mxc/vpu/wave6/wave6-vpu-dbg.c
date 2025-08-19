@@ -162,6 +162,11 @@ static int wave6_vpu_dbg_instance(struct seq_file *s, void *data)
 	if (seq_write(s, str, num))
 		return 0;
 
+	num = scnprintf(str, sizeof(str), "memory usage : %lu\n",
+			imx_mur_long_read(inst->recorder));
+	if (seq_write(s, str, num))
+		return 0;
+
 	if (inst->type == VPU_INST_TYPE_DEC) {
 		num = scnprintf(str, sizeof(str), "%s order\n",
 				inst->disp_mode == DISP_MODE_DISP_ORDER ? "display" : "decode");

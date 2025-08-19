@@ -256,6 +256,8 @@ static int wave6_allocate_aux_buffer(struct vpu_instance *inst,
 		struct vpu_buf *aux_vbuf = &inst->aux_vbuf[type][i + offset];
 
 		aux_vbuf->size = size;
+		aux_vbuf->recorder = inst->recorder;
+		aux_vbuf->label = wave6_vpu_get_aux_name(type);
 		ret = wave6_alloc_dma(inst->dev->dev, aux_vbuf);
 		if (ret) {
 			dev_err(inst->dev->dev, "%s: Alloc fail (type %d)\n", __func__, type);
@@ -1515,6 +1517,8 @@ static int wave6_vpu_dec_prepare_fb(struct vpu_instance *inst)
 			break;
 
 		vframe->size = luma_size + chroma_size;
+		vframe->recorder = inst->recorder;
+		vframe->label = "fb";
 		ret = wave6_alloc_dma(inst->dev->dev, vframe);
 		if (ret) {
 			dev_err(inst->dev->dev, "alloc FBC buffer fail : %zu\n",
@@ -1783,6 +1787,8 @@ static int wave6_vpu_dec_buf_init(struct vb2_buffer *vb)
 	struct dec_initial_info initial_info = {0};
 	int i;
 
+	wave6_vpu_buf_init(vb);
+
 	if (V4L2_TYPE_IS_OUTPUT(vb->type))
 		return 0;
 
@@ -1808,6 +1814,7 @@ static const struct vb2_ops wave6_vpu_dec_vb2_ops = {
 	.start_streaming = wave6_vpu_dec_start_streaming,
 	.stop_streaming = wave6_vpu_dec_stop_streaming,
 	.buf_init = wave6_vpu_dec_buf_init,
+	.buf_cleanup = wave6_vpu_buf_cleanup,
 };
 
 static void wave6_set_default_format(struct v4l2_pix_format_mplane *src_fmt,
@@ -1891,6 +1898,7 @@ static int wave6_vpu_open_dec(struct file *filp)
 	inst->type = VPU_INST_TYPE_DEC;
 	inst->ops = &wave6_vpu_dec_inst_ops;
 	mutex_init(&inst->queue_lock);
+	inst->recorder = imx_mur_create_node(dev->recorder, "decoder instance");
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
 	v4l2_fh_add(&inst->v4l2_fh, filp);
@@ -1919,6 +1927,8 @@ static int wave6_vpu_open_dec(struct file *filp)
 			       V4L2_CID_MPEG_VIDEO_H264_PROFILE,
 			       V4L2_MPEG_VIDEO_H264_PROFILE_HIGH, 0,
 			       V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
+
+	imx_mur_new_v4l2_ctrl(&inst->v4l2_ctrl_hdl, inst->recorder);
 
 	if (inst->v4l2_ctrl_hdl.error) {
 		ret = -ENODEV;
@@ -1951,6 +1961,7 @@ err_m2m_release:
 free_inst:
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
+	imx_mur_destroy_node(inst->recorder);
 	mutex_destroy(&inst->queue_lock);
 	kfree(inst);
 	return ret;
@@ -1969,9 +1980,11 @@ static int wave6_vpu_dec_release(struct file *filp)
 	mutex_unlock(&inst->queue_lock);
 
 	destroy_workqueue(inst->workqueue);
+	imx_mur_release_v4l2_ctrl(inst->recorder);
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
+	imx_mur_destroy_node(inst->recorder);
 	mutex_destroy(&inst->queue_lock);
 	kfree(inst);
 

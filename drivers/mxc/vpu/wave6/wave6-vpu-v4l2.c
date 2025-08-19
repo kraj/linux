@@ -128,6 +128,33 @@ u64 wave6_vpu_cycle_to_ns(struct vpu_device *vpu_dev, u64 cycle)
 	return (cycle * NSEC_PER_SEC) / clk_get_rate(vpu_dev->clk_vpu);
 }
 
+int wave6_vpu_buf_init(struct vb2_buffer *vb)
+{
+	struct vpu_instance *inst = vb2_get_drv_priv(vb->vb2_queue);
+	int i;
+
+	if (vb->memory != VB2_MEMORY_MMAP)
+		return 0;
+
+	for (i = 0; i < vb->num_planes; i++)
+		imx_mur_long_new_and_add(inst->recorder, vb->planes[i].length,
+					 V4L2_TYPE_IS_OUTPUT(vb->type) ? "output" : "capture");
+
+	return 0;
+}
+
+void wave6_vpu_buf_cleanup(struct vb2_buffer *vb)
+{
+	struct vpu_instance *inst = vb2_get_drv_priv(vb->vb2_queue);
+	int i;
+
+	if (vb->memory != VB2_MEMORY_MMAP)
+		return;
+
+	for (i = 0; i < vb->num_planes; i++)
+		imx_mur_long_sub_and_del(inst->recorder, vb->planes[i].length);
+}
+
 int wave6_vpu_wait_interrupt(struct vpu_instance *inst, unsigned int timeout)
 {
 	int ret;

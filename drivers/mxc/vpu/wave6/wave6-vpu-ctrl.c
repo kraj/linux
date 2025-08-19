@@ -23,6 +23,7 @@
 #include <linux/units.h>
 #include <linux/pm_opp.h>
 #include <linux/freezer.h>
+#include <linux/imx_memory_usage.h>
 
 #include "wave6-vpuconfig.h"
 #include "wave6-regdefine.h"
@@ -127,6 +128,7 @@ struct vpu_ctrl {
 	struct device *dev_perf;
 	int clk_id;
 	unsigned long *freq_table;
+	struct imx_mur_node *recorder;
 };
 
 #define DOMAIN_VPU_PWR	0
@@ -142,14 +144,13 @@ static const struct vpu_ctrl_resource wave633c_ctrl_data = {
 static void wave6_vpu_ctrl_init_loger(struct vpu_ctrl *ctrl)
 {
 	ctrl->loger_buf.size = TRACEBUF_SIZE + sizeof(struct loger_t);
-	ctrl->loger_buf.vaddr = dma_alloc_coherent(ctrl->dev,
-						   ctrl->loger_buf.size,
-						   &ctrl->loger_buf.daddr,
-						   GFP_KERNEL);
-	if (!ctrl->loger_buf.vaddr) {
+	ctrl->loger_buf.recorder = ctrl->recorder;
+	ctrl->loger_buf.label = "loger_buf";
+	if (wave6_alloc_dma(ctrl->dev, &ctrl->loger_buf)) {
 		ctrl->loger_buf.size = 0;
 		return;
 	}
+
 	ctrl->loger = ctrl->loger_buf.vaddr;
 	ctrl->loger->size = TRACEBUF_SIZE;
 }
@@ -157,13 +158,7 @@ static void wave6_vpu_ctrl_init_loger(struct vpu_ctrl *ctrl)
 static void wave6_vpu_ctrl_free_loger(struct vpu_ctrl *ctrl)
 {
 	ctrl->loger = NULL;
-	if (ctrl->loger_buf.vaddr)
-		dma_free_coherent(ctrl->dev,
-				  ctrl->loger_buf.size,
-				  ctrl->loger_buf.vaddr,
-				  ctrl->loger_buf.daddr);
-
-	memset(&ctrl->loger_buf, 0, sizeof(ctrl->loger_buf));
+	wave6_free_dma(&ctrl->loger_buf);
 }
 
 static void wave6_vpu_ctrl_start_loger(struct vpu_ctrl *ctrl, struct wave6_vpu_entity *entity)
@@ -270,6 +265,13 @@ int wave6_alloc_dma(struct device *dev, struct vpu_buf *vb)
 	if (!vaddr)
 		return -ENOMEM;
 
+	if (vb->recorder) {
+		if (vb->label)
+			imx_mur_long_new_and_add(vb->recorder, vb->size, vb->label);
+		else
+			imx_mur_long_add(vb->recorder, vb->size);
+	}
+
 	vb->vaddr = vaddr;
 	vb->daddr = daddr;
 	vb->dev = dev;
@@ -283,10 +285,28 @@ void wave6_free_dma(struct vpu_buf *vb)
 	if (!vb || !vb->size || !vb->vaddr)
 		return;
 
+	if (vb->recorder) {
+		if (vb->label)
+			imx_mur_long_sub_and_del(vb->recorder, vb->size);
+		else
+			imx_mur_long_sub(vb->recorder, vb->size);
+	}
+
 	dma_free_coherent(vb->dev, vb->size, vb->vaddr, vb->daddr);
 	memset(vb, 0, sizeof(*vb));
 }
 EXPORT_SYMBOL_GPL(wave6_free_dma);
+
+struct imx_mur_node *wave6_vpu_ctrl_get_recorder(struct device *dev)
+{
+	struct vpu_ctrl *ctrl = dev_get_drvdata(dev);
+
+	if (!ctrl)
+		return NULL;
+
+	return ctrl->recorder;
+}
+EXPORT_SYMBOL_GPL(wave6_vpu_ctrl_get_recorder);
 
 static const char *wave6_vpu_ctrl_state_name(u32 state)
 {
@@ -427,6 +447,8 @@ static void wave6_vpu_ctrl_acquire_work_buffer(struct vpu_ctrl *ctrl)
 
 	buf = &ctrl->work_buf[ctrl->acquired_buffer_count];
 	buf->size = WAVE6_WORKBUF_SIZE;
+	buf->recorder = ctrl->recorder;
+	buf->label = "work_buf";
 	if (wave6_alloc_dma(ctrl->dev, buf))
 		return;
 
@@ -862,6 +884,7 @@ static void wave6_vpu_ctrl_init_reserved_boot_region(struct vpu_ctrl *ctrl)
 		return;
 	}
 
+	imx_mur_long_new_and_add(ctrl->recorder, ctrl->boot_mem.size, "boot_mem");
 	dev_info(ctrl->dev, "boot phys_addr: %pad, dma_addr: %pad, size: 0x%zx\n",
 		 &ctrl->boot_mem.phys_addr,
 		 &ctrl->boot_mem.dma_addr,
@@ -1070,6 +1093,8 @@ static int wave6_vpu_ctrl_probe(struct platform_device *pdev)
 
 	ctrl->num_clks = ret;
 
+	ctrl->recorder = imx_mur_create_node(NULL, "wave6-vpu");
+
 	np = of_parse_phandle(pdev->dev.of_node, "boot", 0);
 	if (np) {
 		struct resource mem;
@@ -1152,6 +1177,7 @@ static void wave6_vpu_ctrl_remove(struct platform_device *pdev)
 				   ctrl->boot_mem.size,
 				   DMA_BIDIRECTIONAL,
 				   0);
+	imx_mur_destroy_node(ctrl->recorder);
 	mutex_destroy(&ctrl->ctrl_lock);
 }
 

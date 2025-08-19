@@ -9,6 +9,7 @@
 #define __WAVE6_VPU_CTRL_H__
 
 #include <linux/device.h>
+#include <linux/imx_memory_usage.h>
 
 enum wave6_vpu_state {
 	WAVE6_VPU_STATE_OFF,
@@ -28,6 +29,7 @@ struct wave6_vpu_entity {
 
 int wave6_alloc_dma(struct device *dev, struct vpu_buf *vb);
 void wave6_free_dma(struct vpu_buf *vb);
+struct imx_mur_node *wave6_vpu_ctrl_get_recorder(struct device *dev);
 int wave6_vpu_ctrl_resume_and_get(struct device *dev, struct wave6_vpu_entity *entity);
 void wave6_vpu_ctrl_put_sync(struct device *dev, struct wave6_vpu_entity *entity);
 int wave6_vpu_ctrl_get_state(struct device *dev);

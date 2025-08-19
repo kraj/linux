@@ -949,3 +949,12 @@ int wave6_vpu_enc_complete_seq_init(struct vpu_instance *inst, struct enc_initia
 
 	return 0;
 }
+
+const char *wave6_vpu_get_aux_name(enum aux_buffer_type type)
+{
+	const char *aux_name[AUX_BUF_TYPE_MAX] = {"fbc_y_tbl", "fbc_c_tbl", "mv_col", "sub_sample"};
+
+	if (type < AUX_BUF_TYPE_MAX)
+		return aux_name[type];
+	return "aux_vbuf";
+}

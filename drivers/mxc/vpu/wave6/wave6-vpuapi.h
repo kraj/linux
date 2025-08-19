@@ -914,6 +914,7 @@ struct vpu_device {
 	bool active;
 	const struct wave6_match_data *res;
 	struct dentry *debugfs;
+	struct imx_mur_node *recorder;
 
 	bool force_dma_sync;
 };
@@ -1012,6 +1013,8 @@ struct vpu_instance {
 	struct workqueue_struct *workqueue;
 	struct work_struct fb_work;
 	atomic_t fbc_tag;
+
+	struct imx_mur_node *recorder;
 };
 
 void wave6_vdi_writel(struct vpu_device *vpu_device, unsigned int addr, unsigned int data);
@@ -1055,5 +1058,6 @@ int wave6_vpu_enc_start_one_frame(struct vpu_instance *inst, struct enc_param *p
 				  u32 *fail_res);
 int wave6_vpu_enc_get_output_info(struct vpu_instance *inst, struct enc_output_info *info);
 int wave6_vpu_enc_give_command(struct vpu_instance *inst, enum codec_command cmd, void *parameter);
+const char *wave6_vpu_get_aux_name(enum aux_buffer_type type);
 
 #endif /* __WAVE6_VPUAPI_H__ */

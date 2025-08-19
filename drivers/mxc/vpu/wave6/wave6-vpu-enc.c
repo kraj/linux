@@ -739,16 +739,20 @@ static int wave6_allocate_aux_buffer(struct vpu_instance *inst,
 	}
 
 	for (i = 0; i < num; i++) {
-		inst->aux_vbuf[type][i].size = size;
-		ret = wave6_alloc_dma(inst->dev->dev, &inst->aux_vbuf[type][i]);
+		struct vpu_buf *aux_vbuf = &inst->aux_vbuf[type][i];
+
+		aux_vbuf->size = size;
+		aux_vbuf->recorder = inst->recorder;
+		aux_vbuf->label = wave6_vpu_get_aux_name(type);
+		ret = wave6_alloc_dma(inst->dev->dev, aux_vbuf);
 		if (ret) {
 			dev_err(inst->dev->dev, "%s: Alloc fail (type %d)\n", __func__, type);
 			return ret;
 		}
 
 		buf[i].index = i;
-		buf[i].addr = inst->aux_vbuf[type][i].daddr;
-		buf[i].size = inst->aux_vbuf[type][i].size;
+		buf[i].addr = aux_vbuf->daddr;
+		buf[i].size = aux_vbuf->size;
 	}
 
 	buf_info.type = type;
@@ -2239,6 +2243,8 @@ static int wave6_vpu_enc_create_instance(struct vpu_instance *inst)
 	wave6_vpu_wait_activated(inst->dev);
 
 	inst->ar_vbuf.size = ALIGN(WAVE6_ARBUF_SIZE, 4096);
+	inst->ar_vbuf.recorder = inst->recorder;
+	inst->ar_vbuf.label = "ar_vbuf";
 	ret = wave6_alloc_dma(inst->dev->dev, &inst->ar_vbuf);
 	if (ret) {
 		dev_err(inst->dev->dev, "alloc ar of size %zu failed\n",
@@ -2341,6 +2347,8 @@ static int wave6_vpu_enc_prepare_fb(struct vpu_instance *inst)
 		struct vpu_buf *vframe = &inst->frame_vbuf[i];
 
 		vframe->size = luma_size + chroma_size;
+		vframe->recorder = inst->recorder;
+		vframe->label = "fb";
 		ret = wave6_alloc_dma(inst->dev->dev, vframe);
 		if (ret) {
 			dev_err(inst->dev->dev, "alloc FBC buffer fail : %zu\n",
@@ -2435,6 +2443,8 @@ static int wave6_vpu_enc_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 static int wave6_vpu_enc_custom_map_init(struct vpu_instance *inst, struct vpu_buffer *vpu_buf)
 {
 	vpu_buf->custom_qp_map.size = inst->roi_info.custom_map_size;
+	vpu_buf->custom_qp_map.recorder = inst->recorder;
+	vpu_buf->custom_qp_map.label = "qp_map";
 	if (wave6_alloc_dma(inst->dev->dev, &vpu_buf->custom_qp_map) < 0) {
 		dev_err(inst->dev->dev, "alloc custom qp map size %zu failed\n",
 			vpu_buf->custom_qp_map.size);
@@ -2511,6 +2521,7 @@ static void wave6_vpu_enc_buf_cleanup(struct vb2_buffer *vb)
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->type))
 		wave6_free_dma(&vpu_buf->custom_qp_map);
+	wave6_vpu_buf_cleanup(vb);
 }
 
 static int wave6_vpu_enc_start_streaming(struct vb2_queue *q, unsigned int count)
@@ -2617,6 +2628,7 @@ static const struct vb2_ops wave6_vpu_enc_vb2_ops = {
 	.wait_finish = vb2_ops_wait_finish,
 	.buf_queue = wave6_vpu_enc_buf_queue,
 	.buf_finish = wave6_vpu_enc_buf_finish,
+	.buf_init = wave6_vpu_buf_init,
 	.buf_cleanup = wave6_vpu_enc_buf_cleanup,
 	.start_streaming = wave6_vpu_enc_start_streaming,
 	.stop_streaming = wave6_vpu_enc_stop_streaming,
@@ -2702,6 +2714,7 @@ static int wave6_vpu_open_enc(struct file *filp)
 	inst->type = VPU_INST_TYPE_ENC;
 	inst->ops = &wave6_vpu_enc_inst_ops;
 	mutex_init(&inst->queue_lock);
+	inst->recorder = imx_mur_create_node(dev->recorder, "encoder instance");
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
 	v4l2_fh_add(&inst->v4l2_fh, filp);
@@ -2893,6 +2906,8 @@ static int wave6_vpu_open_enc(struct file *filp)
 	v4l2_ctrl_new_custom(v4l2_ctrl_hdl, &wave6_vpu_enc_ctrl_roi_map, NULL);
 	v4l2_ctrl_new_custom(v4l2_ctrl_hdl, &wave6_vpu_enc_ctrl_roi_block_size, NULL);
 
+	imx_mur_new_v4l2_ctrl(&inst->v4l2_ctrl_hdl, inst->recorder);
+
 	if (v4l2_ctrl_hdl->error) {
 		ret = -ENODEV;
 		goto err_m2m_release;
@@ -2931,6 +2946,7 @@ err_m2m_release:
 free_inst:
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
+	imx_mur_destroy_node(inst->recorder);
 	mutex_destroy(&inst->queue_lock);
 	kfree(inst);
 	return ret;
@@ -2949,9 +2965,11 @@ static int wave6_vpu_enc_release(struct file *filp)
 	mutex_unlock(&inst->queue_lock);
 
 	kfree(inst->custom_qp_map.vaddr);
+	imx_mur_release_v4l2_ctrl(inst->recorder);
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
+	imx_mur_destroy_node(inst->recorder);
 	mutex_destroy(&inst->queue_lock);
 	kfree(inst);
 
