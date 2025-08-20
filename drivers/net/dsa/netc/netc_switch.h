@@ -60,6 +60,8 @@
 #define NETC_SYSCLK_333M		333333333UL
 #define NETC_LPWAKE_US			50
 
+#define NETC_PGID_HSR			1
+
 struct netc_switch;
 struct netc_port;
 
@@ -112,6 +114,14 @@ struct netc_port_db {
 	u32 pbpmcr1;
 };
 
+enum netc_hsr_port_type {
+	NETC_HSR_DISABLED,
+	NETC_HSR_PORT_A,
+	NETC_HSR_PORT_B,
+	NETC_HSR_REDBOX_INTERLINK,
+	NETC_HSR_UPPER,
+};
+
 struct netc_port {
 	struct netc_switch *switch_priv;
 	struct netc_port_caps caps;
@@ -148,6 +158,7 @@ struct netc_port {
 	u32 ptp_ipft_eid[NETC_PTP_MAX];
 	struct netc_port_db db;
 	struct tc_taprio_qopt_offload *taprio;
+	enum netc_hsr_port_type hsr_type;
 };
 
 enum netc_port_mac {
