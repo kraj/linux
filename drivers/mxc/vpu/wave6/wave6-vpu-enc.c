@@ -2914,19 +2914,25 @@ static int wave6_vpu_open_enc(struct file *filp)
 	inst->custom_qp_map.size = wave6_vpu_enc_get_internal_ctu_count(W_AVC_ENC,
 									W6_MAX_ENC_PIC_WIDTH,
 									W6_MAX_ENC_PIC_HEIGHT);
-	if (wave6_alloc_dma(inst->dev->dev, &inst->custom_qp_map) < 0) {
+	inst->custom_qp_map.vaddr = kzalloc(inst->custom_qp_map.size, GFP_KERNEL);
+	if (!inst->custom_qp_map.vaddr) {
 		dev_err(inst->dev->dev, "alloc custom qp map size %zu failed\n",
 			inst->custom_qp_map.size);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_free_ctrl;
 	}
 
 	wave6_vpu_enc_set_roi_info(inst);
 
 	return 0;
 
+err_free_ctrl:
+	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
 err_m2m_release:
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
 free_inst:
+	v4l2_fh_del(&inst->v4l2_fh, filp);
+	v4l2_fh_exit(&inst->v4l2_fh);
 	kfree(inst);
 	return ret;
 }
@@ -2946,7 +2952,7 @@ static int wave6_vpu_enc_release(struct file *filp)
 	}
 	mutex_unlock(&inst->dev->dev_lock);
 
-	wave6_free_dma(&inst->custom_qp_map);
+	kfree(inst->custom_qp_map.vaddr);
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
