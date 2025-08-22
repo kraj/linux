@@ -926,6 +926,7 @@ struct vpu_instance_ops {
 };
 
 struct vpu_performance_info {
+	ktime_t ts_start;
 	ktime_t ts_first;
 	ktime_t ts_last;
 	s64 latency_first;

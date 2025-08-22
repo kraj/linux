@@ -2228,6 +2228,7 @@ static int wave6_vpu_enc_create_instance(struct vpu_instance *inst)
 
 	memset(&open_param, 0, sizeof(struct enc_open_param));
 
+	inst->performance.ts_start = ktime_get_raw();
 	wave6_vpu_activate(inst->dev);
 	ret = pm_runtime_resume_and_get(inst->dev->dev);
 	if (ret) {

@@ -143,11 +143,13 @@ static int wave6_vpu_dbg_instance(struct seq_file *s, void *data)
 		return 0;
 
 	num = scnprintf(str, sizeof(str),
-			"latency(ms) first: %llu.%06llu, max %llu.%06llu\n",
+			"latency(ms) first: %llu.%06llu, max %llu.%06llu, setup %llu.%06llu\n",
 			perf->latency_first / NSEC_PER_MSEC,
 			perf->latency_first % NSEC_PER_MSEC,
 			perf->latency_max / NSEC_PER_MSEC,
-			perf->latency_max % NSEC_PER_MSEC);
+			perf->latency_max % NSEC_PER_MSEC,
+			(perf->ts_first - perf->ts_start) / NSEC_PER_MSEC,
+			(perf->ts_first - perf->ts_start) % NSEC_PER_MSEC);
 	if (seq_write(s, str, num))
 		return 0;
 
