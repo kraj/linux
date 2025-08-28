@@ -915,6 +915,9 @@ static int wave6_vpu_enc_start_encode(struct vpu_instance *inst)
 		dst_vbuf->used = true;
 	}
 
+	if (!inst->performance.ts_first)
+		inst->performance.ts_first = ktime_get_raw();
+
 	trace_enc_pic(inst, &pic_param);
 
 	ret = wave6_vpu_enc_start_one_frame(inst, &pic_param, &fail_res);

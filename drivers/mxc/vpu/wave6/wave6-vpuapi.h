@@ -358,6 +358,8 @@ struct aux_buffer {
 struct aux_buffer_info {
 	int num;
 	struct aux_buffer *buf_array;
+	int width;
+	int height;
 	enum aux_buffer_type type;
 };
 
@@ -974,6 +976,10 @@ struct vpu_instance {
 	} *codec_info;
 	struct frame_buffer frame_buf[WAVE6_MAX_FBS];
 	struct vpu_buf frame_vbuf[WAVE6_MAX_FBS];
+	u32 fbc_buf_required;
+	u32 fbc_buf_acquired;
+	u32 fbc_buf_registered;
+	u32 fbc_buf_used;
 	u32 queued_src_buf_num;
 	u32 queued_dst_buf_num;
 	u32 processed_buf_num;
@@ -1001,6 +1007,10 @@ struct vpu_instance {
 	int roi_mode;
 	struct vpu_buf custom_qp_map;
 	struct vpu_roi_map_info roi_info;
+
+	struct workqueue_struct *workqueue;
+	struct work_struct fb_work;
+	atomic_t fbc_tag;
 };
 
 void wave6_vdi_writel(struct vpu_device *vpu_device, unsigned int addr, unsigned int data);
@@ -1015,7 +1025,8 @@ int wave6_vpu_dec_get_aux_buffer_size(struct vpu_instance *inst,
 				      struct dec_aux_buffer_size_info info,
 				      uint32_t *size);
 int wave6_vpu_dec_register_aux_buffer(struct vpu_instance *inst, struct aux_buffer_info info);
-int wave6_vpu_dec_register_frame_buffer_ex(struct vpu_instance *inst, int num_of_dec_fbs,
+int wave6_vpu_dec_register_frame_buffer_ex(struct vpu_instance *inst,
+					   int offset, int num_of_dec_fbs,
 					   int stride, int height, int map_type);
 int wave6_vpu_dec_register_display_buffer_ex(struct vpu_instance *inst, struct frame_buffer fb);
 int wave6_vpu_dec_start_one_frame(struct vpu_instance *inst, struct dec_param *param,

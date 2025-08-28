@@ -203,8 +203,8 @@ int wave6_vpu_dec_register_aux_buffer(struct vpu_instance *inst,
 
 	p_dec_info = &inst->codec_info->dec_info;
 
-	size_info.width = p_dec_info->initial_info.pic_width;
-	size_info.height = p_dec_info->initial_info.pic_height;
+	size_info.width = info.width;
+	size_info.height = info.height;
 	size_info.type = info.type;
 
 	ret = wave6_vpu_dec_get_aux_buffer_size(inst, size_info, &expected_size);
@@ -247,8 +247,8 @@ int wave6_vpu_dec_register_aux_buffer(struct vpu_instance *inst,
 }
 
 int wave6_vpu_dec_register_frame_buffer_ex(struct vpu_instance *inst,
-					   int num_of_dec_fbs, int stride,
-					   int height, int map_type)
+					   int offset, int num_of_dec_fbs,
+					   int stride, int height, int map_type)
 {
 	struct dec_info *p_dec_info;
 	int ret;
@@ -272,7 +272,7 @@ int wave6_vpu_dec_register_frame_buffer_ex(struct vpu_instance *inst,
 
 	fb = inst->frame_buf;
 	ret = wave6_vpu_dec_register_frame_buffer(inst, &fb[0], COMPRESSED_FRAME_MAP,
-						  num_of_dec_fbs);
+						  offset, num_of_dec_fbs);
 
 	mutex_unlock(&vpu_dev->hw_lock);
 

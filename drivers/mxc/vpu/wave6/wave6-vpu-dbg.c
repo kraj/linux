@@ -80,6 +80,15 @@ static int wave6_vpu_dbg_instance(struct seq_file *s, void *data)
 	if (seq_write(s, str, num))
 		return 0;
 
+	num = scnprintf(str, sizeof(str),
+			"fbc(required/acquired/registered/used) : %d, %d, %d, %d\n",
+			inst->fbc_buf_required,
+			inst->fbc_buf_acquired,
+			inst->fbc_buf_registered,
+			inst->fbc_buf_used);
+	if (seq_write(s, str, num))
+		return 0;
+
 	num = scnprintf(str, sizeof(str), "crop: (%d, %d) %d x %d\n",
 			inst->crop.left,
 			inst->crop.top,

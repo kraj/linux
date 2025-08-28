@@ -118,8 +118,6 @@ void wave6_vpu_set_instance_state(struct vpu_instance *inst, u32 state)
 		wave6_vpu_instance_state_name(state));
 
 	inst->state = state;
-	if (state == VPU_INST_STATE_PIC_RUN && !inst->performance.ts_first)
-		inst->performance.ts_first = ktime_get_raw();
 }
 
 u64 wave6_vpu_cycle_to_ns(struct vpu_device *vpu_dev, u64 cycle)
@@ -223,6 +221,12 @@ static bool wave6_vpu_check_fb_available(struct vpu_instance *inst)
 	struct vb2_v4l2_buffer *vb2_v4l2_buf;
 	struct v4l2_m2m_buffer *v4l2_m2m_buf;
 	struct vpu_buffer *vpu_buf;
+
+	if (inst->type == VPU_INST_TYPE_DEC) {
+		if (inst->fbc_buf_registered < inst->fbc_buf_required &&
+		    inst->fbc_buf_acquired <= inst->fbc_buf_used)
+			return false;
+	}
 
 	v4l2_m2m_for_each_dst_buf(inst->v4l2_fh.m2m_ctx, v4l2_m2m_buf) {
 		vb2_v4l2_buf = &v4l2_m2m_buf->vb;
