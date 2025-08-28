@@ -34,9 +34,9 @@ const struct neoisp_context_s def_context = {
 	.hw = {
 		.pipe_conf.common = {
 			.img_conf =
-				NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN0_SET(1) |
+				NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN0_SET(0) |
 				NEO_PIPE_CONF_IMG_CONF_CAM0_LPALIGN0_SET(1) |
-				NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN1_SET(1) |
+				NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN1_SET(0) |
 				NEO_PIPE_CONF_IMG_CONF_CAM0_LPALIGN1_SET(1),
 		},
 		.hdr_decompress0 = {
