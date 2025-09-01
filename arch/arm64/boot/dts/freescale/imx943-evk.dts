@@ -1413,7 +1413,6 @@
 		polling-delay-passive = <250>;
 		polling-delay = <2000>;
 		thermal-sensors = <&scmi_sensor 2>;
-		status = "disabled";
 		trips {
 			pf09_alert: trip0 {
 				temperature = <140000>;
@@ -1433,7 +1432,6 @@
 		polling-delay-passive = <250>;
 		polling-delay = <2000>;
 		thermal-sensors = <&scmi_sensor 3>;
-		status = "disabled";
 		trips {
 			pf5302_alert: trip0 {
 				temperature = <140000>;
