@@ -87,7 +87,6 @@ static inline bool wave6_vpu_both_queues_are_streaming(struct vpu_instance *inst
 
 u32 wave6_vpu_get_consumed_fb_num(struct vpu_instance *inst);
 u32 wave6_vpu_get_used_fb_num(struct vpu_instance *inst);
-void wave6_vpu_pause(struct device *dev, int resume);
 void wave6_vpu_activate(struct vpu_device *dev);
 void wave6_vpu_wait_activated(struct vpu_device *dev);
 void wave6_vpu_force_dma_sync_single_for_device(struct vpu_device *dev,

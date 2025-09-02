@@ -917,21 +917,10 @@ static int wave6_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 				       unsigned long state)
 {
 	struct vpu_ctrl *ctrl = cdev->devdata;
-	struct wave6_vpu_entity *entity;
 
 	ctrl->thermal_event = state;
 
-	list_for_each_entry(entity, &ctrl->entities, list) {
-		if (entity->pause)
-			entity->pause(entity->dev, 0);
-	}
-
 	wave6_vpu_ctrl_thermal_update(ctrl->dev, state);
-
-	list_for_each_entry(entity, &ctrl->entities, list) {
-		if (entity->pause)
-			entity->pause(entity->dev, 1);
-	}
 
 	return 0;
 }

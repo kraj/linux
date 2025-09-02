@@ -1548,12 +1548,8 @@ static int wave6_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 		}
 	}
 
-	if (V4L2_TYPE_IS_OUTPUT(q->type) &&
-	    inst->state == VPU_INST_STATE_SEEK) {
-		wave6_vpu_pause(inst->dev->dev, 0);
+	if (V4L2_TYPE_IS_OUTPUT(q->type) && inst->state == VPU_INST_STATE_SEEK)
 		wave6_vpu_dec_destroy_instance(inst);
-		wave6_vpu_pause(inst->dev->dev, 1);
-	}
 
 	return 0;
 }
@@ -1653,8 +1649,6 @@ static int wave6_vpu_dec_start_streaming(struct vb2_queue *q, unsigned int count
 
 	trace_start_streaming(inst, q->type);
 
-	wave6_vpu_pause(inst->dev->dev, 0);
-
 	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
 		fmt = &inst->src_fmt;
 		if (inst->state == VPU_INST_STATE_NONE) {
@@ -1675,7 +1669,6 @@ static int wave6_vpu_dec_start_streaming(struct vb2_queue *q, unsigned int count
 	}
 
 exit:
-	wave6_vpu_pause(inst->dev->dev, 1);
 	if (ret)
 		wave6_vpu_return_buffers(inst, q->type, VB2_BUF_STATE_QUEUED);
 
@@ -1704,8 +1697,6 @@ static void wave6_vpu_dec_stop_streaming(struct vb2_queue *q)
 	if (inst->state == VPU_INST_STATE_NONE)
 		goto exit;
 
-	wave6_vpu_pause(inst->dev->dev, 0);
-
 	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
 		wave6_vpu_reset_performance(inst);
 		inst->queued_src_buf_num = 0;
@@ -1724,8 +1715,6 @@ static void wave6_vpu_dec_stop_streaming(struct vb2_queue *q)
 		inst->sequence = 0;
 		wave6_vpu_dec_flush_instance(inst);
 	}
-
-	wave6_vpu_pause(inst->dev->dev, 1);
 
 exit:
 	wave6_vpu_return_buffers(inst, q->type, VB2_BUF_STATE_ERROR);
@@ -1904,11 +1893,8 @@ static int wave6_vpu_dec_release(struct file *filp)
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
 
 	mutex_lock(&inst->dev->dev_lock);
-	if (inst->state != VPU_INST_STATE_NONE) {
-		wave6_vpu_pause(inst->dev->dev, 0);
+	if (inst->state != VPU_INST_STATE_NONE)
 		wave6_vpu_dec_destroy_instance(inst);
-		wave6_vpu_pause(inst->dev->dev, 1);
-	}
 	mutex_unlock(&inst->dev->dev_lock);
 
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);

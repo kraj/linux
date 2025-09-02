@@ -911,8 +911,6 @@ struct vpu_device {
 	struct delayed_work task_timer;
 	struct wave6_vpu_entity entity;
 	bool active;
-	int pause_request;
-	struct mutex pause_lock; /* the lock for the pause/resume m2m job. */
 	const struct wave6_match_data *res;
 	struct dentry *debugfs;
 
