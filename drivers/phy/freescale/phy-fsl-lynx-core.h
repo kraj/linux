@@ -140,6 +140,7 @@ static inline void lynx_rmw(struct lynx_priv *priv, unsigned long off, u32 val,
 
 const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode);
 enum lynx_lane_mode phy_interface_to_lane_mode(phy_interface_t intf);
+int lynx_lane_mode_num_lanes(enum lynx_lane_mode lane_mode);
 bool lynx_lane_mode_needs_link_training(enum lynx_lane_mode mode);
 bool lynx_lane_supports_mode(struct lynx_lane *lane, enum lynx_lane_mode mode);
 

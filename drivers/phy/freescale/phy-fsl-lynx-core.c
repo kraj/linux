@@ -119,6 +119,10 @@ const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode)
 		return "25GBase-R";
 	case LANE_MODE_25GBASEKR:
 		return "25GBase-KR";
+	case LANE_MODE_40GBASER_XLAUI:
+		return "40GBase-R/XLAUI";
+	case LANE_MODE_40GBASEKR4:
+		return "40GBase-KR4";
 	default:
 		return "unknown";
 	}
@@ -149,6 +153,10 @@ enum lynx_lane_mode phy_interface_to_lane_mode(phy_interface_t intf)
 		return LANE_MODE_25GBASER;
 	case PHY_INTERFACE_MODE_25GKR:
 		return LANE_MODE_25GBASEKR;
+	case PHY_INTERFACE_MODE_40GBASER:
+		return LANE_MODE_40GBASER_XLAUI;
+	case PHY_INTERFACE_MODE_40GKR4:
+		return LANE_MODE_40GBASEKR4;
 	default:
 		return LANE_MODE_UNKNOWN;
 	}
@@ -160,9 +168,29 @@ bool lynx_lane_mode_needs_link_training(enum lynx_lane_mode mode)
 	switch (mode) {
 	case LANE_MODE_10GBASEKR:
 	case LANE_MODE_25GBASEKR:
+	case LANE_MODE_40GBASEKR4:
 		return true;
 	default:
 		return false;
+	}
+}
+
+int lynx_lane_mode_num_lanes(enum lynx_lane_mode lane_mode)
+{
+	switch (lane_mode) {
+	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
+	case LANE_MODE_USXGMII:
+	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
+	case LANE_MODE_25GBASER:
+	case LANE_MODE_25GBASEKR:
+		return 1;
+	case LANE_MODE_40GBASER_XLAUI:
+	case LANE_MODE_40GBASEKR4:
+		return 4;
+	default:
+		return -EOPNOTSUPP;
 	}
 }
 
