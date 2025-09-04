@@ -317,7 +317,7 @@ F: drivers/media/i2c/ds90*
 F: include/media/i2c/ds90*
 
 capture/neoisp
-M: Aymen SGHAIER <aymen.sghaier@nxp.com>
+M: Antoine Bouyer <antoine.bouyer@nxp.com>
 M: Julien Vuillaumier <julien.vuillaumier@nxp.com>
 F: arch/arm64/boot/dts/freescale/imx95-19x19-evk-neoisp.dtso
 F: Documentation/userspace-api/media/v4l/neo-isp-hw-mapping.rst
