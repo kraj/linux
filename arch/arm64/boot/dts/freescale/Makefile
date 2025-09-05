@@ -839,6 +839,19 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-frdm-8mic-reve.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-frdm-pro.dtb
 
+imx95-19x19-frdm-pro-os08a20-isp-dtbs := imx95-19x19-frdm-pro.dtb \
+					 imx95-19x19-frdm-pro-os08a20.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-frdm-pro-os08a20-isp.dtb
+
+imx95-19x19-frdm-pro-os08a20-combo-isp-dtbs := imx95-19x19-frdm-pro.dtb \
+					       imx95-19x19-frdm-pro-os08a20-combo.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-frdm-pro-os08a20-combo-isp.dtb
+
+imx95-19x19-frdm-pro-dual-os08a20-isp-dtbs := imx95-19x19-frdm-pro.dtb \
+					      imx95-19x19-frdm-pro-os08a20.dtbo \
+					      imx95-19x19-frdm-pro-os08a20-combo.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-frdm-pro-dual-os08a20-isp.dtb
+
 imx8mm-kontron-dl-dtbs			:= imx8mm-kontron-bl.dtb imx8mm-kontron-dl.dtbo
 imx8mm-kontron-bl-lte-dtbs		:= imx8mm-kontron-bl.dtb imx8mm-kontron-bl-lte.dtbo
 
