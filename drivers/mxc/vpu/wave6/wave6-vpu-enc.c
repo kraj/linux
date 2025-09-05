@@ -2706,8 +2706,7 @@ static int wave6_vpu_open_enc(struct file *filp)
 	inst->ops = &wave6_vpu_enc_inst_ops;
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
-	filp->private_data = &inst->v4l2_fh;
-	v4l2_fh_add(&inst->v4l2_fh);
+	v4l2_fh_add(&inst->v4l2_fh, filp);
 
 	inst->v4l2_fh.m2m_ctx =
 		v4l2_m2m_ctx_init(dev->m2m_dev, inst, wave6_vpu_enc_queue_init);
@@ -2934,7 +2933,7 @@ free_inst:
 
 static int wave6_vpu_enc_release(struct file *filp)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(filp->private_data);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(filp));
 
 	dprintk(inst->dev->dev, "[%d] release\n", inst->id);
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
@@ -2949,7 +2948,7 @@ static int wave6_vpu_enc_release(struct file *filp)
 
 	wave6_free_dma(&inst->custom_qp_map);
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
-	v4l2_fh_del(&inst->v4l2_fh);
+	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
 	kfree(inst);
 
