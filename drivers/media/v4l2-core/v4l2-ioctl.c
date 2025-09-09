@@ -890,7 +890,7 @@ static bool check_ext_ctrls(struct v4l2_ext_controls *c, unsigned long ioctl)
 		 * is it allowed for backwards compatibility.
 		 */
 		if (ioctl == VIDIOC_G_CTRL || ioctl == VIDIOC_S_CTRL)
-			return false;
+			return true;
 		break;
 	case V4L2_CTRL_WHICH_DEF_VAL:
 	case V4L2_CTRL_WHICH_MIN_VAL:
