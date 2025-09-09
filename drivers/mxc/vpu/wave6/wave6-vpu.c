@@ -258,7 +258,6 @@ static int wave6_vpu_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	mutex_init(&dev->dev_lock);
 	mutex_init(&dev->hw_lock);
 	init_completion(&dev->irq_done);
 	dev_set_drvdata(&pdev->dev, dev);

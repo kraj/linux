@@ -2656,7 +2656,7 @@ static int wave6_vpu_enc_queue_init(void *priv, struct vb2_queue *src_vq, struct
 	src_vq->buf_struct_size = sizeof(struct vpu_buffer);
 	src_vq->allow_cache_hints = 1;
 	src_vq->drv_priv = inst;
-	src_vq->lock = &inst->dev->dev_lock;
+	src_vq->lock = &inst->queue_lock;
 	src_vq->dev = inst->dev->v4l2_dev.dev;
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -2670,7 +2670,7 @@ static int wave6_vpu_enc_queue_init(void *priv, struct vb2_queue *src_vq, struct
 	dst_vq->buf_struct_size = sizeof(struct vpu_buffer);
 	dst_vq->allow_cache_hints = 1;
 	dst_vq->drv_priv = inst;
-	dst_vq->lock = &inst->dev->dev_lock;
+	dst_vq->lock = &inst->queue_lock;
 	dst_vq->dev = inst->dev->v4l2_dev.dev;
 	ret = vb2_queue_init(dst_vq);
 	if (ret)
@@ -2700,6 +2700,7 @@ static int wave6_vpu_open_enc(struct file *filp)
 	inst->dev = dev;
 	inst->type = VPU_INST_TYPE_ENC;
 	inst->ops = &wave6_vpu_enc_inst_ops;
+	mutex_init(&inst->queue_lock);
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
 	v4l2_fh_add(&inst->v4l2_fh, filp);
@@ -2929,6 +2930,7 @@ err_m2m_release:
 free_inst:
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
+	mutex_destroy(&inst->queue_lock);
 	kfree(inst);
 	return ret;
 }
@@ -2940,15 +2942,16 @@ static int wave6_vpu_enc_release(struct file *filp)
 	dprintk(inst->dev->dev, "[%d] release\n", inst->id);
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
 
-	mutex_lock(&inst->dev->dev_lock);
+	mutex_lock(&inst->queue_lock);
 	if (inst->state != VPU_INST_STATE_NONE)
 		wave6_vpu_enc_destroy_instance(inst);
-	mutex_unlock(&inst->dev->dev_lock);
+	mutex_unlock(&inst->queue_lock);
 
 	kfree(inst->custom_qp_map.vaddr);
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
 	v4l2_fh_del(&inst->v4l2_fh, filp);
 	v4l2_fh_exit(&inst->v4l2_fh);
+	mutex_destroy(&inst->queue_lock);
 	kfree(inst);
 
 	return 0;
@@ -2981,7 +2984,6 @@ int wave6_vpu_enc_register_device(struct vpu_device *dev)
 	vdev_enc->v4l2_dev = &dev->v4l2_dev;
 	vdev_enc->vfl_dir = VFL_DIR_M2M;
 	vdev_enc->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
-	vdev_enc->lock = &dev->dev_lock;
 	video_set_drvdata(vdev_enc, dev);
 
 	ret = video_register_device(vdev_enc, VFL_TYPE_VIDEO, -1);

@@ -893,7 +893,6 @@ struct vpu_device {
 	struct v4l2_m2m_dev *m2m_dev;
 	struct video_device *video_dev_dec;
 	struct video_device *video_dev_enc;
-	struct mutex dev_lock; /* the lock for the src,dst v4l2 queues */
 	struct mutex hw_lock; /* lock hw configurations */
 	int irq;
 	u32 fw_version;
@@ -953,6 +952,7 @@ struct vpu_instance {
 	struct v4l2_fh v4l2_fh;
 	struct v4l2_ctrl_handler v4l2_ctrl_hdl;
 	struct vpu_device *dev;
+	struct mutex queue_lock; /* the lock for the src,dst v4l2 queues */
 
 	struct v4l2_pix_format_mplane src_fmt;
 	struct v4l2_pix_format_mplane dst_fmt;
