@@ -840,6 +840,7 @@
 	reset-gpio = <&gpio2 7 GPIO_ACTIVE_LOW>;
 	host-wake-gpio = <&gpio5 21 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_m2_wlan>;
+	supports-clkreq;
 	status = "disabled";
 };
 
