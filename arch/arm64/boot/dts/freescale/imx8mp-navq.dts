@@ -1113,18 +1113,6 @@
 	status = "okay";
 };
 
-&gpu_3d {
-	status = "okay";
-};
-
-&gpu_2d {
-	status = "okay";
-};
-
-&ml_vipsi {
-	status = "okay";
-};
-
 &mix_gpu_ml {
 	status = "okay";
 };
