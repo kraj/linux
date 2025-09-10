@@ -1268,7 +1268,7 @@
 	status = "okay";
 };
 
-&gpu3d {
+&imx8_gpu_ss {
 	status = "okay";
 };
 
