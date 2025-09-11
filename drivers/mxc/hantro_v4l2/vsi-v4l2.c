@@ -79,6 +79,13 @@ int vsi_alloc_dma(struct device *dev, struct vpu_buf *vb)
 	if (!vaddr)
 		return -ENOMEM;
 
+	if (vb->recorder) {
+		if (vb->label)
+			imx_mur_long_new_and_add(vb->recorder, vb->size, vb->label);
+		else
+			imx_mur_long_add(vb->recorder, vb->size);
+	}
+
 	vb->vaddr = vaddr;
 	vb->daddr = daddr;
 	vb->dev = dev;
@@ -90,6 +97,13 @@ void vsi_free_dma(struct vpu_buf *vb)
 {
 	if (!vb || !vb->size || !vb->vaddr)
 		return;
+
+	if (vb->recorder) {
+		if (vb->label)
+			imx_mur_long_sub_and_del(vb->recorder, vb->size);
+		else
+			imx_mur_long_sub(vb->recorder, vb->size);
+	}
 
 	dma_free_coherent(vb->dev, vb->size, vb->vaddr, vb->daddr);
 	memset(vb, 0, sizeof(*vb));
@@ -215,6 +229,10 @@ static int vsi_v4l2_dbg_instance(struct seq_file *s, void *data)
 	if (seq_write(s, str, num))
 		return 0;
 
+	num = scnprintf(str, sizeof(str), "memory usage %ld\n", imx_mur_long_read(ctx->recorder));
+	if (seq_write(s, str, num))
+		return 0;
+
 	return 0;
 }
 
@@ -278,6 +296,7 @@ static struct vsi_v4l2_ctx *get_ctx(unsigned long ctxid)
 static void put_ctx(struct vsi_v4l2_ctx *ctx)
 {
 	if (atomic_dec_return(&ctx->refcnt) == 0) {
+		imx_mur_destroy_node(ctx->recorder);
 		v4l2_klog(LOGLVL_BRIEF, "free ctx %llx", ctx->ctxid);
 		kfree(ctx);
 	}
@@ -305,6 +324,8 @@ static void release_ctx(struct vsi_v4l2_ctx *ctx, int notifydaemon, struct file 
 	return_all_buffers(&ctx->input_que, VB2_BUF_STATE_DONE, 0);
 	return_all_buffers(&ctx->output_que, VB2_BUF_STATE_DONE, 0);
 	removeallcropinfo(ctx);
+
+	imx_mur_release_v4l2_ctrl(ctx->recorder);
 
 	vb2_queue_release(&ctx->input_que);
 	vb2_queue_release(&ctx->output_que);
@@ -596,6 +617,36 @@ int vsi_v4l2_notify_reschange(struct vsi_v4l2_msg *pmsg)
 		}
 		mutex_unlock(&ctx->ctxlock);
 	}
+	put_ctx(ctx);
+	return 0;
+}
+
+int vsi_v4l2_handle_linear_alloc(struct vsi_v4l2_msg *pmsg)
+{
+	unsigned long ctxid = pmsg->inst_id;
+	struct vsi_v4l2_ctx *ctx;
+
+	ctx = get_ctx(ctxid);
+	if (!ctx)
+		return -ESRCH;
+
+	imx_mur_long_new_and_add(ctx->recorder_ctrlsw, pmsg->params.linear_size, "linear");
+
+	put_ctx(ctx);
+	return 0;
+}
+
+int vsi_v4l2_handle_linear_free(struct vsi_v4l2_msg *pmsg)
+{
+	unsigned long ctxid = pmsg->inst_id;
+	struct vsi_v4l2_ctx *ctx;
+
+	ctx = get_ctx(ctxid);
+	if (!ctx)
+		return -ESRCH;
+
+	imx_mur_long_sub_and_del(ctx->recorder_ctrlsw, pmsg->params.linear_size);
+
 	put_ctx(ctx);
 	return 0;
 }
@@ -996,6 +1047,8 @@ static int v4l2_probe(struct platform_device *pdev)
 	if (devm_device_add_group(&gvsidev->dev, &vsi_v4l2_attr_group))
 		v4l2_klog(LOGLVL_ERROR, "fail to create sysfs API");
 
+	vpu->recorder = imx_mur_create_node(NULL, "vsiv4l2");
+
 	v4l2_klog(LOGLVL_BRIEF, "vpu v4l2: module inserted. Major = %d\n", VSI_DAEMON_DEVMAJOR);
 	return 0;
 
@@ -1028,6 +1081,7 @@ static void v4l2_remove(struct platform_device *pdev)
 		}
 	}
 
+	imx_mur_destroy_node(vpu->recorder);
 	debugfs_remove_recursive(vpu->debugfs);
 	vpu->debugfs = NULL;
 	vsi_v4l2_release_dec(vpu->vdec);

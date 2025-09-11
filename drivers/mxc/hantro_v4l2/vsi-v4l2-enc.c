@@ -851,6 +851,8 @@ static int vsi_vpu_enc_custom_map_init(struct vsi_v4l2_ctx *ctx, struct vsi_vpu_
 	num_ctu_row = ALIGN(num_ctu_row, 8);
 
 	vpu_buf->custom_qp_map.size = num_ctu_col * num_ctu_row;
+	vpu_buf->custom_qp_map.recorder = ctx->recorder;
+	vpu_buf->custom_qp_map.label = "buf_qp_map";
 	if (vsi_alloc_dma(ctx->dev->dev, &vpu_buf->custom_qp_map) < 0) {
 		v4l2_klog(LOGLVL_ERROR, "alloc custom qp map size %zu failed\n",
 			  vpu_buf->custom_qp_map.size);
@@ -890,11 +892,6 @@ static void vsi_enc_buf_queue(struct vb2_buffer *vb)
 	}
 
 	ret = vsiv4l2_execcmd(ctx, V4L2_DAEMON_VIDIOC_BUF_RDY, vb);
-}
-
-static int vsi_enc_buf_init(struct vb2_buffer *vb)
-{
-	return 0;
 }
 
 static int vsi_enc_buf_prepare(struct vb2_buffer *vb)
@@ -953,6 +950,7 @@ static void vsi_enc_buf_cleanup(struct vb2_buffer *vb)
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->type))
 		vsi_free_dma(&vpu_buf->custom_qp_map);
+	vsiv4l2_buf_cleanup(vb);
 }
 
 static void vsi_enc_buf_wait_finish(struct vb2_queue *vq)
@@ -969,7 +967,7 @@ static struct vb2_ops vsi_enc_qops = {
 	.queue_setup = vsi_enc_queue_setup,
 	.wait_prepare = vsi_enc_buf_wait_prepare,	/*these two are just mutex protection for done_que*/
 	.wait_finish = vsi_enc_buf_wait_finish,
-	.buf_init = vsi_enc_buf_init,
+	.buf_init = vsiv4l2_buf_init,
 	.buf_prepare = vsi_enc_buf_prepare,
 	.buf_finish = vsi_enc_buf_finish,
 	.buf_cleanup = vsi_enc_buf_cleanup,
@@ -1736,6 +1734,8 @@ static int vsi_setup_enc_ctrls(struct v4l2_ctrl_handler *handler)
 		v4l2_ctrl_new_custom(handler, &vsi_vpu_enc_ctrl_roi_map, NULL);
 	}
 
+	imx_mur_new_v4l2_ctrl(handler, ctx->recorder);
+
 	v4l2_ctrl_handler_setup(handler);
 	return handler->error;
 }
@@ -1806,6 +1806,9 @@ static int v4l2_enc_open(struct file *filp)
 		vb2_queue_release(&ctx->input_que);
 		goto err_enc_dec_exit;
 	}
+	ctx->recorder = imx_mur_create_node(dev->recorder, "encoder instance");
+	if (ctx->recorder)
+		ctx->recorder_ctrlsw = imx_mur_create_node(ctx->recorder, "ctrlsw");
 	vsiv4l2_initcfg(ctx);
 	vsi_setup_enc_ctrls(&ctx->ctrlhdl);
 	vfh = (struct v4l2_fh *)file_to_v4l2_fh(filp);
@@ -1818,21 +1821,31 @@ static int v4l2_enc_open(struct file *filp)
 	vsi_v4l2_create_dbgfs_file(ctx);
 
 	ctx->custom_qp_map.size = VSI_MAX_CUSTOM_MAP_UNITS;
+	ctx->custom_qp_map.recorder = ctx->recorder;
+	ctx->custom_qp_map.label = "custom_qp_map";
 	if (vsi_alloc_dma(ctx->dev->dev, &ctx->custom_qp_map) < 0) {
 		v4l2_klog(LOGLVL_ERROR,  "alloc custom qp map size %zu failed\n",
 			  ctx->custom_qp_map.size);
-		return -ENOMEM;
+		goto err_alloc;
 	}
 
 	ctx->zero_qp_map.size = VSI_MAX_CUSTOM_MAP_UNITS;
+	ctx->zero_qp_map.recorder = ctx->recorder;
+	ctx->zero_qp_map.label = "zero_qp_map";
 	if (vsi_alloc_dma(ctx->dev->dev, &ctx->zero_qp_map) < 0) {
 		v4l2_klog(LOGLVL_ERROR,  "alloc custom qp map size %zu failed\n",
 			  ctx->zero_qp_map.size);
-		return -ENOMEM;
+		goto err_alloc;
 	}
 
 	return 0;
 
+err_alloc:
+	vsi_free_dma(&ctx->custom_qp_map);
+	vsi_v4l2_remove_dbgfs_file(ctx);
+	imx_mur_release_v4l2_ctrl(ctx->recorder);
+	v4l2_ctrl_handler_free(&ctx->ctrlhdl);
+	imx_mur_destroy_node(ctx->recorder);
 err_enc_dec_exit:
 	v4l2_fh_del(&ctx->fh, filp);
 	v4l2_fh_exit(&ctx->fh);

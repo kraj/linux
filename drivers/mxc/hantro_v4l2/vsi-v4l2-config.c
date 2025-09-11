@@ -2292,6 +2292,33 @@ int vsiv4l2_buffer_config(
 	return 0;
 }
 
+int vsiv4l2_buf_init(struct vb2_buffer *vb)
+{
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct vsi_v4l2_ctx *ctx = fh_to_ctx(vq->drv_priv);
+
+	if (vb->memory != VB2_MEMORY_MMAP)
+		return 0;
+
+	for (int i = 0; i < vb->num_planes; i++)
+		imx_mur_long_new_and_add(ctx->recorder,
+					 vb->planes[i].length,
+					 V4L2_TYPE_IS_OUTPUT(vb->type) ? "output" : "capture");
+	return 0;
+}
+
+void vsiv4l2_buf_cleanup(struct vb2_buffer *vb)
+{
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct vsi_v4l2_ctx *ctx = fh_to_ctx(vq->drv_priv);
+
+	if (vb->memory != VB2_MEMORY_MMAP)
+		return;
+
+	for (int i = 0; i < vb->num_planes; i++)
+		imx_mur_long_sub_and_del(ctx->recorder, vb->planes[i].length);
+}
+
 void vsiv4l2_set_hwinfo(struct vsi_v4l2_dev_info *hwinfo)
 {
 	int i, j;

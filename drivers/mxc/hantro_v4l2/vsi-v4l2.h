@@ -142,6 +142,8 @@ enum v4l2_daemon_cmd_id {
 	V4L2_DAEMON_VIDIOC_WARNONOPTION,
 	V4L2_DAEMON_VIDIOC_STREAMOFF_CAPTURE_DONE,
 	V4L2_DAEMON_VIDIOC_STREAMOFF_OUTPUT_DONE,
+	V4L2_DAEMON_VIDIOC_LINEAR_ALLOC,
+	V4L2_DAEMON_VIDIOC_LINEAR_FREE,
 	V4L2_DAEMON_VIDIOC_TOTAL_AMOUNT,
 };
 
@@ -646,6 +648,7 @@ struct vsi_v4l2_msg {
 	union {
 		struct v4l2_daemon_enc_params enc_params;
 		struct v4l2_daemon_dec_params dec_params;
+		u32 linear_size;
 	} params;
 };
 

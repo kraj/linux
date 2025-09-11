@@ -692,6 +692,10 @@ static int vsi_handle_daemonmsg(struct vsi_v4l2_msg *pmsg)
 	case V4L2_DAEMON_VIDIOC_STREAMOFF_CAPTURE_DONE:
 	case V4L2_DAEMON_VIDIOC_STREAMOFF_OUTPUT_DONE:
 		return vsi_v4l2_handle_streamoffdone(pmsg);
+	case V4L2_DAEMON_VIDIOC_LINEAR_ALLOC:
+		return vsi_v4l2_handle_linear_alloc(pmsg);
+	case V4L2_DAEMON_VIDIOC_LINEAR_FREE:
+		return vsi_v4l2_handle_linear_free(pmsg);
 	default:
 		return -EINVAL;
 	}
