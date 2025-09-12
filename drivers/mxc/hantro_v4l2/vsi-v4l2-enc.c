@@ -338,7 +338,7 @@ static int vsi_enc_streamoff(
 {
 	int i, ret;
 	u32 binput = binputqueue(type);
-	struct vsi_v4l2_ctx *ctx = fh_to_ctx(priv);
+	struct vsi_v4l2_ctx *ctx = fh_to_ctx(file_to_v4l2_fh(file));
 	struct vb2_queue *q;
 
 	v4l2_klog(LOGLVL_BRIEF, "%s:%d", __func__, type);
