@@ -1100,7 +1100,7 @@ static int wave6_vpu_enc_enum_framesizes(struct file *f, void *fh, struct v4l2_f
 
 static int wave6_vpu_enc_enum_fmt_cap(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	const struct vpu_format *vpu_fmt;
 
 	dev_dbg(inst->dev->dev, "index : %d\n", f->index);
@@ -1117,7 +1117,7 @@ static int wave6_vpu_enc_enum_fmt_cap(struct file *file, void *fh, struct v4l2_f
 
 static int wave6_vpu_enc_try_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	const struct vpu_format *vpu_fmt;
 	int width, height;
@@ -1235,7 +1235,7 @@ static void wave6_vpu_enc_set_roi_map(struct vpu_instance *inst, s32 *user_map, 
 
 static int wave6_vpu_enc_s_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	int i, ret;
 
@@ -1272,7 +1272,7 @@ static int wave6_vpu_enc_s_fmt_cap(struct file *file, void *fh, struct v4l2_form
 
 static int wave6_vpu_enc_g_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	int i;
 
@@ -1297,7 +1297,7 @@ static int wave6_vpu_enc_g_fmt_cap(struct file *file, void *fh, struct v4l2_form
 
 static int wave6_vpu_enc_enum_fmt_out(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	const struct vpu_format *vpu_fmt;
 
 	dev_dbg(inst->dev->dev, "%s: index %d\n", __func__, f->index);
@@ -1314,7 +1314,7 @@ static int wave6_vpu_enc_enum_fmt_out(struct file *file, void *fh, struct v4l2_f
 
 static int wave6_vpu_enc_try_fmt_out(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	const struct vpu_format *vpu_fmt;
 	int width, height;
@@ -1357,7 +1357,7 @@ static int wave6_vpu_enc_try_fmt_out(struct file *file, void *fh, struct v4l2_fo
 
 static int wave6_vpu_enc_s_fmt_out(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	const struct vpu_format *vpu_fmt;
 	int i, ret;
@@ -1402,7 +1402,7 @@ static int wave6_vpu_enc_s_fmt_out(struct file *file, void *fh, struct v4l2_form
 
 static int wave6_vpu_enc_g_fmt_out(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	int i;
 
@@ -1429,7 +1429,7 @@ static int wave6_vpu_enc_g_fmt_out(struct file *file, void *fh, struct v4l2_form
 
 static int wave6_vpu_enc_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 
 	dev_dbg(inst->dev->dev, "%s: type %d target %d\n",
 		__func__, s->type, s->target);
@@ -1457,7 +1457,7 @@ static int wave6_vpu_enc_g_selection(struct file *file, void *fh, struct v4l2_se
 
 static int wave6_vpu_enc_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	u32 max_crop_w, max_crop_h;
 
 	if (!V4L2_TYPE_IS_OUTPUT(s->type))
@@ -1507,7 +1507,7 @@ static int wave6_vpu_enc_s_selection(struct file *file, void *fh, struct v4l2_se
 
 static int wave6_vpu_enc_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd *ec)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 	int ret;
 
 	dev_dbg(inst->dev->dev, "%s: cmd %d\n", __func__, ec->cmd);
@@ -1536,7 +1536,7 @@ static int wave6_vpu_enc_encoder_cmd(struct file *file, void *fh, struct v4l2_en
 
 static int wave6_vpu_enc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 
 	dev_dbg(inst->dev->dev, "%s: type %d\n", __func__, a->type);
 
@@ -1557,7 +1557,7 @@ static int wave6_vpu_enc_g_parm(struct file *file, void *fh, struct v4l2_streamp
 
 static int wave6_vpu_enc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
-	struct vpu_instance *inst = wave6_to_vpu_inst(fh);
+	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(file));
 
 	dev_dbg(inst->dev->dev, "%s: type %d\n", __func__, a->type);
 
