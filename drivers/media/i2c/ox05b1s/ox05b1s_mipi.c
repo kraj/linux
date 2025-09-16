@@ -32,11 +32,9 @@ enum ox05b1s_stream_ids {
 #define client_to_ox05b1s(client)\
 	container_of(i2c_get_clientdata(client), struct ox05b1s, subdev)
 
-#define OX05B1S_MAX_SIZES 4
 struct ox05b1s_sizes {
 	u32	code;
-	u32	sizes_count;
-	u32	sizes[OX05B1S_MAX_SIZES][2];
+	const struct v4l2_area *sizes;
 };
 
 struct ox05b1s;
@@ -49,11 +47,9 @@ struct ox05b1s_plat_data {
 	u32				active_left;
 	u32				active_width;
 	u32				active_height;
-	const struct ox05b1s_mode		*supported_modes;
-	u32				supported_modes_count;
+	const struct ox05b1s_mode	*supported_modes;
 	u32				default_mode_index;
 	const struct ox05b1s_sizes	*supported_codes;
-	u32				supported_codes_count;
 	const char * const		*hdr_modes;
 	u32				hdr_modes_count;
 	int (*set_hdr_mode)(struct ox05b1s *sensor, u32 hdr_mode);
@@ -155,21 +151,43 @@ static struct ox05b1s_mode os08a20_supported_modes[] = {
 		.fps		= 30,
 		.reg_data	= os08a20_init_setting_4k,
 		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_4k),
-	},
+	}, {
+		/* sentinel */
+	}
 };
 
-/* keep in sync with os08a20_supported_modes*/
+/* keep in sync with os08a20_supported_modes */
+static const struct v4l2_area os08a20_sbggr10_sizes[] = {
+	{
+		.width = 1920,
+		.height = 1080,
+	}, {
+		.width = 3840,
+		.height = 2160,
+	}, {
+		/* sentinel */
+	}
+};
+
+static const struct v4l2_area os08a20_sbggr12_sizes[] = {
+	{
+		.width = 3840,
+		.height = 2160,
+	}, {
+		/* sentinel */
+	}
+};
 static const struct ox05b1s_sizes os08a20_supported_codes[] = {
 	{
 		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.sizes_count = 2,
-		.sizes = { {1920, 1080}, {3840, 2160} }
+		.sizes = os08a20_sbggr10_sizes
 	},
 	{
 		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
-		.sizes_count = 1,
-		.sizes = { {3840, 2160} }
-	},
+		.sizes = os08a20_sbggr12_sizes,
+	}, {
+		/* sentinel */
+	}
 };
 
 static struct ox05b1s_mode ox05b1s_supported_modes[] = {
@@ -186,16 +204,27 @@ static struct ox05b1s_mode ox05b1s_supported_modes[] = {
 		.fps		= 30,
 		.reg_data	= ovx5b_init_setting_2592x1944,
 		.reg_data_count	= ARRAY_SIZE(ovx5b_init_setting_2592x1944),
-	},
+	}, {
+		/* sentinel */
+	}
 };
 
-/* keep in sync with ox05b1s_supported_modes*/
+/* keep in sync with ox05b1s_supported_modes */
+static const struct v4l2_area ox05b1s_sgrbg10_sizes[] = {
+	{
+		.width = 2592,
+		.height = 1944,
+	}, {
+		/* sentinel */
+	}
+};
 static const struct ox05b1s_sizes ox05b1s_supported_codes[] = {
 	{
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
-		.sizes_count = 1,
-		.sizes = { {2592, 1944} }
-	},
+		.sizes = ox05b1s_sgrbg10_sizes,
+	}, {
+		/* sentinel */
+	}
 };
 
 static const struct regmap_config ox05b1s_regmap_config = {
@@ -732,15 +761,20 @@ static int ox05b1s_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
+	const struct ox05b1s_sizes *supported_codes = sensor->model->supported_codes;
+	int i = 0;
 
 	/* for internal pads, return the default code */
 	if (code->pad != OX05B1S_PAD_SRC)
 		return ox05b1s_enum_mbus_code_default(sd, code);
 
-	if (code->index >= sensor->model->supported_codes_count)
+	while (i++ < code->index && supported_codes->code)
+		supported_codes++;
+
+	if (!supported_codes->code) /* code->index outside supported_codes[] */
 		return -EINVAL;
 
-	code->code = sensor->model->supported_codes[code->index].code;
+	code->code = supported_codes->code;
 
 	return 0;
 }
@@ -771,30 +805,34 @@ static int ox05b1s_enum_frame_size(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
-	const struct ox05b1s_sizes *frame_sizes = NULL;
-	int i;
+	const struct ox05b1s_sizes *supported_codes = sensor->model->supported_codes;
+	const struct v4l2_area *sizes;
+	int i = 0;
 
 	/* for internal pads, return the default size */
 	if (fse->pad != OX05B1S_PAD_SRC)
 		return ox05b1s_enum_frame_size_default(sd, fse);
 
 	/* image streams */
-	for (i = 0; i < sensor->model->supported_codes_count; i++) {
-		if (sensor->model->supported_codes[i].code == fse->code) {
-			frame_sizes = &sensor->model->supported_codes[i];
+	while (supported_codes->code) {
+		if (supported_codes->code == fse->code)
 			break;
-		}
+		supported_codes++;
 	}
 
-	if (!frame_sizes)
+	if (!supported_codes->code) /* fse->code not in supported_codes[] */
 		return -EINVAL;
 
-	if (fse->index >= frame_sizes->sizes_count)
+	sizes = supported_codes->sizes;
+	while (i++ < fse->index && sizes->width)
+		sizes++;
+
+	if (!sizes->width) /* fse->index outside sizes[] */
 		return -EINVAL;
 
-	fse->min_width = frame_sizes->sizes[fse->index][0];
+	fse->min_width = sizes->width;
 	fse->max_width = fse->min_width;
-	fse->min_height = frame_sizes->sizes[fse->index][1];
+	fse->min_height = sizes->height;
 	fse->max_height = fse->min_height;
 
 	return 0;
@@ -888,30 +926,28 @@ out:
 
 /* similar with v4l2_find_nearest_size but filter for mbus code, needs sensor lock */
 static const struct ox05b1s_mode *ox05b1s_nearest_size(const struct ox05b1s_mode *supported_modes,
-						       u32 supported_modes_count,
 						       struct v4l2_subdev_format *fmt)
 {
-	u32 error, min_error = U32_MAX;
+	u32 err, min_error = U32_MAX;
 	const struct ox05b1s_mode *best = NULL;
-	unsigned int i;
 
 	if (!supported_modes)
 		return NULL;
 
-	for (i = 0; i < supported_modes_count; i++) {
-		const u32 w = supported_modes[i].width;
-		const u32 h = supported_modes[i].height;
+	for (; supported_modes->width; supported_modes++) {
+		const u32 w = supported_modes->width;
+		const u32 h = supported_modes->height;
 
-		if (supported_modes[i].code != fmt->format.code)
+		if (supported_modes->code != fmt->format.code)
 			continue;
 
-		error = abs(w - fmt->format.width) + abs(h - fmt->format.height);
-		if (error > min_error)
+		err = abs(w - fmt->format.width) + abs(h - fmt->format.height);
+		if (err > min_error)
 			continue;
 
-		min_error = error;
-		best = &supported_modes[i];
-		if (!error)
+		min_error = err;
+		best = supported_modes;
+		if (!err)
 			break;
 	}
 
@@ -921,18 +957,20 @@ static const struct ox05b1s_mode *ox05b1s_nearest_size(const struct ox05b1s_mode
 /* get a valid mbus code for the model, either the requested one or the default one */
 static u32 ox05b1s_find_code(const struct ox05b1s_plat_data *model, u32 code)
 {
+	const struct ox05b1s_sizes *supported_codes = model->supported_codes;
 	u32 found_code = 0;
-	unsigned int i;
 
-	for (i = 0; i < model->supported_codes_count; i++) {
-		if (model->supported_codes[i].code == code) {
+	while (supported_codes->code) {
+		if (supported_codes->code == code) {
 			found_code = code;
 			break;
 		}
+
+		supported_codes++;
 	}
 
-	if (!found_code)
-		found_code = model->supported_codes[model->default_mode_index].code;
+	if (!supported_codes->code) /* code not in supported_codes[] */
+		found_code = supported_codes[model->default_mode_index].code;
 
 	return found_code;
 }
@@ -954,8 +992,7 @@ static int ox05b1s_set_fmt(struct v4l2_subdev *sd,
 
 	/* if no matching mbus code is found, use the one from the default mode */
 	fmt->format.code = ox05b1s_find_code(sensor->model, fmt->format.code);
-	sensor->mode = ox05b1s_nearest_size(sensor->model->supported_modes,
-					    sensor->model->supported_modes_count, fmt);
+	sensor->mode = ox05b1s_nearest_size(sensor->model->supported_modes, fmt);
 	/* update controls that depend on current mode */
 	ox05b1s_update_controls(sensor);
 
@@ -1333,10 +1370,8 @@ static const struct ox05b1s_plat_data os08a20_data = {
 	.active_width		= 3840,
 	.active_height		= 2160,
 	.supported_modes	= os08a20_supported_modes,
-	.supported_modes_count	= ARRAY_SIZE(os08a20_supported_modes),
 	.default_mode_index	= 0,
 	.supported_codes	= os08a20_supported_codes,
-	.supported_codes_count	= ARRAY_SIZE(os08a20_supported_codes),
 	.hdr_modes		= os08a20_hdr_modes,
 	.hdr_modes_count	= ARRAY_SIZE(os08a20_hdr_modes),
 	.set_hdr_mode		= os08a20_set_hdr_mode,
@@ -1352,10 +1387,8 @@ static const struct ox05b1s_plat_data ox05b1s_data = {
 	.active_width		= 2592,
 	.active_height		= 1944,
 	.supported_modes	= ox05b1s_supported_modes,
-	.supported_modes_count	= ARRAY_SIZE(ox05b1s_supported_modes),
 	.default_mode_index	= 0,
 	.supported_codes	= ox05b1s_supported_codes,
-	.supported_codes_count	= ARRAY_SIZE(ox05b1s_supported_codes),
 	.hdr_modes		= ox05b1s_hdr_modes,
 	.hdr_modes_count	= ARRAY_SIZE(ox05b1s_hdr_modes),
 	.set_hdr_mode		= ox05b1s_set_hdr_mode,
