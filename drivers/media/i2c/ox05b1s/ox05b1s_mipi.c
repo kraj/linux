@@ -86,7 +86,7 @@ struct ox05b1s_mode {
 	u32 hts; /* default HTS */
 	u32 exp; /* max exposure */
 	bool h_bin; /* horizontal binning */
-	u32 fps;
+	s64 pixel_rate;
 	struct ox05b1s_reg *reg_data;
 	u32 reg_data_count;
 };
@@ -106,6 +106,8 @@ struct ox05b1s {
 	u64 enabled_source_streams;
 };
 
+#define OS08A20_PIXEL_RATE_144M	144000000
+#define OS08A20_PIXEL_RATE_288M	288000000
 static struct ox05b1s_mode os08a20_supported_modes[] = {
 	{
 		/* 1080p BGGR10, no hdr, 60fps */
@@ -118,12 +120,12 @@ static struct ox05b1s_mode os08a20_supported_modes[] = {
 		.hts		= 0x790,
 		.exp		= 0x4a4 - 8,
 		.h_bin		= true,
-		.fps		= 60,
+		.pixel_rate	= OS08A20_PIXEL_RATE_144M,
 		.reg_data	= os08a20_init_setting_1080p,
 		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_1080p),
 	},
 	{
-		/* 4k BGGR10, staggered hdr VC0/VC1, 15fps */
+		/* 4k BGGR10, no hdr, 30fps */
 		.index		= 1,
 		.width		= 3840,
 		.height		= 2160,
@@ -133,7 +135,7 @@ static struct ox05b1s_mode os08a20_supported_modes[] = {
 		.hts		= 0x818,
 		.exp		= 0x90a - 8,
 		.h_bin		= false,
-		.fps		= 15,
+		.pixel_rate	= OS08A20_PIXEL_RATE_288M,
 		.reg_data	= os08a20_init_setting_4k_hdr,
 		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_4k_hdr),
 	},
@@ -148,7 +150,7 @@ static struct ox05b1s_mode os08a20_supported_modes[] = {
 		.hts		= 0x818,
 		.exp		= 0x90a - 8,
 		.h_bin		= false,
-		.fps		= 30,
+		.pixel_rate	= OS08A20_PIXEL_RATE_288M,
 		.reg_data	= os08a20_init_setting_4k,
 		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_4k),
 	}, {
@@ -190,8 +192,10 @@ static const struct ox05b1s_sizes os08a20_supported_codes[] = {
 	}
 };
 
+#define OX05B1S_PIXEL_RATE_48M	48000000
 static struct ox05b1s_mode ox05b1s_supported_modes[] = {
 	{
+		/* 5Mp GRBG10, 30fps */
 		.index		= 0,
 		.width		= 2592,
 		.height		= 1944,
@@ -201,7 +205,7 @@ static struct ox05b1s_mode ox05b1s_supported_modes[] = {
 		.hts		= 0x2f0, /* 752 */
 		.exp		= 0x850 - 8,
 		.h_bin		= false,
-		.fps		= 30,
+		.pixel_rate	= OX05B1S_PIXEL_RATE_48M,
 		.reg_data	= ovx5b_init_setting_2592x1944,
 		.reg_data_count	= ARRAY_SIZE(ovx5b_init_setting_2592x1944),
 	}, {
@@ -847,8 +851,7 @@ static int ox05b1s_update_controls(struct ox05b1s *sensor)
 	u32 hblank;
 	u32 vts = sensor->mode->vts;
 	u32 vblank = vts - sensor->mode->height;
-	u32 fps = sensor->mode->fps;
-	u64 pixel_rate = (sensor->mode->h_bin) ? hts * vts * fps : 2 * hts * vts * fps;
+	u64 pixel_rate = sensor->mode->pixel_rate;
 	u32 min_exp = 8;
 	u32 max_exp = vts - 8;
 
