@@ -91,6 +91,8 @@ dpu95_drm_atomic_plane_duplicate_state(struct drm_plane *plane)
 	state = to_dpu95_plane_state(plane->state);
 	copy->stage = state->stage;
 	copy->source = state->source;
+	copy->hs = state->hs;
+	copy->vs = state->vs;
 	copy->blend = state->blend;
 	copy->is_top = state->is_top;
 
@@ -376,6 +378,8 @@ static int dpu95_plane_atomic_check(struct drm_plane *plane,
 	/* ok to disable */
 	if (!fb) {
 		new_dpstate->source = NULL;
+		new_dpstate->hs = NULL;
+		new_dpstate->vs = NULL;
 		new_dpstate->stage.ptr = NULL;
 		new_dpstate->blend = NULL;
 		return 0;
