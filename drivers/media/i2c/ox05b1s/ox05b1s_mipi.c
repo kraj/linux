@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <media/v4l2-cci.h>
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -28,6 +29,14 @@ enum ox05b1s_stream_ids {
 	OX05B1S_STREAM_IMGS, /* short exposure image stream */
 	OX05B1S_STREAM_NUM
 };
+
+#define OX05B1S_REG_SW_STB		CCI_REG8(0x0100)
+#define OX05B1S_REG_SW_RST		CCI_REG8(0x0103)
+#define OX05B1S_REG_CHIP_ID		CCI_REG24(0x300a)
+#define OX05B1S_REG_TIMING_HTS		CCI_REG16(0x380c)
+#define OX05B1S_REG_TIMING_VTS		CCI_REG16(0x380e)
+#define OX05B1S_REG_EXPOSURE		CCI_REG16(0x3501)
+#define OX05B1S_REG_GAIN		CCI_REG16(0x3508)
 
 #define client_to_ox05b1s(client)\
 	container_of(i2c_get_clientdata(client), struct ox05b1s, subdev)
@@ -66,11 +75,6 @@ struct ox05b1s_ctrls {
 	struct v4l2_ctrl *hdr_mode;
 };
 
-struct ox05b1s_reg {
-	u32 addr;
-	u32 data;
-};
-
 #include "os08a20_regs_1080p.h"
 #include "os08a20_regs_4k.h"
 #include "os08a20_regs_4k_hdr.h"
@@ -87,7 +91,7 @@ struct ox05b1s_mode {
 	u32 exp; /* max exposure */
 	bool h_bin; /* horizontal binning */
 	s64 pixel_rate;
-	struct ox05b1s_reg *reg_data;
+	const struct cci_reg_sequence *reg_data;
 	u32 reg_data_count;
 };
 
@@ -231,12 +235,6 @@ static const struct ox05b1s_sizes ox05b1s_supported_codes[] = {
 	}
 };
 
-static const struct regmap_config ox05b1s_regmap_config = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
-};
-
 static int ox05b1s_power_on(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
@@ -287,112 +285,42 @@ static int ox05b1s_runtime_resume(struct device *dev)
 	return ox05b1s_power_on(sensor);
 }
 
-static int ox05b1s_write_reg(struct ox05b1s *sensor, u16 reg, u8 val)
-{
-	struct device *dev = &sensor->i2c_client->dev;
-	int ret = 0;
-
-	ret = regmap_write(sensor->regmap, reg, val);
-	if (ret < 0)
-		dev_err(dev, "Failed to write reg addr 0x%04x with 0x%02x\n", reg, val);
-
-	return ret;
-}
-
-static int ox05b1s_read_reg(struct ox05b1s *sensor, u16 reg, u8 *val)
-{
-	struct device *dev = &sensor->i2c_client->dev;
-	int ret = 0;
-
-	ret = regmap_raw_read(sensor->regmap, reg, val, 1);
-	if (ret)
-		dev_err(dev, "Read reg error: reg=%x, val=%x\n", reg, *val);
-
-	return ret;
-}
-
-static int ox05b1s_update_bits(struct ox05b1s *sensor, u16 reg, unsigned int mask, u8 val)
-{
-	struct device *dev = &sensor->i2c_client->dev;
-	int ret = 0;
-
-	ret = regmap_update_bits(sensor->regmap, reg, mask, val);
-	if (ret < 0)
-		dev_err(dev, "Failed to update reg addr 0x%04x with 0x%02x\n", reg, val);
-
-	return ret;
-}
-
-#define OX05B1S_MAX_REG_BULK 16
-static int ox05b1s_write_reg_array(struct ox05b1s *sensor,
-				   const struct ox05b1s_reg *reg_array,
-				   u32 size)
-{
-	struct device *dev = &sensor->i2c_client->dev;
-	const struct ox05b1s_reg *table = reg_array;
-	u8 vals[OX05B1S_MAX_REG_BULK];
-	int i, j;
-	int ret;
-
-	for (j = 0; j < size; j++) {
-		table = &reg_array[j];
-		for (i = 0; i < OX05B1S_MAX_REG_BULK; i++) {
-			if (table[i].addr != (table[0].addr + i))
-				break;
-			vals[i] = table[i].data;
-		}
-		ret = regmap_bulk_write(sensor->regmap, table->addr, vals, i);
-		if (ret) {
-			dev_err(dev, "Failed to write reg addr=%x, count %d\n", table->addr, i);
-			return ret;
-		}
-		j += i - 1;
-	}
-
-	return 0;
-}
-
 static const char * const os08a20_hdr_modes[] = {
 	"NO HDR",		/* No HDR, single exposure */
 	"HDR Staggered",	/* Staggered HDR mode, 2 exposures on separate virtual channels */
 };
 
-#define OS08A20_REG_CORE1		0x3661
-#define OS08A20_STG_HDR_ALIGN_EN	BIT(0)
-
-#define OS08A20_REG_FORMAT2		0x3821
-#define OS08A20_STG_HDR_EN		BIT(5)
-
-#define OS08A20_REG_MIPI_CTRL_13	0x4813
-#define OS08A20_MISTERY_BIT3		BIT(3)
-
-#define OS08A20_REG_MIPI_CTRL_6E	0x486e
-#define OS08A20_MIPI_VC_ENABLE		BIT(2)
+static const struct cci_reg_sequence os08a20_init_setting_hdr_en[] = {
+	{CCI_REG8(0x3661), BIT(0)}, /* CORE1[0] STG_HDR_ALIGN_EN */
+	{CCI_REG8(0x3821), BIT(5)}, /* FORMAT2[5] STG_HDR_EN */
+	{CCI_REG8(0x4813), BIT(3)}, /* MIPI_CTRL_13[3] */
+	{CCI_REG8(0x486e), BIT(2)}, /* MIPI_CTRL_6E[2] MIPI_VC_ENABLE */
+};
 
 static int os08a20_enable_staggered_hdr(struct ox05b1s *sensor)
 {
-	int ret = 0;
+	int ret;
 
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_CORE1, OS08A20_STG_HDR_ALIGN_EN,
-				   OS08A20_STG_HDR_ALIGN_EN);
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_FORMAT2, OS08A20_STG_HDR_EN,
-				   OS08A20_STG_HDR_EN);
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_MIPI_CTRL_13, OS08A20_MISTERY_BIT3,
-				   OS08A20_MISTERY_BIT3);
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_MIPI_CTRL_6E, OS08A20_MIPI_VC_ENABLE,
-				   OS08A20_MIPI_VC_ENABLE);
+	for (int i = 0; i < ARRAY_SIZE(os08a20_init_setting_hdr_en); i++) {
+		ret = cci_update_bits(sensor->regmap,
+				      os08a20_init_setting_hdr_en[i].reg,
+				      os08a20_init_setting_hdr_en[i].val,
+				      os08a20_init_setting_hdr_en[i].val, &ret);
+	}
 
 	return ret;
 }
 
 static int os08a20_disable_staggered_hdr(struct ox05b1s *sensor)
 {
-	int ret = 0;
+	int ret;
 
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_CORE1, OS08A20_STG_HDR_ALIGN_EN, 0);
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_FORMAT2, OS08A20_STG_HDR_EN, 0);
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_MIPI_CTRL_13, OS08A20_MISTERY_BIT3, 0);
-	ret |= ox05b1s_update_bits(sensor, OS08A20_REG_MIPI_CTRL_6E, OS08A20_MIPI_VC_ENABLE, 0);
+	for (int i = 0; i < ARRAY_SIZE(os08a20_init_setting_hdr_en); i++) {
+		ret = cci_update_bits(sensor->regmap,
+				      os08a20_init_setting_hdr_en[i].reg,
+				      os08a20_init_setting_hdr_en[i].val,
+				      0, &ret);
+	}
 
 	return ret;
 }
@@ -415,41 +343,46 @@ static const char * const ox05b1s_hdr_modes[] = {
 };
 
 /* ctx0 for long exposure (IR) on VC0, ctx1 for short exposure (RGB) on VC1 */
-static const struct ox05b1s_reg ovx5b_init_setting_ctx_switch_en[] = {
-	{0x320a, 0x01}, /* frames stay in group0 */
-	{0x320b, 0x01}, /* frames stay in group1 */
+static const struct cci_reg_sequence ovx5b_init_setting_ctx_switch_en[] = {
+	{CCI_REG8(0x320a), 0x01}, /* frames stay in group0 */
+	{CCI_REG8(0x320b), 0x01}, /* frames stay in group1 */
 
-	{0x3208, 0x00}, /* group0 start */
-	{0x3501, 0x01}, /* exposure */
-	{0x3502, 0x00}, /* exposure */
-	{0x4813, 0x00}, /* mipi vc0 */
-	{0x3208, 0x10}, /* group0 end */
+	{CCI_REG8(0x3208), 0x00}, /* group0 start */
+	{CCI_REG8(0x3501), 0x01}, /* exposure */
+	{CCI_REG8(0x3502), 0x00}, /* exposure */
+	{CCI_REG8(0x4813), 0x00}, /* mipi vc0 */
+	{CCI_REG8(0x3208), 0x10}, /* group0 end */
 
-	{0x3208, 0x01}, /* group1 start */
-	{0x3501, 0x00}, /* exposure */
-	{0x3502, 0x80}, /* exposure */
-	{0x4813, 0x01}, /* mipi vc1 */
-	{0x3208, 0x11}, /* group1 end */
+	{CCI_REG8(0x3208), 0x01}, /* group1 start */
+	{CCI_REG8(0x3501), 0x00}, /* exposure */
+	{CCI_REG8(0x3502), 0x80}, /* exposure */
+	{CCI_REG8(0x4813), 0x01}, /* mipi vc1 */
+	{CCI_REG8(0x3208), 0x11}, /* group1 end */
 
-	{0x3211, 0x30}, /* context switch en */
-	{0x3208, 0xa0}, /* repeat launch */
+	{CCI_REG8(0x3211), 0x30}, /* context switch en */
+	{CCI_REG8(0x3208), 0xa0}, /* repeat launch */
+};
+
+static const struct cci_reg_sequence ovx5b_init_setting_ctx_switch_dis[] = {
+	{CCI_REG8(0x3211), 0x61},
+	{CCI_REG8(0x320a), 0x0},
+	{CCI_REG8(0x320b), 0x0},
 };
 
 static int ox05b1s_enable_context_switching(struct ox05b1s *sensor)
 {
-	return ox05b1s_write_reg_array(sensor, ovx5b_init_setting_ctx_switch_en,
-				       ARRAY_SIZE(ovx5b_init_setting_ctx_switch_en));
+	return cci_multi_reg_write(sensor->regmap,
+				   ovx5b_init_setting_ctx_switch_en,
+				   ARRAY_SIZE(ovx5b_init_setting_ctx_switch_en),
+				   NULL);
 }
 
 static int ox05b1s_disable_context_switching(struct ox05b1s *sensor)
 {
-	int ret;
-
-	ret = ox05b1s_write_reg(sensor, 0x3211, 0x61);
-	ret |= ox05b1s_write_reg(sensor, 0x320a, 0x0);
-	ret |= ox05b1s_write_reg(sensor, 0x320b, 0x0);
-
-	return ret ? -EIO : 0;
+	return cci_multi_reg_write(sensor->regmap,
+				   ovx5b_init_setting_ctx_switch_dis,
+				   ARRAY_SIZE(ovx5b_init_setting_ctx_switch_dis),
+				   NULL);
 }
 
 static int ox05b1s_set_hdr_mode(struct ox05b1s *sensor, u32 hdr_mode)
@@ -462,47 +395,6 @@ static int ox05b1s_set_hdr_mode(struct ox05b1s *sensor, u32 hdr_mode)
 	default:
 		return -EINVAL;
 	}
-}
-
-static int ox05b1s_set_hts(struct ox05b1s *sensor, u32 hts)
-{
-	int ret = 0;
-
-	ret |= ox05b1s_write_reg(sensor, 0x380c, (u8)(hts >> 8) & 0xff);
-	ret |= ox05b1s_write_reg(sensor, 0x380d, (u8)(hts & 0xff));
-
-	return ret;
-}
-
-static int ox05b1s_set_vts(struct ox05b1s *sensor, u32 vts)
-{
-	int ret = 0;
-
-	ret |= ox05b1s_write_reg(sensor, 0x380e, (u8)(vts >> 8) & 0xff);
-	ret |= ox05b1s_write_reg(sensor, 0x380f, (u8)(vts & 0xff));
-
-	return ret;
-}
-
-static int ox05b1s_set_exp(struct ox05b1s *sensor, u32 exp)
-{
-	int ret = 0;
-
-	ret |= ox05b1s_write_reg(sensor, 0x3501, (exp >> 8) & 0xff);
-	ret |= ox05b1s_write_reg(sensor, 0x3502, exp & 0xff);
-
-	return ret;
-}
-
-static int ox05b1s_set_analog_gain(struct ox05b1s *sensor, u32 again)
-{
-	int ret = 0;
-
-	/* real gain */
-	ret |= ox05b1s_write_reg(sensor, 0x3508, (again >> 8) & 0xff);
-	ret |= ox05b1s_write_reg(sensor, 0x3509, again & 0xff);
-
-	return ret;
 }
 
 static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
@@ -519,6 +411,7 @@ static int ox05b1s_s_ctrl(struct v4l2_ctrl *ctrl)
 	u32 w = sensor->mode->width;
 	u32 h = sensor->mode->height;
 	int ret = 0;
+	u32 hts;
 
 	/* apply V4L2 controls values only if power is already up */
 	if (!pm_runtime_get_if_in_use(&client->dev))
@@ -527,22 +420,25 @@ static int ox05b1s_s_ctrl(struct v4l2_ctrl *ctrl)
 	/* s_ctrl holds sensor lock */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
-		ret = ox05b1s_set_vts(sensor, h + ctrl->val);
+		ret = cci_write(sensor->regmap, OX05B1S_REG_TIMING_VTS,
+				h + ctrl->val, NULL);
 		break;
 	case V4L2_CID_HBLANK:
-		if (sensor->mode->h_bin)
-			ret = ox05b1s_set_hts(sensor, w + ctrl->val);
-		else
-			ret = ox05b1s_set_hts(sensor, (w + ctrl->val) / 2);
+		hts = (sensor->mode->h_bin) ?
+			  w + ctrl->val : (w + ctrl->val) / 2;
+		ret = cci_write(sensor->regmap, OX05B1S_REG_TIMING_HTS,
+				hts, NULL);
 		break;
 	case V4L2_CID_PIXEL_RATE:
 		/* Read-only, but we adjust it based on mode. */
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = ox05b1s_set_analog_gain(sensor, ctrl->val);
+		ret = cci_write(sensor->regmap, OX05B1S_REG_GAIN,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_EXPOSURE:
-		ret = ox05b1s_set_exp(sensor, ctrl->val);
+		ret = cci_write(sensor->regmap, OX05B1S_REG_EXPOSURE,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_HDR_SENSOR_MODE:
 		if (sensor->model->set_hdr_mode)
@@ -658,9 +554,10 @@ static int ox05b1s_s_stream(struct v4l2_subdev *sd, int enable)
 			return ret;
 		ret = ox05b1s_apply_current_mode(sensor);
 		if (!ret)
-			ret = ox05b1s_write_reg(sensor, 0x0100, 0x01);
+			ret = cci_write(sensor->regmap, OX05B1S_REG_SW_STB,
+					0x01, NULL);
 	} else {
-		ret = ox05b1s_write_reg(sensor, 0x0100, 0x00);
+		ret = cci_write(sensor->regmap, OX05B1S_REG_SW_STB, 0x00, NULL);
 	}
 
 	sensor->stream_status = enable;
@@ -903,14 +800,14 @@ out:
 static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
-	struct ox05b1s_reg *reg_data = NULL;
+	const struct cci_reg_sequence *reg_data = NULL;
 	int ret = 0;
 
-	ox05b1s_write_reg(sensor, 0x103, 0x01);
+	cci_write(sensor->regmap, OX05B1S_REG_SW_RST, 0x01, &ret);
 
 	reg_data = sensor->mode->reg_data;
-	ret = ox05b1s_write_reg_array(sensor, reg_data,
-				      sensor->mode->reg_data_count);
+	cci_multi_reg_write(sensor->regmap, reg_data,
+				  sensor->mode->reg_data_count, &ret);
 	if (ret)
 		goto out;
 
@@ -1197,17 +1094,11 @@ static void ox05b1s_get_gpios(struct ox05b1s *sensor)
 static int ox05b1s_read_chip_id(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
-	u32 chip_id = 0;
-	u8 reg_val = 0;
+	u64 chip_id;
 	char *camera_name;
-	int ret = 0;
+	int ret;
 
-	ret = ox05b1s_read_reg(sensor, 0x300a, &reg_val);
-	chip_id |= reg_val << 16;
-	ret |= ox05b1s_read_reg(sensor, 0x300b, &reg_val);
-	chip_id |= reg_val << 8;
-	ret |= ox05b1s_read_reg(sensor, 0x300c, &reg_val);
-	chip_id |= reg_val;
+	ret = cci_read(sensor->regmap, OX05B1S_REG_CHIP_ID, &chip_id, NULL);
 	if (ret) {
 		dev_err(dev, "Camera chip_id read error\n");
 		return -ENODEV;
@@ -1226,14 +1117,16 @@ static int ox05b1s_read_chip_id(struct ox05b1s *sensor)
 	}
 
 	if (chip_id == sensor->model->chip_id) {
-		dev_info(dev, "Camera %s detected, chip_id=%x\n", camera_name, chip_id);
+		dev_info(dev, "Camera %s detected, chip_id=%llx\n",
+			 camera_name, chip_id);
 	} else {
-		dev_err(dev, "Detected %s camera (chip_id=%x), but expected %s (chip_id=%x)\n",
-			camera_name, chip_id, sensor->model->name, sensor->model->chip_id);
-		ret = -ENODEV;
+		dev_err(dev, "Detected %s camera (chip_id=%llx), but expected %s (chip_id=%x)\n",
+			camera_name, chip_id,
+			sensor->model->name, sensor->model->chip_id);
+		return -ENODEV;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int ox05b1s_probe(struct i2c_client *client)
@@ -1247,11 +1140,10 @@ static int ox05b1s_probe(struct i2c_client *client)
 	if (!sensor)
 		return -ENOMEM;
 
-	sensor->regmap = devm_regmap_init_i2c(client, &ox05b1s_regmap_config);
-	if (IS_ERR(sensor->regmap)) {
-		dev_err(dev, "Failed to allocate sensor register map\n");
-		return PTR_ERR(sensor->regmap);
-	}
+	sensor->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(sensor->regmap))
+		return dev_err_probe(dev, PTR_ERR(sensor->regmap),
+				     "Failed to allocate sensor register map\n");
 
 	sensor->i2c_client = client;
 
