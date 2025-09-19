@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A V4L2 driver for Omnivision OX05B1S RGB-IR camera.
  *
@@ -112,7 +112,7 @@ struct ox05b1s {
 
 #define OS08A20_PIXEL_RATE_144M	144000000
 #define OS08A20_PIXEL_RATE_288M	288000000
-static struct ox05b1s_mode os08a20_supported_modes[] = {
+static const struct ox05b1s_mode os08a20_supported_modes[] = {
 	{
 		/* 1080p BGGR10, no hdr, 60fps */
 		.index		= 0,
@@ -183,6 +183,7 @@ static const struct v4l2_area os08a20_sbggr12_sizes[] = {
 		/* sentinel */
 	}
 };
+
 static const struct ox05b1s_sizes os08a20_supported_codes[] = {
 	{
 		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -197,7 +198,7 @@ static const struct ox05b1s_sizes os08a20_supported_codes[] = {
 };
 
 #define OX05B1S_PIXEL_RATE_48M	48000000
-static struct ox05b1s_mode ox05b1s_supported_modes[] = {
+static const struct ox05b1s_mode ox05b1s_supported_modes[] = {
 	{
 		/* 5Mp GRBG10, 30fps */
 		.index		= 0,
@@ -226,6 +227,7 @@ static const struct v4l2_area ox05b1s_sgrbg10_sizes[] = {
 		/* sentinel */
 	}
 };
+
 static const struct ox05b1s_sizes ox05b1s_supported_codes[] = {
 	{
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
@@ -238,7 +240,7 @@ static const struct ox05b1s_sizes ox05b1s_supported_codes[] = {
 static int ox05b1s_power_on(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
-	int ret = 0;
+	int ret;
 
 	/* get out of powerdown and reset */
 	gpiod_set_value_cansleep(sensor->rst_gpio, 0);
@@ -247,7 +249,7 @@ static int ox05b1s_power_on(struct ox05b1s *sensor)
 	if (ret < 0)
 		dev_err(dev, "Enable sensor clk fail ret=%d\n", ret);
 
-	/* with XVCLK@24MHz, t2 = 6ms required delay for ox05b1s before first SCCB transaction */
+	/* with XVCLK@24MHz, t2 = 6ms before first ox05b1s SCCB transaction */
 	fsleep(6000);
 
 	return ret;
@@ -260,8 +262,8 @@ static int ox05b1s_power_off(struct ox05b1s *sensor)
 	if (!sensor->sensor_clk)
 		return 0;
 
-	/* XVCLK must be active for 512 cycles (0.34 ms at 24MHz) after last SCCB transaction */
-	fsleep(350);
+	/* XVCLK must be active for 512 cycles after last SCCB transaction */
+	fsleep(350); /* 512 cycles = 0.34 ms at 24MHz */
 	clk_disable_unprepare(sensor->sensor_clk);
 
 	return 0;
@@ -286,8 +288,8 @@ static int ox05b1s_runtime_resume(struct device *dev)
 }
 
 static const char * const os08a20_hdr_modes[] = {
-	"NO HDR",		/* No HDR, single exposure */
-	"HDR Staggered",	/* Staggered HDR mode, 2 exposures on separate virtual channels */
+	"NO HDR", /* No HDR, single exposure */
+	"HDR Staggered", /* Staggered HDR mode, 2 exposures on separate VC */
 };
 
 static const struct cci_reg_sequence os08a20_init_setting_hdr_en[] = {
@@ -339,7 +341,7 @@ static int os08a20_set_hdr_mode(struct ox05b1s *sensor, u32 hdr_mode)
 
 static const char * const ox05b1s_hdr_modes[] = {
 	"NO context switch",	/* single exposure */
-	"Context switch, 2 exposures/VCs", /* context switch 2 exposures/VCs, for RGB and IR */
+	"Context switch, 2 exposures/VCs", /* context switch, RGB and IR */
 };
 
 /* ctx0 for long exposure (IR) on VC0, ctx1 for short exposure (RGB) on VC1 */
@@ -546,7 +548,7 @@ static int ox05b1s_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
-	int ret = 0;
+	int ret;
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -641,8 +643,8 @@ static int ox05b1s_init_state(struct v4l2_subdev *sd,
 	return ox05b1s_propagate_fmt(state, sensor->mode);
 }
 
-static int ox05b1s_enum_mbus_code_default(struct v4l2_subdev *sd,
-					  struct v4l2_subdev_mbus_code_enum *code)
+static int ox05b1s_enum_mbus_code_def(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
@@ -662,26 +664,26 @@ static int ox05b1s_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
-	const struct ox05b1s_sizes *supported_codes = sensor->model->supported_codes;
+	const struct ox05b1s_sizes *codes = sensor->model->supported_codes;
 	int i = 0;
 
 	/* for internal pads, return the default code */
 	if (code->pad != OX05B1S_PAD_SRC)
-		return ox05b1s_enum_mbus_code_default(sd, code);
+		return ox05b1s_enum_mbus_code_def(sd, code);
 
-	while (i++ < code->index && supported_codes->code)
-		supported_codes++;
+	while (i++ < code->index && codes->code)
+		codes++;
 
-	if (!supported_codes->code) /* code->index outside supported_codes[] */
+	if (!codes->code) /* code->index outside supported_codes[] */
 		return -EINVAL;
 
-	code->code = supported_codes->code;
+	code->code = codes->code;
 
 	return 0;
 }
 
-static int ox05b1s_enum_frame_size_default(struct v4l2_subdev *sd,
-					   struct v4l2_subdev_frame_size_enum *fse)
+static int ox05b1s_enum_frame_size_def(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
@@ -706,25 +708,25 @@ static int ox05b1s_enum_frame_size(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ox05b1s *sensor = client_to_ox05b1s(client);
-	const struct ox05b1s_sizes *supported_codes = sensor->model->supported_codes;
+	const struct ox05b1s_sizes *codes = sensor->model->supported_codes;
 	const struct v4l2_area *sizes;
 	int i = 0;
 
 	/* for internal pads, return the default size */
 	if (fse->pad != OX05B1S_PAD_SRC)
-		return ox05b1s_enum_frame_size_default(sd, fse);
+		return ox05b1s_enum_frame_size_def(sd, fse);
 
 	/* image streams */
-	while (supported_codes->code) {
-		if (supported_codes->code == fse->code)
+	while (codes->code) {
+		if (codes->code == fse->code)
 			break;
-		supported_codes++;
+		codes++;
 	}
 
-	if (!supported_codes->code) /* fse->code not in supported_codes[] */
+	if (!codes->code) /* fse->code not in supported_codes[] */
 		return -EINVAL;
 
-	sizes = supported_codes->sizes;
+	sizes = codes->sizes;
 	while (i++ < fse->index && sizes->width)
 		sizes++;
 
@@ -755,7 +757,7 @@ static int ox05b1s_update_controls(struct ox05b1s *sensor)
 	ret = __v4l2_ctrl_modify_range(sensor->ctrls.pixel_rate, pixel_rate,
 				       pixel_rate, 1, pixel_rate);
 	if (ret) {
-		dev_err(dev, "Modify range for ctrl: pixel_rate %llu-%llu failed\n",
+		dev_err(dev, "Modify range for pixel_rate %llu-%llu failed\n",
 			pixel_rate, pixel_rate);
 		goto out;
 	}
@@ -768,29 +770,32 @@ static int ox05b1s_update_controls(struct ox05b1s *sensor)
 	ret = __v4l2_ctrl_modify_range(sensor->ctrls.hblank, hblank, hblank,
 				       1, hblank);
 	if (ret) {
-		dev_err(dev, "Modify range for ctrl: hblank %u-%u failed\n",
+		dev_err(dev, "Modify range for hblank %u-%u failed\n",
 			hblank, hblank);
 		goto out;
 	}
-	__v4l2_ctrl_s_ctrl(sensor->ctrls.hblank, sensor->ctrls.hblank->default_value);
+	__v4l2_ctrl_s_ctrl(sensor->ctrls.hblank,
+			   sensor->ctrls.hblank->default_value);
 
 	ret = __v4l2_ctrl_modify_range(sensor->ctrls.vblank, 0, vblank * 4,
 				       1, vblank);
 	if (ret) {
-		dev_err(dev, "Modify range for ctrl: vblank %u-%u failed\n",
+		dev_err(dev, "Modify range for vblank %u-%u failed\n",
 			vblank, vblank);
 		goto out;
 	}
-	__v4l2_ctrl_s_ctrl(sensor->ctrls.vblank, sensor->ctrls.vblank->default_value);
+	__v4l2_ctrl_s_ctrl(sensor->ctrls.vblank,
+			   sensor->ctrls.vblank->default_value);
 
 	ret = __v4l2_ctrl_modify_range(sensor->ctrls.exposure, min_exp, max_exp,
 				       1, max_exp / 2);
 	if (ret) {
-		dev_err(dev, "Modify range for ctrl: exposure %u-%u failed\n",
+		dev_err(dev, "Modify range for exposure %u-%u failed\n",
 			min_exp, max_exp);
 		goto out;
 	}
-	__v4l2_ctrl_s_ctrl(sensor->ctrls.exposure, sensor->ctrls.exposure->default_value);
+	__v4l2_ctrl_s_ctrl(sensor->ctrls.exposure,
+			   sensor->ctrls.exposure->default_value);
 
 out:
 	return ret;
@@ -801,7 +806,7 @@ static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
 	const struct cci_reg_sequence *reg_data = NULL;
-	int ret = 0;
+	int ret;
 
 	cci_write(sensor->regmap, OX05B1S_REG_SW_RST, 0x01, &ret);
 
@@ -812,9 +817,7 @@ static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 		goto out;
 
 	/* setup handler will write actual controls into sensor registers */
-	ret =  __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
-	if (ret)
-		goto out;
+	ret = __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
 
 out:
 	if (ret < 0)
@@ -854,7 +857,7 @@ static const struct ox05b1s_mode *ox05b1s_nearest_size(const struct ox05b1s_mode
 	return best;
 }
 
-/* get a valid mbus code for the model, either the requested one or the default one */
+/* get a valid mbus code, either the requested one or the default one */
 static u32 ox05b1s_find_code(const struct ox05b1s_plat_data *model, u32 code)
 {
 	const struct ox05b1s_sizes *supported_codes = model->supported_codes;
@@ -890,7 +893,7 @@ static int ox05b1s_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->pad != OX05B1S_PAD_SRC || fmt->stream != OX05B1S_STREAM_IMGL)
 		return v4l2_subdev_get_fmt(sd, state, fmt);
 
-	/* if no matching mbus code is found, use the one from the default mode */
+	/* if no matching mbus codes found, use the one from the default mode */
 	fmt->format.code = ox05b1s_find_code(sensor->model, fmt->format.code);
 	sensor->mode = ox05b1s_nearest_size(sensor->model->supported_modes, fmt);
 	/* update controls that depend on current mode */
@@ -981,7 +984,8 @@ static int ox05b1s_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int ox05b1s_set_routing(struct v4l2_subdev *sd, struct v4l2_subdev_state *state,
+static int ox05b1s_set_routing(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state,
 			       enum v4l2_subdev_format_whence which,
 			       struct v4l2_subdev_krouting *routing)
 {
@@ -991,10 +995,12 @@ static int ox05b1s_set_routing(struct v4l2_subdev *sd, struct v4l2_subdev_state 
 	struct v4l2_subdev_route *route;
 	struct v4l2_ctrl *hdr_ctrl = sensor->ctrls.hdr_mode;
 
-	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && media_entity_is_streaming(&sd->entity))
+	if (which == V4L2_SUBDEV_FORMAT_ACTIVE &&
+	    media_entity_is_streaming(&sd->entity))
 		return -EBUSY;
 
-	ret = v4l2_subdev_routing_validate(sd, routing, V4L2_SUBDEV_ROUTING_ONLY_1_TO_1);
+	ret = v4l2_subdev_routing_validate(sd, routing,
+					   V4L2_SUBDEV_ROUTING_ONLY_1_TO_1);
 	if (ret)
 		return ret;
 
@@ -1019,7 +1025,8 @@ static int ox05b1s_set_routing(struct v4l2_subdev *sd, struct v4l2_subdev_state 
 	return 0;
 }
 
-static int ox05b1s_enable_streams(struct v4l2_subdev *sd, struct v4l2_subdev_state *state,
+static int ox05b1s_enable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
 				  u32 src_pad, u64 streams_mask)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1039,7 +1046,8 @@ static int ox05b1s_enable_streams(struct v4l2_subdev *sd, struct v4l2_subdev_sta
 	return 0;
 }
 
-static int ox05b1s_disable_streams(struct v4l2_subdev *sd, struct v4l2_subdev_state *state,
+static int ox05b1s_disable_streams(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state,
 				   u32 src_pad, u64 streams_mask)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1088,7 +1096,7 @@ static void ox05b1s_get_gpios(struct ox05b1s *sensor)
 	sensor->rst_gpio = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->rst_gpio))
-		dev_warn(dev, "No sensor reset pin available");
+		dev_warn(dev, "No sensor reset pin available\n");
 }
 
 static int ox05b1s_read_chip_id(struct ox05b1s *sensor)
@@ -1131,7 +1139,7 @@ static int ox05b1s_read_chip_id(struct ox05b1s *sensor)
 
 static int ox05b1s_probe(struct i2c_client *client)
 {
-	int retval;
+	int ret;
 	struct device *dev = &client->dev;
 	struct v4l2_subdev *sd;
 	struct ox05b1s *sensor;
@@ -1164,25 +1172,27 @@ static int ox05b1s_probe(struct i2c_client *client)
 	sd->dev = &client->dev;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sensor->pads[OX05B1S_PAD_SRC].flags = MEDIA_PAD_FL_SOURCE;
-	sensor->pads[OX05B1S_PAD_IMGL].flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_INTERNAL;
-	sensor->pads[OX05B1S_PAD_IMGS].flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_INTERNAL;
-	retval = media_entity_pads_init(&sd->entity, OX05B1S_PAD_NUM,
-					sensor->pads);
-	if (retval) {
-		dev_err(dev, "Failed to init pads\n");
+	sensor->pads[OX05B1S_PAD_IMGL].flags = MEDIA_PAD_FL_SINK |
+					       MEDIA_PAD_FL_INTERNAL;
+	sensor->pads[OX05B1S_PAD_IMGS].flags = MEDIA_PAD_FL_SINK |
+					       MEDIA_PAD_FL_INTERNAL;
+	ret = media_entity_pads_init(&sd->entity, OX05B1S_PAD_NUM,
+				     sensor->pads);
+	if (ret)
 		goto probe_out;
-	}
 
-	mutex_init(&sensor->lock);
+	ret = devm_mutex_init(dev, &sensor->lock);
+	if (ret)
+		goto probe_out;
 
-	retval = ox05b1s_init_controls(sensor);
-	if (retval)
+	ret = ox05b1s_init_controls(sensor);
+	if (ret)
 		goto probe_err_entity_cleanup;
 
 	/* power on manually */
-	retval = ox05b1s_power_on(sensor);
-	if (retval) {
-		dev_err(dev, "Failed to power on\n");
+	ret = ox05b1s_power_on(sensor);
+	if (ret) {
+		dev_err_probe(dev, ret, "Failed to power on\n");
 		goto probe_err_free_ctrls;
 	}
 
@@ -1190,8 +1200,8 @@ static int ox05b1s_probe(struct i2c_client *client)
 	pm_runtime_get_noresume(dev);
 	pm_runtime_enable(dev);
 
-	retval = ox05b1s_read_chip_id(sensor);
-	if (retval)
+	ret = ox05b1s_read_chip_id(sensor);
+	if (ret)
 		goto probe_err_pm_runtime;
 
 	v4l2_i2c_subdev_set_name(sd, client, sensor->model->name, NULL);
@@ -1201,15 +1211,16 @@ static int ox05b1s_probe(struct i2c_client *client)
 
 	/* Centrally managed subdev active state */
 	sd->state_lock = &sensor->lock;
-	retval = v4l2_subdev_init_finalize(sd);
-	if (retval < 0) {
-		dev_err(dev, "Subdev init error: %d\n", retval);
+	ret = v4l2_subdev_init_finalize(sd);
+	if (ret < 0) {
+		dev_err_probe(dev, ret, "Subdev init error: %d\n", ret);
 		goto probe_err_pm_runtime;
 	}
 
-	retval = v4l2_async_register_subdev_sensor(sd);
-	if (retval < 0) {
-		dev_err(&client->dev, "Async register failed, ret=%d\n", retval);
+	ret = v4l2_async_register_subdev_sensor(sd);
+	if (ret < 0) {
+		dev_err_probe(&client->dev, ret,
+			      "Async register failed, ret=%d\n", ret);
 		goto probe_err_subdev_cleanup;
 	}
 
@@ -1230,7 +1241,7 @@ probe_err_free_ctrls:
 probe_err_entity_cleanup:
 	media_entity_cleanup(&sd->entity);
 probe_out:
-	return retval;
+	return ret;
 }
 
 static void ox05b1s_remove(struct i2c_client *client)
@@ -1247,19 +1258,16 @@ static void ox05b1s_remove(struct i2c_client *client)
 	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
-	mutex_destroy(&sensor->lock);
 }
 
-static const struct dev_pm_ops ox05b1s_pm_ops = {
-	SET_RUNTIME_PM_OPS(ox05b1s_runtime_suspend,
-			   ox05b1s_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ox05b1s_pm_ops, ox05b1s_runtime_suspend,
+				 ox05b1s_runtime_resume, NULL);
 
 static const struct ox05b1s_plat_data os08a20_data = {
 	.name			= "os08a20",
 	.chip_id		= 0x530841,
-	.native_width		= 3872, /* 16 dummy + 3840 active pixels + 16 dummy */
-	.native_height		= 2192, /* 16 dummy + 2160 active lines + 16 dummy */
+	.native_width		= 3872, /* 16 dummy + 3840 active + 16 dummy */
+	.native_height		= 2192, /* 16 dummy + 2160 active + 16 dummy */
 	.active_top		= 16,
 	.active_left		= 16,
 	.active_width		= 3840,
@@ -1275,8 +1283,8 @@ static const struct ox05b1s_plat_data os08a20_data = {
 static const struct ox05b1s_plat_data ox05b1s_data = {
 	.name			= "ox05b1s",
 	.chip_id		= 0x580542,
-	.native_width		= 2608, /* 8 dummy + 2592 active pixels + 8 dummy */
-	.native_height		= 1960, /* 8 dummy + 1944 active lines + 8 dummy */
+	.native_width		= 2608, /* 8 dummy + 2592 active + 8 dummy */
+	.native_height		= 1960, /* 8 dummy + 1944 active + 8 dummy */
 	.active_top		= 8,
 	.active_left		= 8,
 	.active_width		= 2592,
@@ -1311,9 +1319,8 @@ MODULE_DEVICE_TABLE(of, ox05b1s_of_match);
 
 static struct i2c_driver ox05b1s_i2c_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
-		.name  = "ox05b1s",
-		.pm = &ox05b1s_pm_ops,
+		.name = "ox05b1s",
+		.pm = pm_ptr(&ox05b1s_pm_ops),
 		.of_match_table	= ox05b1s_of_match,
 	},
 	.probe	= ox05b1s_probe,
@@ -1323,4 +1330,5 @@ static struct i2c_driver ox05b1s_i2c_driver = {
 
 module_i2c_driver(ox05b1s_i2c_driver);
 MODULE_DESCRIPTION("Omnivision OX05B1S MIPI Camera Subdev Driver");
+MODULE_AUTHOR("Mirela Rabulea <mirela.rabulea@nxp.com>");
 MODULE_LICENSE("GPL");
