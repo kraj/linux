@@ -111,10 +111,6 @@ static const struct cci_reg_sequence os08a20_init_setting_1080p[] = {
 	{CCI_REG8(0x3805), 0xff},
 	{CCI_REG8(0x3806), 0x08},
 	{CCI_REG8(0x3807), 0x6f},
-	{CCI_REG8(0x3808), 0x07}, /* X output size (default 0x07) */
-	{CCI_REG8(0x3809), 0x80}, /* X output size (default 0x80) */
-	{CCI_REG8(0x380a), 0x04}, /* Y output size (default 0x04) */
-	{CCI_REG8(0x380b), 0x38}, /* Y output size (default 0x38) */
 	{CCI_REG8(0x380c), 0x07}, /* HTS[15:8], total horizontal timing size */
 	{CCI_REG8(0x380d), 0x90}, /* HTS[7:0],  total horizontal timing size */
 	{CCI_REG8(0x380e), 0x04}, /* VTS[15:8], total vertical timing (default 0x04) */

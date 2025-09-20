@@ -96,10 +96,6 @@ static const struct cci_reg_sequence os08a20_init_setting_4k_hdr[] = {
 	{CCI_REG8(0x3805), 0xff},
 	{CCI_REG8(0x3806), 0x08},
 	{CCI_REG8(0x3807), 0x6f},
-	{CCI_REG8(0x3808), 0x0f}, /* X output size (default 0x07) */
-	{CCI_REG8(0x3809), 0x00}, /* X output size (default 0x80) */
-	{CCI_REG8(0x380a), 0x08}, /* Y output size (default 0x04) */
-	{CCI_REG8(0x380b), 0x70}, /* Y output size (default 0x38) */
 	{CCI_REG8(0x380c), 0x08}, /* HTS[15:8], total horizontal timing size */
 	{CCI_REG8(0x380d), 0x18}, /* HTS[7:0],  total horizontal timing size */
 	{CCI_REG8(0x380e), 0x09}, /* VTS[15:8], total vertical timing (default 0x04) */

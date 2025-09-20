@@ -324,10 +324,6 @@ static const struct cci_reg_sequence ovx5b_init_setting_2592x1944[] = {
 	{CCI_REG8(0x3805), 0x2f},
 	{CCI_REG8(0x3806), 0x07},
 	{CCI_REG8(0x3807), 0xa7},
-	{CCI_REG8(0x3808), 0x0a}, /* width 2592 = 0xa20*/
-	{CCI_REG8(0x3809), 0x20}, /* width */
-	{CCI_REG8(0x380a), 0x07}, /* height 1944 = 0x798*/
-	{CCI_REG8(0x380b), 0x98}, /* height */
 	{CCI_REG8(0x380c), 0x02},
 	{CCI_REG8(0x380d), 0xf0},
 	{CCI_REG8(0x380e), 0x08},

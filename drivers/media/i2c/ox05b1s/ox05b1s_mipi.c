@@ -37,6 +37,8 @@ enum ox05b1s_stream_ids {
 #define OX05B1S_REG_TIMING_VTS		CCI_REG16(0x380e)
 #define OX05B1S_REG_EXPOSURE		CCI_REG16(0x3501)
 #define OX05B1S_REG_GAIN		CCI_REG16(0x3508)
+#define OX05B1S_REG_X_OUTPUT_SIZE	CCI_REG16(0x3808)
+#define OX05B1S_REG_Y_OUTPUT_SIZE	CCI_REG16(0x380a)
 
 #define client_to_ox05b1s(client)\
 	container_of(i2c_get_clientdata(client), struct ox05b1s, subdev)
@@ -806,6 +808,8 @@ static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
 	const struct cci_reg_sequence *reg_data = NULL;
+	u32 w = sensor->mode->width;
+	u32 h = sensor->mode->height;
 	int ret;
 
 	cci_write(sensor->regmap, OX05B1S_REG_SW_RST, 0x01, &ret);
@@ -813,6 +817,10 @@ static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 	reg_data = sensor->mode->reg_data;
 	cci_multi_reg_write(sensor->regmap, reg_data,
 				  sensor->mode->reg_data_count, &ret);
+
+	cci_write(sensor->regmap, OX05B1S_REG_X_OUTPUT_SIZE, w, &ret);
+	cci_write(sensor->regmap, OX05B1S_REG_Y_OUTPUT_SIZE, h, &ret);
+
 	if (ret)
 		goto out;
 
@@ -821,8 +829,8 @@ static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 
 out:
 	if (ret < 0)
-		dev_err(dev, "Failed to apply mode %dx%d,bpp=%d\n", sensor->mode->width,
-			sensor->mode->height, sensor->mode->bpp);
+		dev_err(dev, "Failed to apply mode %dx%d,bpp=%d\n", w, h,
+			sensor->mode->bpp);
 
 	return ret;
 }
