@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-cci.h>
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
@@ -97,10 +98,20 @@ struct ox05b1s_mode {
 	u32 reg_data_count;
 };
 
+/* regulator supplies */
+static const char * const ox05b1s_supply_name[] = {
+	"avdd",  /* Analog voltage supply, 2.8 volts */
+	"dvdd",  /* Digital I/O voltage supply, 1.8 volts */
+	"dovdd", /* Digital voltage supply, 1.2 volts */
+};
+
+#define OX05B1S_NUM_SUPPLIES ARRAY_SIZE(ox05b1s_supply_name)
+
 struct ox05b1s {
 	struct i2c_client *i2c_client;
 	struct regmap *regmap;
 	struct gpio_desc *rst_gpio;
+	struct regulator_bulk_data supplies[OX05B1S_NUM_SUPPLIES];
 	struct clk *sensor_clk;
 	const struct ox05b1s_plat_data *model;
 	struct v4l2_subdev subdev;
@@ -244,15 +255,28 @@ static int ox05b1s_power_on(struct ox05b1s *sensor)
 	struct device *dev = &sensor->i2c_client->dev;
 	int ret;
 
+	ret = regulator_bulk_enable(OX05B1S_NUM_SUPPLIES, sensor->supplies);
+	if (ret) {
+		dev_err(dev, "Failed to enable regulators\n");
+		return ret;
+	}
+
 	/* get out of powerdown and reset */
 	gpiod_set_value_cansleep(sensor->rst_gpio, 0);
 
 	ret = clk_prepare_enable(sensor->sensor_clk);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "Enable sensor clk fail ret=%d\n", ret);
+		goto reg_off;
+	}
 
 	/* with XVCLK@24MHz, t2 = 6ms before first ox05b1s SCCB transaction */
 	fsleep(6000);
+
+	return 0;
+
+reg_off:
+	regulator_bulk_disable(OX05B1S_NUM_SUPPLIES, sensor->supplies);
 
 	return ret;
 }
@@ -267,6 +291,8 @@ static int ox05b1s_power_off(struct ox05b1s *sensor)
 	/* XVCLK must be active for 512 cycles after last SCCB transaction */
 	fsleep(350); /* 512 cycles = 0.34 ms at 24MHz */
 	clk_disable_unprepare(sensor->sensor_clk);
+
+	regulator_bulk_disable(OX05B1S_NUM_SUPPLIES, sensor->supplies);
 
 	return 0;
 }
@@ -1107,6 +1133,18 @@ static void ox05b1s_get_gpios(struct ox05b1s *sensor)
 		dev_warn(dev, "No sensor reset pin available\n");
 }
 
+static int ox05b1s_get_regulators(struct ox05b1s *sensor)
+{
+	struct device *dev = &sensor->i2c_client->dev;
+	unsigned int i;
+
+	for (i = 0; i < OX05B1S_NUM_SUPPLIES; i++)
+		sensor->supplies[i].supply = ox05b1s_supply_name[i];
+
+	return devm_regulator_bulk_get(dev, OX05B1S_NUM_SUPPLIES,
+				       sensor->supplies);
+}
+
 static int ox05b1s_read_chip_id(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
@@ -1172,6 +1210,10 @@ static int ox05b1s_probe(struct i2c_client *client)
 		sensor->sensor_clk = NULL;
 		dev_warn(dev, "Sensor csi_mclk is missing, using oscillator from sensor module\n");
 	}
+
+	ret = ox05b1s_get_regulators(sensor);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get regulators\n");
 
 	sd = &sensor->subdev;
 	v4l2_i2c_subdev_init(sd, client, &ox05b1s_subdev_ops);
