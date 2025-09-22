@@ -1319,6 +1319,88 @@ static const struct phy_ops lynx_28g_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static const char *lynx_refclk_str(int refclk)
+{
+	switch (refclk) {
+	case PLLnCR0_REFCLK_SEL_100MHZ:
+		return "100MHz";
+	case PLLnCR0_REFCLK_SEL_125MHZ:
+		return "125MHz";
+	case PLLnCR0_REFCLK_SEL_156MHZ:
+		return "156.25MHz";
+	case PLLnCR0_REFCLK_SEL_150MHZ:
+		return "150MHz";
+	case PLLnCR0_REFCLK_SEL_161MHZ:
+		return "161.1328125MHz";
+	default:
+		return "unknown";
+	}
+}
+
+static const char *lynx_28g_clock_net_str(int frate)
+{
+	switch (frate) {
+	case PLLnCR1_FRATE_5G_10GVCO:
+		return "5 GHz on 10 GHz VCO";
+	case PLLnCR1_FRATE_5G_25GVCO:
+		return "5 GHz on 25 GHz VCO";
+	case PLLnCR1_FRATE_10G_20GVCO:
+		return "10.3125 GHz on 20.625 GHz VCO";
+	case PLLnCR1_FRATE_12G_25GVCO:
+		return "12.890625 GHz on 25.78125 GHz VCO";
+	default:
+		return "unknown";
+	}
+}
+
+#define LYNX_28G_SUPPORT_BUF_LEN	128
+
+static void lynx_28g_pll_dump(struct lynx_28g_pll *pll)
+{
+	struct lynx_28g_priv *priv = pll->priv;
+	char buf[LYNX_28G_SUPPORT_BUF_LEN];
+	struct device *dev = priv->dev;
+	enum lynx_lane_mode mode;
+	int total_len = 0, len;
+	bool truncated = false;
+	int i;
+
+	dev_info(dev, "PLL%c: %s, %s, reference clock %s, clock net %s\n",
+		 pll->id == 0 ? 'F' : 'S',
+		 PLLnRSTCTL_DIS(pll->rstctl) ? "disabled" : "enabled",
+		 PLLnRSTCTL_LOCK(pll->rstctl) ? "locked" : "unlocked",
+		 lynx_refclk_str(FIELD_GET(PLLnCR0_REFCLK_SEL, pll->cr0)),
+		 lynx_28g_clock_net_str(FIELD_GET(PLLnCR1_FRATE_SEL, pll->cr1)));
+
+	if (PLLnRSTCTL_DIS(pll->rstctl))
+		return;
+
+	for (mode = LANE_MODE_UNKNOWN; mode < LANE_MODE_MAX; mode++) {
+		if (!test_bit(mode, pll->supported))
+			continue;
+
+		for (i = priv->info->first_lane; i < LYNX_28G_NUM_LANE; i++) {
+			if (!priv->info->lane_supports_mode(i, mode))
+				continue;
+
+			len = snprintf(&buf[total_len],
+				       LYNX_28G_SUPPORT_BUF_LEN - total_len,
+				       " %s", lynx_lane_mode_str(mode));
+			if (len >= LYNX_28G_SUPPORT_BUF_LEN - total_len)
+				truncated = true;
+			total_len += len;
+
+			break;
+		}
+
+		if (truncated)
+			break;
+	}
+
+	dev_info(dev, "\tSupported lane modes:%s%s\n", buf,
+		 truncated ? " (truncated)" : "");
+}
+
 static void lynx_28g_pll_read_configuration(struct lynx_28g_priv *priv)
 {
 	struct lynx_28g_pll *pll;
@@ -1356,6 +1438,9 @@ static void lynx_28g_pll_read_configuration(struct lynx_28g_priv *priv)
 			break;
 		}
 	}
+
+	for (i = 0; i < LYNX_28G_NUM_PLL; i++)
+		lynx_28g_pll_dump(&priv->pll[i]);
 }
 
 #define work_to_lynx(w) container_of((w), struct lynx_28g_priv, cdr_check.work)
