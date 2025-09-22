@@ -30,7 +30,7 @@
 #include <linux/iopoll.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <linux/dma/imx-dma.h>
 #include <linux/busfreq-imx.h>
 #include <linux/pm_qos.h>
@@ -2711,8 +2711,8 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 {
 	struct tty_port *port = &sport->port.state->port;
 	struct device *tty_dev;
-	bool may_wake = false;
-	u32 ucr3;
+	bool may_wake = false, wake_active = false;
+	u32 ucr3, usr1;
 
 	scoped_guard(tty_port_tty, port) {
 		struct tty_struct *tty = scoped_tty();
@@ -2727,12 +2727,14 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 
 	uart_port_lock_irq(&sport->port);
 
+	usr1 = imx_uart_readl(sport, USR1);
 	ucr3 = imx_uart_readl(sport, UCR3);
 	if (on) {
 		imx_uart_writel(sport, USR1_AWAKE, USR1);
 		ucr3 |= UCR3_AWAKEN;
 	} else {
 		ucr3 &= ~UCR3_AWAKEN;
+		wake_active = usr1 & USR1_AWAKE;
 	}
 	imx_uart_writel(sport, ucr3, UCR3);
 
@@ -2743,9 +2745,13 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 			ucr1 |= UCR1_RTSDEN;
 		} else {
 			ucr1 &= ~UCR1_RTSDEN;
+			wake_active = wake_active || (usr1 & USR1_RTSD);
 		}
 		imx_uart_writel(sport, ucr1, UCR1);
 	}
+
+	if (wake_active && irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq)))
+		pm_wakeup_event(tty_port_tty_get(port)->dev, 0);
 
 	uart_port_unlock_irq(&sport->port);
 }
