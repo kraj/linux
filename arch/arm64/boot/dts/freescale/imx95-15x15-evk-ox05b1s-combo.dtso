@@ -27,6 +27,9 @@
 		reg = <0x36>;
 		pinctrl-0 = <&pinctrl_mipi_dsi_csi_rst>;
 		reset-gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
+		avdd-supply = <&reg_dummy>;
+		dovdd-supply = <&reg_dummy>;
+		dvdd-supply = <&reg_dummy>;
 		orientation = <2>;
 		rotation = <0>;
 		status = "okay";
