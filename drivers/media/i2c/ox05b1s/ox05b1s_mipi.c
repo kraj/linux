@@ -285,9 +285,6 @@ static int ox05b1s_power_off(struct ox05b1s *sensor)
 {
 	gpiod_set_value_cansleep(sensor->rst_gpio, 1);
 
-	if (!sensor->sensor_clk)
-		return 0;
-
 	/* XVCLK must be active for 512 cycles after last SCCB transaction */
 	fsleep(350); /* 512 cycles = 0.34 ms at 24MHz */
 	clk_disable_unprepare(sensor->sensor_clk);
@@ -1205,11 +1202,11 @@ static int ox05b1s_probe(struct i2c_client *client)
 
 	ox05b1s_get_gpios(sensor);
 
-	sensor->sensor_clk = devm_clk_get(dev, "csi_mclk");
-	if (IS_ERR(sensor->sensor_clk)) {
-		sensor->sensor_clk = NULL;
-		dev_warn(dev, "Sensor csi_mclk is missing, using oscillator from sensor module\n");
-	}
+	/* Get system clock, xvclk */
+	sensor->sensor_clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(sensor->sensor_clk))
+		return dev_err_probe(dev, PTR_ERR(sensor->sensor_clk),
+				     "Failed to get xvclk\n");
 
 	ret = ox05b1s_get_regulators(sensor);
 	if (ret)
