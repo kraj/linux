@@ -1234,6 +1234,15 @@ static int vsi_v4l2_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_ROI_MAP_DELTA_QP:
 		vsi_vpu_enc_set_roi_map(ctx, ctrl->p_new.p, ctrl->new_elems);
 		break;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE:
+		fallthrough;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
+		fallthrough;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_WIDTH:
+		fallthrough;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_HEIGHT:
+		set_bit(CTX_FLAG_SARUPDATE, &ctx->flag);
+		break;
 	default:
 		return 0;
 	}
@@ -1716,6 +1725,18 @@ static int vsi_setup_enc_ctrls(struct v4l2_ctrl_handler *handler)
 		}
 	}
 
+	v4l2_ctrl_new_std(handler, &vsi_encctrl_ops, V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE,
+			  0, 1, 1, 0);
+	v4l2_ctrl_new_std_menu(handler, &vsi_encctrl_ops, V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC,
+			       V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED, 0,
+			       V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED);
+	v4l2_ctrl_new_std(handler, &vsi_encctrl_ops, V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_WIDTH,
+			  0, 0xFFFF, 1, 0);
+	v4l2_ctrl_new_std(handler, &vsi_encctrl_ops, V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_HEIGHT,
+			  0, 0xFFFF, 1, 0);
+
+	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_MPEG_VIDEO_AVERAGE_QP, 0, 127, 1, 0);
+
 	v4l2_ctrl_new_std_menu(handler, &vsi_encctrl_ops,
 			       V4L2_CID_MPEG_VIDEO_ROI_MODE,
 			       V4L2_MPEG_VIDEO_ROI_MODE_MAP_DELTA_QP,
@@ -1723,8 +1744,6 @@ static int vsi_setup_enc_ctrls(struct v4l2_ctrl_handler *handler)
 				 (dev_info->enc_isH1 ? BIT(V4L2_MPEG_VIDEO_ROI_MODE_RECT_DELTA_QP) :
 						       BIT(V4L2_MPEG_VIDEO_ROI_MODE_MAP_DELTA_QP))),
 			       V4L2_MPEG_VIDEO_ROI_MODE_NONE);
-
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_MPEG_VIDEO_AVERAGE_QP, 0, 127, 1, 0);
 
 	v4l2_ctrl_new_custom(handler, &vsi_vpu_enc_ctrl_roi_block_size, NULL);
 	if (dev_info->enc_isH1) {

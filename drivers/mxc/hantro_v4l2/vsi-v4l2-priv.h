@@ -308,6 +308,7 @@ enum {
 	CTX_FLAG_CAPTUREOFFDONE,			// daemon finish handling capoff
 	CTX_FLAG_OUTPUTOFFDONE,				// daemon finish handling outputoff
 	CTX_FLAG_RECTROIUPDATE,				// daemon finish handling outputoff
+	CTX_FLAG_SARUPDATE,				// SAR is updated
 };
 
 /* flag for decoder buffer*/
@@ -488,6 +489,7 @@ int vsiv4l2_verifycrop(struct v4l2_selection *s);
 void vsi_v4l2_update_ctrlcfg(struct v4l2_ctrl_config *cfg);
 void vsi_v4l2_reset_performance(struct vsi_v4l2_ctx *ctx);
 bool vsi_v4l2_ctrl_is_applicable(struct vsi_v4l2_ctx *ctx, u32 ctrl_id);
+void vsi_update_sar(struct vsi_v4l2_ctx *ctx);
 int vsi_alloc_dma(struct device *dev, struct vpu_buf *vb);
 void vsi_free_dma(struct vpu_buf *vb);
 

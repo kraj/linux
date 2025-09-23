@@ -282,7 +282,9 @@ struct v4l2_daemon_enc_general_cmd {
 };
 
 struct v4l2_daemon_enc_h26x_cmd {
-	s32 valid;//0:invalid, 1:valid.
+	u32 sample_aspect_ratio_width : 16;
+	u32 sample_aspect_ratio_height : 16;
+
 	s32 byteStream;      //byteStream
 
 	s32 enableCabac;      /* [0,1] H.264 entropy coding mode, 0 for CAVLC, 1 for CABAC */

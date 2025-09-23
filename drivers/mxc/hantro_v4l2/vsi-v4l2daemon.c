@@ -341,6 +341,10 @@ static u32 format_bufinfo_enc(struct vsi_v4l2_ctx *ctx, struct vsi_v4l2_msg *pms
 	struct vsi_vpu_buf *vpu_buf = vb_to_vsibuf(buf);
 	struct vsi_v4l2_dev_info *dev_info = vsiv4l2_get_hwinfo();
 
+	if (test_and_clear_bit(CTX_FLAG_SARUPDATE, &ctx->flag)) {
+		vsi_update_sar(ctx);
+		*update |= UPDATE_INFO;
+	}
 	vsi_convertIPCM(ctx);
 
 	if (binputqueue(buf->type)) {
