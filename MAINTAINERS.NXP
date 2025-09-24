@@ -620,7 +620,7 @@ M: Jacky Bai <ping.bai@nxp.com>
 F: arch/arm64/boot/dts/freescale/imx8ulp*
 
 dts/imx8
-M: Viorel Suman <viorel.suman@nxp.com>
+M: Frank Li <frank.li@nxp.com>
 F: arch/arm64/boot/dts/freescale/imx8-ss-*
 F: arch/arm64/boot/dts/freescale/imx8d*
 F: arch/arm64/boot/dts/freescale/imx8q*
