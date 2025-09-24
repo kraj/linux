@@ -1047,7 +1047,6 @@ M: Richard Zhu <hongxing.zhu@nxp.com>
 F: drivers/ata/
 
 script
-M: Ting Liu <ting.liu@nxp.com>
 M: Aisheng Dong <aisheng.dong@nxp.com>
 M: Frank Li <frank.li@nxp.com>
 F: MAINTAINERS.NXP
