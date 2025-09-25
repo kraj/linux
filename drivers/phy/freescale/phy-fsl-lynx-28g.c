@@ -680,6 +680,42 @@ static int lynx_28g_power_on(struct phy *phy)
 	return 0;
 }
 
+static bool lynx_28g_cdr_lock_check(struct lynx_28g_lane *lane)
+{
+	u32 rrstctl = lynx_28g_lane_read(lane, LNaRRSTCTL);
+	int err;
+
+	if (rrstctl & LNaRRSTCTL_CDR_LOCK)
+		return true;
+
+	/* Omit resetting the receiver unless the lane is up. Otherwise,
+	 * if powered down, it won't complete the operation.
+	 */
+	if (!lane->init || !lane->powered_up)
+		return false;
+
+	dev_dbg(&lane->phy->dev,
+		"Lane %c CDR unlocked, resetting receiver...\n",
+		'A' + lane->id);
+
+	lynx_28g_lane_rmw(lane, LNaRRSTCTL, LNaRRSTCTL_RST_REQ,
+			  LNaRRSTCTL_RST_REQ);
+
+	err = read_poll_timeout(lynx_28g_lane_read, rrstctl,
+				!!(rrstctl & LNaRRSTCTL_RST_DONE),
+				LYNX_28G_LANE_RESET_SLEEP_US,
+				LYNX_28G_LANE_RESET_TIMEOUT_US,
+				false, lane, LNaRRSTCTL);
+	if (err) {
+		dev_warn_once(&lane->phy->dev,
+			      "Lane %c receiver reset failed: %pe\n",
+			      'A' + lane->id, ERR_PTR(err));
+		return false;
+	}
+
+	return !!(rrstctl & LNaRRSTCTL_CDR_LOCK);
+}
+
 static int lynx_28g_e25g_pcvt(int lane)
 {
 	return 7 - lane;
@@ -1238,12 +1274,11 @@ static void lynx_28g_pll_read_configuration(struct lynx_28g_priv *priv)
 
 #define work_to_lynx(w) container_of((w), struct lynx_28g_priv, cdr_check.work)
 
-static void lynx_28g_cdr_lock_check(struct work_struct *work)
+static void lynx_28g_cdr_lock_check_work(struct work_struct *work)
 {
 	struct lynx_28g_priv *priv = work_to_lynx(work);
 	struct lynx_28g_lane *lane;
-	u32 rrstctl;
-	int err, i;
+	int i;
 
 	for (i = priv->info->first_lane; i < LYNX_28G_NUM_LANE; i++) {
 		lane = &priv->lane[i];
@@ -1257,26 +1292,7 @@ static void lynx_28g_cdr_lock_check(struct work_struct *work)
 			continue;
 		}
 
-		rrstctl = lynx_28g_lane_read(lane, LNaRRSTCTL);
-		if (!(rrstctl & LNaRRSTCTL_CDR_LOCK)) {
-			dev_dbg(&lane->phy->dev,
-				"Lane %c CDR unlocked, resetting receiver...\n",
-				'A' + lane->id);
-
-			lynx_28g_lane_rmw(lane, LNaRRSTCTL, LNaRRSTCTL_RST_REQ,
-					  LNaRRSTCTL_RST_REQ);
-
-			err = read_poll_timeout(lynx_28g_lane_read, rrstctl,
-						!!(rrstctl & LNaRRSTCTL_RST_DONE),
-						LYNX_28G_LANE_RESET_SLEEP_US,
-						LYNX_28G_LANE_RESET_TIMEOUT_US,
-						false, lane, LNaRRSTCTL);
-			if (err) {
-				dev_warn_once(&lane->phy->dev,
-					      "Lane %c receiver reset failed: %pe\n",
-					      'A' + lane->id, ERR_PTR(err));
-			}
-		}
+		lynx_28g_cdr_lock_check(lane);
 
 		mutex_unlock(&lane->phy->mutex);
 	}
@@ -1359,7 +1375,7 @@ static int lynx_28g_probe(struct platform_device *pdev)
 	priv->info = of_device_get_match_data(dev);
 	dev_set_drvdata(dev, priv);
 	spin_lock_init(&priv->pcc_lock);
-	INIT_DELAYED_WORK(&priv->cdr_check, lynx_28g_cdr_lock_check);
+	INIT_DELAYED_WORK(&priv->cdr_check, lynx_28g_cdr_lock_check_work);
 
 	priv->lane = devm_kcalloc(dev, priv->info->num_lanes,
 				  sizeof(*priv->lane), GFP_KERNEL);
