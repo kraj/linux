@@ -4,6 +4,7 @@
 #ifndef _PHY_FSL_LYNX_CORE_H
 #define _PHY_FSL_LYNX_CORE_H
 
+#include <linux/phy/phy-fsl-lynx.h>
 #include <linux/phy/phy.h>
 #include <linux/phy.h>
 #include <linux/phy/phy-fsl-lynx.h>
