@@ -217,7 +217,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk.dtb imx8mp-evk-rm67191.dtb imx8mp-evk-it626
 			  imx8mp-evk-dual-os08a20.dtb \
 			  imx8mp-evk-iqaudio-dacplus.dtb imx8mp-evk-iqaudio-dacpro.dtb imx8mp-evk-hifiberry-dacplus.dtb \
 			  imx8mp-evk-hifiberry-dac2.dtb imx8mp-evk-hifiberry-dacplusadc.dtb \
-			  imx8mp-evk-pciewifi.dtb imx8mp-evk-rm67199.dtb \
+			  imx8mp-evk-pciewifi.dtb imx8mp-evk-rm67199.dtb  imx8mp-evk-rm692c9.dtb \
 			  imx8mp-evk-dpdk.dtb imx8mp-evk-8mic-swpdm.dtb imx8mp-evk-revA3-8mic-revE.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-hummingboard-mate.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-hummingboard-pro.dtb
@@ -326,6 +326,7 @@ imx8mp-evk-revb4-8mic-swpdm-dtbs := imx8mp-evk-8mic-swpdm.dtb imx8mp-evk-revb4.d
 imx8mp-evk-revb4-8mic-revE-dtbs := imx8mp-evk-revA3-8mic-revE.dtb imx8mp-evk-revb4.dtbo
 imx8mp-ddr4-evk-revb4-dtbs := imx8mp-ddr4-evk.dtb imx8mp-evk-revb4.dtbo
 imx8mp-evk-revb4-ndm-dtbs := imx8mp-evk-ndm.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-rm692c9-dtbs := imx8mp-evk-rm692c9.dtb imx8mp-evk-revb4.dtbo
 
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rm67191.dtb
@@ -360,6 +361,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-ddr4-evk-revb4.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-ndm.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-sof-wm8962.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rpmsg.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rm692c9.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-ap1302-dual.dtb
