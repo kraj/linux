@@ -127,8 +127,8 @@
 	};
 };
 
-&gpu {
-	status= "okay";
+&imx8_gpu_ss {
+	status = "okay";
 };
 
 &i2c3 {

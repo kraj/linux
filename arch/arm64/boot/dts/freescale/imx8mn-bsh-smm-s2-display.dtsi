@@ -117,7 +117,7 @@
 	};
 };
 
-&gpu {
+&imx8_gpu_ss {
 	status = "okay";
 };
 

@@ -25,5 +25,6 @@
 					<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 };
 /delete-node/ &gpu;
+/delete-node/ &imx8_gpu_ss;
 /delete-node/ &lcdif;
 /delete-node/ &mipi_dsi;
