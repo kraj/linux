@@ -20,10 +20,14 @@ const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode)
 		return "10G-QXGMII";
 	case LANE_MODE_10GBASER:
 		return "10GBase-R";
+	case LANE_MODE_10GBASEKR:
+		return "10GBase-KR";
 	case LANE_MODE_USXGMII:
 		return "USXGMII";
 	case LANE_MODE_25GBASER:
 		return "25GBase-R";
+	case LANE_MODE_25GBASEKR:
+		return "25GBase-KR";
 	default:
 		return "unknown";
 	}
@@ -46,10 +50,14 @@ enum lynx_lane_mode phy_interface_to_lane_mode(phy_interface_t intf)
 		return LANE_MODE_10G_QXGMII;
 	case PHY_INTERFACE_MODE_10GBASER:
 		return LANE_MODE_10GBASER;
+	case PHY_INTERFACE_MODE_10GKR:
+		return LANE_MODE_10GBASEKR;
 	case PHY_INTERFACE_MODE_USXGMII:
 		return LANE_MODE_USXGMII;
 	case PHY_INTERFACE_MODE_25GBASER:
 		return LANE_MODE_25GBASER;
+	case PHY_INTERFACE_MODE_25GKR:
+		return LANE_MODE_25GBASEKR;
 	default:
 		return LANE_MODE_UNKNOWN;
 	}
