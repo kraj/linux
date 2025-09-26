@@ -1392,6 +1392,91 @@ static int lynx_10g_exit(struct phy *phy)
 	return 0;
 }
 
+static void lynx_10g_check_cdr_lock(struct phy *phy,
+				    struct phy_status_opts_cdr *cdr)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+
+	cdr->cdr_locked = lynx_10g_cdr_lock_check(lane);
+}
+
+static void lynx_10g_get_pcvt_count(struct phy *phy,
+				    struct phy_status_opts_pcvt_count *opts)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+	enum lynx_lane_mode lane_mode = lane->mode;
+
+	switch (opts->type) {
+	case PHY_PCVT_ETHERNET_PCS:
+		switch (lane_mode) {
+		case LANE_MODE_1000BASEX_SGMII:
+		case LANE_MODE_1000BASEKX:
+		case LANE_MODE_2500BASEX:
+		case LANE_MODE_USXGMII:
+		case LANE_MODE_10GBASER:
+		case LANE_MODE_10GBASEKR:
+			opts->num_pcvt = 1;
+			break;
+		case LANE_MODE_QSGMII:
+		case LANE_MODE_10G_QXGMII:
+			opts->num_pcvt = 4;
+			break;
+		default:
+			break;
+		}
+		break;
+	case PHY_PCVT_ETHERNET_ANLT:
+		switch (lane_mode) {
+		case LANE_MODE_1000BASEKX:
+		case LANE_MODE_10GBASEKR:
+			opts->num_pcvt = 1;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void lynx_10g_get_pcvt_addr(struct phy *phy,
+				   struct phy_status_opts_pcvt *pcvt)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+	u32 cr1;
+
+	switch (pcvt->type) {
+	case PHY_PCVT_ETHERNET_PCS:
+	case PHY_PCVT_ETHERNET_ANLT:
+		WARN_ON(lynx_pcvt_read(lane, lane->mode, CR(1), &cr1));
+		pcvt->addr.mdio = MDEV_PORT_X(cr1) + pcvt->index;
+		break;
+	default:
+		break;
+	}
+}
+
+static int lynx_10g_get_status(struct phy *phy, enum phy_status_type type,
+			       union phy_status_opts *opts)
+{
+	switch (type) {
+	case PHY_STATUS_CDR_LOCK:
+		lynx_10g_check_cdr_lock(phy, &opts->cdr);
+		break;
+	case PHY_STATUS_PCVT_COUNT:
+		lynx_10g_get_pcvt_count(phy, &opts->pcvt_count);
+		break;
+	case PHY_STATUS_PCVT_ADDR:
+		lynx_10g_get_pcvt_addr(phy, &opts->pcvt);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct phy_ops lynx_10g_ops = {
 	.init		= lynx_10g_init,
 	.exit		= lynx_10g_exit,
@@ -1399,6 +1484,7 @@ static const struct phy_ops lynx_10g_ops = {
 	.power_off	= lynx_10g_power_off,
 	.set_mode	= lynx_10g_set_mode,
 	.validate	= lynx_10g_validate,
+	.get_status	= lynx_10g_get_status,
 	.owner		= THIS_MODULE,
 };
 
