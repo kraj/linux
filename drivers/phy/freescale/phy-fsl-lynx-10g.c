@@ -291,6 +291,31 @@ static const struct lynx_10g_proto_conf lynx_10g_proto_conf[LANE_MODE_MAX] = {
 		.amp_red = 6,
 		.ttlcr0 = 0x39000400,
 	},
+	[LANE_MODE_1000BASEKX] = {
+		.proto_sel = PROTO_SEL_SGMII_BASEX_KX_QSGMII,
+		.if20bit_en = 0,
+		.reidl_th = 0,
+		.reidl_ex_msb = 0,
+		.reidl_ex_sel = 0,
+		.reidl_et_msb = 0,
+		.reidl_et_sel = 0,
+		.islew_rctl = 1,
+		.oslew_rctl = 1,
+		.rxeq_bst = 0,
+		.gk2ovd = 15,
+		.gk3ovd = 15,
+		.gk2ovd_en = 1,
+		.gk3ovd_en = 1,
+		.base_wand = 0,
+		.teq_type = EQ_TYPE_NO_EQ,
+		.sgn_preq = 0,
+		.ratio_preq = 0,
+		.sgn_post1q = 0,
+		.ratio_post1q = 0,
+		.adpt_eq = 48,
+		.amp_red = 0,
+		.ttlcr0 = 0x39000400,
+	},
 	[LANE_MODE_2500BASEX] = {
 		.proto_sel = PROTO_SEL_SGMII_BASEX_KX_QSGMII,
 		.if20bit_en = 0,
@@ -416,6 +441,43 @@ static const struct lynx_10g_proto_conf lynx_10g_proto_conf[LANE_MODE_MAX] = {
 		.amp_red = 7,
 		.ttlcr0 = 0x00000400,
 	},
+	[LANE_MODE_10GBASEKR] = {
+		.proto_sel = PROTO_SEL_XFI_10GBASER_KR_SXGMII,
+		.if20bit_en = 1,
+		.reidl_th = 0,
+		.reidl_ex_msb = 0,
+		.reidl_ex_sel = 0,
+		.reidl_et_msb = 0,
+		.reidl_et_sel = 0,
+		.islew_rctl = 2,
+		.oslew_rctl = 2,
+		.rxeq_bst = 1,
+		.gk2ovd = 0,
+		.gk3ovd = 0,
+		.gk2ovd_en = 0,
+		.gk3ovd_en = 0,
+		.base_wand = 1,
+		.teq_type = EQ_TYPE_3TAP,
+		.sgn_preq = 1,
+		.ratio_preq = 2,
+		.sgn_post1q = 1,
+		.ratio_post1q = 5,
+		.adpt_eq = 41,
+		.amp_red = 7,
+		.ttlcr0 = 0x00000400,
+	},
+};
+
+static const int lynx_10g_bin_type_to_bin_sel[] = {
+	[BIN_1] = EQ_BIN_DATA_SEL_BIN_1,
+	[BIN_2] = EQ_BIN_DATA_SEL_BIN_2,
+	[BIN_3] = EQ_BIN_DATA_SEL_BIN_3,
+	[BIN_4] = -EOPNOTSUPP,
+	[BIN_OFFSET] = EQ_BIN_DATA_SEL_OFFSET,
+	[BIN_BLW] = -EOPNOTSUPP,
+	[BIN_DATA_AVG] = -EOPNOTSUPP,
+	[BIN_M1] = EQ_BIN_DATA_SEL_BIN_M1,
+	[BIN_LONG] = EQ_BIN_DATA_SEL_BIN_LONG,
 };
 
 static int ls1028a_get_pccr(enum lynx_lane_mode lane_mode, int lane,
@@ -423,6 +485,7 @@ static int ls1028a_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 {
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		pccr->offset = PCCR8;
 		pccr->width = 4;
@@ -463,6 +526,7 @@ static int ls1028a_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return SGMIIaCR0(lane);
 	case LANE_MODE_QSGMII:
@@ -480,6 +544,7 @@ static bool ls1028a_lane_supports_mode(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return true;
 	case LANE_MODE_QSGMII:
@@ -507,6 +572,7 @@ static int ls1046a_serdes1_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 {
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		pccr->offset = PCCR8;
 		pccr->width = 4;
@@ -521,6 +587,7 @@ static int ls1046a_serdes1_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 		pccr->shift = QSGMII_CFG(B);
 		break;
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		switch (lane) {
 		case 2:
 			pccr->shift = XFI_CFG(A);
@@ -546,6 +613,7 @@ static int ls1046a_serdes1_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return SGMIIaCR0(lane);
 	case LANE_MODE_QSGMII:
@@ -554,6 +622,7 @@ static int ls1046a_serdes1_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 
 		return QSGMIIaCR0(B);
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		switch (lane) {
 		case 2:
 			return XFIaCR0(A);
@@ -572,11 +641,13 @@ static bool ls1046a_serdes1_lane_supports_mode(int lane,
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return true;
 	case LANE_MODE_QSGMII:
 		return lane == 1;
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		return lane == 2 || lane == 3;
 	default:
 		return false;
@@ -596,6 +667,7 @@ static int ls1046a_serdes2_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 {
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		if (lane != 1)
 			return -EOPNOTSUPP;
@@ -615,6 +687,7 @@ static int ls1046a_serdes2_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		if (lane != 1)
 			return -EOPNOTSUPP;
@@ -630,6 +703,7 @@ static bool ls1046a_serdes2_lane_supports_mode(int lane,
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return lane == 1;
 	default:
@@ -650,6 +724,7 @@ static int ls1088a_serdes1_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 {
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 		pccr->offset = PCCR8;
 		pccr->width = 4;
 		pccr->shift = SGMII_CFG(lane);
@@ -671,6 +746,7 @@ static int ls1088a_serdes1_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 		pccr->width = 3;
 		break;
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		switch (lane) {
 		case 2:
 			pccr->shift = XFI_CFG(A);
@@ -696,6 +772,7 @@ static int ls1088a_serdes1_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 		return SGMIIaCR0(lane);
 	case LANE_MODE_QSGMII:
 		switch (lane) {
@@ -708,6 +785,7 @@ static int ls1088a_serdes1_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 			return -EOPNOTSUPP;
 		}
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		switch (lane) {
 		case 2:
 			return XFIaCR0(A);
@@ -725,6 +803,7 @@ static bool ls1088a_serdes1_lane_supports_mode(int lane, enum lynx_lane_mode mod
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 		return true;
 	case LANE_MODE_QSGMII:
 		switch (lane) {
@@ -736,6 +815,7 @@ static bool ls1088a_serdes1_lane_supports_mode(int lane, enum lynx_lane_mode mod
 			return false;
 		}
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		switch (lane) {
 		case 2:
 		case 3:
@@ -762,6 +842,7 @@ static int ls2088a_serdes1_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 {
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		pccr->offset = PCCR8;
 		pccr->width = 4;
@@ -792,6 +873,7 @@ static int ls2088a_serdes1_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 		pccr->width = 3;
 		break;
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		pccr->offset = PCCRB;
 		pccr->width = 3;
 		pccr->shift = XFI_CFG(lane);
@@ -807,6 +889,7 @@ static int ls2088a_serdes1_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return SGMIIaCR0(lane);
 	case LANE_MODE_QSGMII:
@@ -827,6 +910,7 @@ static int ls2088a_serdes1_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 			return -EOPNOTSUPP;
 		}
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		return XFIaCR0(lane);
 	default:
 		return -EOPNOTSUPP;
@@ -837,6 +921,7 @@ static bool ls2088a_serdes1_lane_supports_mode(int lane, enum lynx_lane_mode mod
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return true;
 	case LANE_MODE_QSGMII:
@@ -853,6 +938,7 @@ static bool ls2088a_serdes1_lane_supports_mode(int lane, enum lynx_lane_mode mod
 			return false;
 		}
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		return true;
 	default:
 		return false;
@@ -872,6 +958,7 @@ static int ls2088a_serdes2_get_pccr(enum lynx_lane_mode lane_mode, int lane,
 {
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		pccr->offset = PCCR8;
 		pccr->width = 4;
@@ -888,6 +975,7 @@ static int ls2088a_serdes2_get_pcvt_offset(int lane, enum lynx_lane_mode mode)
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return SGMIIaCR0(lane);
 	default:
@@ -899,6 +987,7 @@ static bool ls2088a_serdes2_lane_supports_mode(int lane, enum lynx_lane_mode mod
 {
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		return true;
 	default:
@@ -1048,6 +1137,7 @@ static void lynx_10g_lane_set_nrate(struct lynx_lane *lane,
 	case PLLnCR0_FRATE_5G:
 		switch (mode) {
 		case LANE_MODE_1000BASEX_SGMII:
+		case LANE_MODE_1000BASEKX:
 			lynx_lane_rmw(lane, LNaGCR0,
 				      LNaGCR0_TRAT_SEL(RAT_SEL_QUARTER) |
 				      LNaGCR0_RRAT_SEL(RAT_SEL_QUARTER),
@@ -1081,6 +1171,7 @@ static void lynx_10g_lane_set_nrate(struct lynx_lane *lane,
 	case PLLnCR0_FRATE_5_15625G:
 		switch (mode) {
 		case LANE_MODE_10GBASER:
+		case LANE_MODE_10GBASEKR:
 		case LANE_MODE_USXGMII:
 		case LANE_MODE_10G_QXGMII:
 			lynx_lane_rmw(lane, LNaGCR0,
@@ -1235,6 +1326,7 @@ static int lynx_10g_lane_disable_pcvt(struct lynx_lane *lane,
 
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		err = lynx_pcvt_rmw(lane, mode, CR(1), SGMIIaCR1_SGPCS_DIS,
 				    SGMIIaCR1_SGPCS_EN);
@@ -1273,6 +1365,7 @@ static int lynx_10g_lane_enable_pcvt(struct lynx_lane *lane,
 
 	switch (mode) {
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_2500BASEX:
 		err = lynx_pcvt_rmw(lane, mode, CR(1), SGMIIaCR1_SGPCS_EN,
 				    SGMIIaCR1_SGPCS_EN);
@@ -1300,6 +1393,9 @@ static int lynx_10g_lane_enable_pcvt(struct lynx_lane *lane,
 	val = 0;
 
 	switch (mode) {
+	case LANE_MODE_1000BASEKX:
+		val |= PCCR8_SGMIIa_KX;
+		fallthrough;
 	case LANE_MODE_1000BASEX_SGMII:
 	case LANE_MODE_2500BASEX:
 		val |= PCCR8_SGMIIa_CFG;
@@ -1311,6 +1407,7 @@ static int lynx_10g_lane_enable_pcvt(struct lynx_lane *lane,
 		val |= PCCR9_QXGMIIa_CFG;
 		break;
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		val |= PCCRB_XFIa_CFG;
 		break;
 	case LANE_MODE_USXGMII:
@@ -1342,9 +1439,165 @@ static bool lynx_10g_switch_needs_rcw_override(enum lynx_lane_mode crr,
 	return true;
 }
 
+static void lynx_10g_tune_tx_eq(struct phy *phy,
+				const struct lynx_xgkr_tx_eq *tx_eq)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+
+	lynx_lane_rmw(lane, LNaTECR0,
+		      LNaTECR0_RATIO_PREQ(tx_eq->ratio_preq) |
+		      LNaTECR0_RATIO_PST1Q(tx_eq->ratio_post1q) |
+		      LNaTECR0_ADPT_EQ(tx_eq->adapt_eq) |
+		      LNaTECR0_AMP_RED(tx_eq->amp_reduction),
+		      LNaTECR0_RATIO_PREQ_MSK |
+		      LNaTECR0_RATIO_PST1Q_MSK |
+		      LNaTECR0_ADPT_EQ_MSK |
+		      LNaTECR0_AMP_RED_MSK);
+}
+
+static void lynx_10g_read_tx_eq(struct phy *phy, struct lynx_xgkr_tx_eq *tx_eq)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+	int val = lynx_lane_read(lane, LNaTECR0);
+
+	tx_eq->ratio_preq = LNaTECR0_RATIO_PREQ_X(val);
+	tx_eq->ratio_post1q = LNaTECR0_RATIO_PST1Q_X(val);
+	tx_eq->amp_reduction = LNaTECR0_AMP_RED(val);
+	tx_eq->adapt_eq = LNaTECR0_ADPT_EQ_X(val);
+}
+
+static int lynx_10g_snapshot_rx_eq_gains(struct phy *phy, u8 *gaink2,
+					 u8 *gaink3, u8 *eq_offset)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+	bool cdr_locked;
+	int err, val;
+
+	err = read_poll_timeout(lynx_10g_cdr_lock_check, cdr_locked,
+				cdr_locked, CDR_SLEEP_US, CDR_TIMEOUT_US,
+				false, lane);
+	if (err) {
+		dev_err(&phy->dev, "CDR not locked, cannot collect RX EQ snapshots\n");
+		return err;
+	}
+
+	/* wait until a previous snapshot has cleared */
+	err = read_poll_timeout(lynx_lane_read, val,
+				!(val & LNaRECR1_CTL_SNP_DONE),
+				SNAPSHOT_SLEEP_US, SNAPSHOT_TIMEOUT_US,
+				false, lane, LNaRECR1);
+	if (err)
+		return err;
+
+	/* start snapshot of RX Equalization Control Gaink2, Gaink3
+	 * and Offset Registers
+	 */
+	lynx_lane_rmw(lane, LNaGCR1, LNaGCR1_REQ_CTL_SNP, LNaGCR1_REQ_CTL_SNP);
+
+	/* wait for the snapshot to finish */
+	err = read_poll_timeout(lynx_lane_read, val,
+				!!(val & LNaRECR1_CTL_SNP_DONE),
+				SNAPSHOT_SLEEP_US, SNAPSHOT_TIMEOUT_US,
+				false, lane, LNaRECR1);
+	if (err) {
+		dev_err(&phy->dev,
+			"Failed to snapshot RX EQ: undetected loss of CDR lock?\n");
+		lynx_lane_rmw(lane, LNaGCR1, 0, LNaGCR1_REQ_CTL_SNP);
+		return err;
+	}
+
+	val = lynx_lane_read(lane, LNaRECR1);
+	*gaink2 = LNaRECR1_GK2STAT_X(val);
+	*gaink3 = LNaRECR1_GK3STAT_X(val);
+	/* The algorithm should only be looking at offset_stat[5:0].
+	 * Bit 6 is only used at higher bit rates to adjust the overall range
+	 * of the internal offset DAC
+	 */
+	*eq_offset = LNaRECR1_OSETSTAT_X(val) & GENMASK(5, 0);
+
+	/* terminate the snapshot */
+	lynx_lane_rmw(lane, LNaGCR1, 0, LNaGCR1_REQ_CTL_SNP);
+
+	return 0;
+}
+
+static int lynx_10g_snapshot_rx_eq_bin(struct phy *phy, enum lynx_bin_type bin_type,
+				       s16 *bin)
+{
+	int bin_sel = lynx_10g_bin_type_to_bin_sel[bin_type];
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+	bool cdr_locked;
+	int err, val;
+
+	if (WARN_ON(bin_sel < 0))
+		return bin_sel;
+
+	err = read_poll_timeout(lynx_10g_cdr_lock_check, cdr_locked,
+				cdr_locked, CDR_SLEEP_US, CDR_TIMEOUT_US,
+				false, lane);
+	if (err) {
+		dev_err(&phy->dev, "CDR not locked, cannot collect RX EQ snapshots\n");
+		return err;
+	}
+
+	/* wait until a previous snapshot has cleared */
+	err = read_poll_timeout(lynx_lane_read, val,
+				!(val & LNaRECR1_BIN_SNP_DONE),
+				SNAPSHOT_SLEEP_US, SNAPSHOT_TIMEOUT_US,
+				false, lane, LNaRECR1);
+	if (err)
+		return err;
+
+	/* select the binning register we would like to snapshot */
+	lynx_lane_rmw(lane, LNaTCSR1, LNaTCSR1_CDR_SEL(bin_sel),
+		      LNaTCSR1_CDR_SEL_MSK);
+
+	/* start snapshot */
+	lynx_lane_rmw(lane, LNaGCR1, LNaGCR1_REQ_BIN_SNP,
+		      LNaGCR1_REQ_BIN_SNP);
+
+	/* wait for the snapshot to finish */
+	err = read_poll_timeout(lynx_lane_read, val,
+				!!(val & LNaRECR1_BIN_SNP_DONE),
+				SNAPSHOT_SLEEP_US, SNAPSHOT_TIMEOUT_US,
+				false, lane, LNaRECR1);
+	if (err) {
+		dev_err(&phy->dev,
+			"Failed to snapshot RX EQ: undetected loss of CDR lock?\n");
+		lynx_lane_rmw(lane, LNaGCR1, 0, LNaGCR1_REQ_BIN_SNP);
+		return err;
+	}
+
+	val = lynx_lane_read(lane, LNaTCSR1);
+	val = LNaTCSR1_EQ_SNPBIN_DATA_X(val);
+
+	/* The snapshot is a 2's complement value stored on 9 bits
+	 * (-256 to 255)
+	 */
+	if (val & LNaTCSR1_EQ_SNPBIN_DATA_SGN) {
+		val &= ~LNaTCSR1_EQ_SNPBIN_DATA_SGN;
+		val -= 256;
+	}
+
+	*bin = (s16)val;
+
+	/* terminate the snapshot */
+	lynx_lane_rmw(lane, LNaGCR1, 0, LNaGCR1_REQ_BIN_SNP);
+
+	return 0;
+}
+
+static const struct lynx_xgkr_algorithm_ops lynx_10g_xgkr_ops = {
+	.tune_tx_eq = lynx_10g_tune_tx_eq,
+	.read_tx_eq = lynx_10g_read_tx_eq,
+	.snapshot_rx_eq_gains = lynx_10g_snapshot_rx_eq_gains,
+	.snapshot_rx_eq_bin = lynx_10g_snapshot_rx_eq_bin,
+};
+
 static int lynx_10g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct lynx_lane *lane = phy_get_drvdata(phy);
+	struct lynx_xgkr_algorithm *algorithm = NULL;
 	struct lynx_priv *priv = lane->priv;
 	bool powered_up = lane->powered_up;
 	enum lynx_lane_mode lane_mode;
@@ -1362,6 +1615,12 @@ static int lynx_10g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 
 	if (lane_mode == lane->mode)
 		return 0;
+
+	if (lynx_lane_mode_needs_link_training(lane_mode)) {
+		algorithm = lynx_xgkr_algorithm_create(phy, &lynx_10g_xgkr_ops);
+		if (!algorithm)
+			return -ENOMEM;
+	}
 
 	/* If the lane is powered up, put the lane into the halt state while
 	 * the reconfiguration is being done.
@@ -1391,6 +1650,10 @@ static int lynx_10g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	else if (lane->mode == LANE_MODE_1000BASEKX)
 		lynx_10g_pll_put_ex_dly_clk(lynx_pll_get(priv, lane->mode));
 
+	if (lane->algorithm)
+		lynx_xgkr_algorithm_destroy(lane->algorithm);
+
+	lane->algorithm = algorithm;
 	lane->mode = lane_mode;
 
 out:
@@ -1403,13 +1666,14 @@ out:
 static int lynx_10g_validate(struct phy *phy, enum phy_mode mode, int submode,
 			     union phy_configure_opts *opts __always_unused)
 {
-	enum lynx_lane_mode lane_mode = phy_interface_to_lane_mode(submode);
 	struct lynx_lane *lane = phy_get_drvdata(phy);
 	struct lynx_priv *priv = lane->priv;
+	enum lynx_lane_mode lane_mode;
 
 	if (mode != PHY_MODE_ETHERNET)
 		return -EOPNOTSUPP;
 
+	lane_mode = phy_interface_to_lane_mode(submode);
 	if (!lynx_lane_supports_mode(lane, lane_mode))
 		return -EOPNOTSUPP;
 
@@ -1536,6 +1800,13 @@ static int lynx_10g_get_status(struct phy *phy, enum phy_status_type type,
 	return 0;
 }
 
+static int lynx_10g_configure(struct phy *phy, union phy_configure_opts *opts)
+{
+	struct lynx_lane *lane = phy_get_drvdata(phy);
+
+	return lynx_xgkr_algorithm_configure(lane->algorithm, &opts->ethernet);
+}
+
 static const struct phy_ops lynx_10g_ops = {
 	.init		= lynx_10g_init,
 	.exit		= lynx_10g_exit,
@@ -1544,6 +1815,7 @@ static const struct phy_ops lynx_10g_ops = {
 	.set_mode	= lynx_10g_set_mode,
 	.validate	= lynx_10g_validate,
 	.get_status	= lynx_10g_get_status,
+	.configure	= lynx_10g_configure,
 	.owner		= THIS_MODULE,
 };
 
@@ -1660,6 +1932,7 @@ static void lynx_10g_pll_read_configuration(struct lynx_priv *priv)
 		case PLLnCR0_FRATE_5G:
 			/* 5GHz clock net */
 			__set_bit(LANE_MODE_1000BASEX_SGMII, pll->supported);
+			__set_bit(LANE_MODE_1000BASEKX, pll->supported);
 			__set_bit(LANE_MODE_QSGMII, pll->supported);
 			if (dlydiv_sel && dlydiv_sel != PLLnCR0_DLYDIV_SEL_312_5_MHZ) {
 				dev_dbg(priv->dev,
@@ -1675,6 +1948,7 @@ static void lynx_10g_pll_read_configuration(struct lynx_priv *priv)
 		case PLLnCR0_FRATE_5_15625G:
 			/* 10.3125GHz clock net */
 			__set_bit(LANE_MODE_10GBASER, pll->supported);
+			__set_bit(LANE_MODE_10GBASEKR, pll->supported);
 			__set_bit(LANE_MODE_USXGMII, pll->supported);
 			__set_bit(LANE_MODE_10G_QXGMII, pll->supported);
 			break;
@@ -1715,8 +1989,10 @@ static void lynx_10g_backup_pccr_val(struct lynx_lane *lane)
 	lane->default_pccr[lane->mode] = val;
 
 	switch (lane->mode) {
+	case LANE_MODE_1000BASEKX:
 	case LANE_MODE_1000BASEX_SGMII:
 	case LANE_MODE_2500BASEX:
+		lane->default_pccr[LANE_MODE_1000BASEKX] = val | PCCR8_SGMIIa_KX;
 		lane->default_pccr[LANE_MODE_1000BASEX_SGMII] = val & ~PCCR8_SGMIIa_KX;
 		lane->default_pccr[LANE_MODE_2500BASEX] = val & ~PCCR8_SGMIIa_KX;
 		break;
