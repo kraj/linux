@@ -128,14 +128,14 @@ static inline void lynx_rmw(struct lynx_priv *priv, unsigned long off, u32 val,
 #define lynx_lane_rmw(lane, reg, val, mask)	\
 	lynx_rmw((lane)->priv, reg(lane->id), val, mask)
 #define lynx_lane_read(lane, reg)			\
-	ioread32((lane)->priv->base + reg((lane)->id))
+	lynx_read((lane)->priv, reg((lane)->id))
 #define lynx_lane_write(lane, reg, val)		\
-	iowrite32(val, (lane)->priv->base + reg((lane)->id))
+	lynx_write((lane)->priv, reg((lane)->id), val)
 #define lynx_pll_read(pll, reg)			\
-	ioread32((pll)->priv->base + reg((pll)->id))
+	lynx_read((pll)->priv, reg((pll)->id))
 #define lynx_pll_write(pll, reg, val)		\
-	iowrite32(val, (pll)->priv->base + reg((pll)->id))
-#define lynx_pll_rmw(pll, reg, val, mask)      \
+	lynx_write((pll)->priv, reg((pll)->id), val)
+#define lynx_pll_rmw(pll, reg, val, mask)	\
 	lynx_rmw((pll)->priv, reg((pll)->id), val, mask)
 
 const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode);

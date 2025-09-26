@@ -84,6 +84,9 @@
 #define PLLnCR0_FRATE_3_125G		0x9
 #define PLLnCR0_FRATE_3G		0xa
 
+#define PLLnCR0_DLYDIV_SEL		GENMASK(1, 0)
+#define PLLnCR0_DLYDIV_SEL_312_5_MHZ	1
+
 /* Per SerDes lane registers */
 
 /* Lane a Protocol Select status register */
@@ -1109,6 +1112,52 @@ static void lynx_10g_lane_set_pll(struct lynx_lane *lane,
 	}
 }
 
+/* Enabling ex_dly_clk does not require turning the PLL off, and does not
+ * affect the state of the lanes mapped to it. It is one of the few safe things
+ * that can be done with it at runtime.
+ */
+static void lynx_10g_pll_ex_dly_clk_enable(struct lynx_pll *pll,
+					   bool enable)
+{
+	u32 val = 0;
+
+	dev_err(pll->priv->dev, "Turning %s EX_DLY_CLK on PLL%c\n",
+		enable ? "on" : "off", pll->id == 0 ? 'F' : 'S');
+
+	if (enable)
+		val = PLLnCR0_DLYDIV_SEL_312_5_MHZ;
+
+	lynx_pll_rmw(pll, PLLnCR0, val, PLLnCR0_DLYDIV_SEL);
+}
+
+static void lynx_10g_pll_get_ex_dly_clk(struct lynx_pll *pll)
+{
+	spin_lock(&pll->lock);
+
+	if (++pll->ex_dly_clk_use_count > 1) {
+		spin_unlock(&pll->lock);
+		return;
+	}
+
+	lynx_10g_pll_ex_dly_clk_enable(pll, true);
+
+	spin_unlock(&pll->lock);
+}
+
+static void lynx_10g_pll_put_ex_dly_clk(struct lynx_pll *pll)
+{
+	spin_lock(&pll->lock);
+
+	if (--pll->ex_dly_clk_use_count != 0) {
+		spin_unlock(&pll->lock);
+		return;
+	}
+
+	lynx_10g_pll_ex_dly_clk_enable(pll, false);
+
+	spin_unlock(&pll->lock);
+}
+
 static void lynx_10g_lane_remap_pll(struct lynx_lane *lane,
 				    enum lynx_lane_mode lane_mode)
 {
@@ -1333,6 +1382,14 @@ static int lynx_10g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	lynx_10g_lane_change_proto_conf(lane, lane_mode);
 	lynx_10g_lane_remap_pll(lane, lane_mode);
 	WARN_ON(lynx_10g_lane_enable_pcvt(lane, lane_mode));
+
+	/* 1000Base-KX lanes need their PLL to generate a 312.5 MHz frequency
+	 * through EX_DLY_CLK.
+	 */
+	if (lane_mode == LANE_MODE_1000BASEKX)
+		lynx_10g_pll_get_ex_dly_clk(lynx_pll_get(priv, lane_mode));
+	else if (lane->mode == LANE_MODE_1000BASEKX)
+		lynx_10g_pll_put_ex_dly_clk(lynx_pll_get(priv, lane->mode));
 
 	lane->mode = lane_mode;
 
@@ -1573,6 +1630,7 @@ static void lynx_10g_pll_dump(struct lynx_pll *pll)
 static void lynx_10g_pll_read_configuration(struct lynx_priv *priv)
 {
 	struct lynx_pll *pll;
+	int dlydiv_sel;
 	u32 val;
 	int i;
 
@@ -1580,6 +1638,7 @@ static void lynx_10g_pll_read_configuration(struct lynx_priv *priv)
 		pll = &priv->pll[i];
 		pll->priv = priv;
 		pll->id = i;
+		spin_lock_init(&pll->lock);
 
 		val = lynx_pll_read(pll, PLLnCR0);
 		pll->frate_sel = FIELD_GET(PLLnCR0_FRATE_SEL, val);
@@ -1590,11 +1649,25 @@ static void lynx_10g_pll_read_configuration(struct lynx_priv *priv)
 		if (!pll->enabled)
 			continue;
 
+		dlydiv_sel = FIELD_GET(PLLnCR0_DLYDIV_SEL, val);
+		if (dlydiv_sel) {
+			dev_dbg(priv->dev, "PLL%cCR0[DLYDIV_SEL] found set\n",
+				pll->id == 0 ? 'F' : 'S');
+			pll->ex_dly_clk_use_count = 1;
+		}
+
 		switch (pll->frate_sel) {
 		case PLLnCR0_FRATE_5G:
 			/* 5GHz clock net */
 			__set_bit(LANE_MODE_1000BASEX_SGMII, pll->supported);
 			__set_bit(LANE_MODE_QSGMII, pll->supported);
+			if (dlydiv_sel && dlydiv_sel != PLLnCR0_DLYDIV_SEL_312_5_MHZ) {
+				dev_dbg(priv->dev,
+					"PLL%c has ex_dly_clk provisioned for a frequency incompatible with 1000Base-KX\n",
+					pll->id == 0 ? 'F' : 'S');
+			} else {
+				__set_bit(LANE_MODE_1000BASEKX, pll->supported);
+			}
 			break;
 		case PLLnCR0_FRATE_3_125G:
 			__set_bit(LANE_MODE_2500BASEX, pll->supported);
