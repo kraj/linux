@@ -1609,10 +1609,21 @@ static void lynx_10g_lane_read_configuration(struct lynx_lane *lane)
 	lynx_10g_backup_pccr_val(lane);
 }
 
+static struct phy *lynx_10g_xlate(struct device *dev,
+				  const struct of_phandle_args *args)
+{
+	struct lynx_priv *priv = dev_get_drvdata(dev);
+	int idx = args->args[0];
+
+	if (idx >= priv->info->num_lanes)
+		return ERR_PTR(-EINVAL);
+
+	return priv->lane[idx].phy;
+}
+
 static int lynx_10g_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn, *child;
 	struct phy_provider *provider;
 	struct lynx_priv *priv;
 
@@ -1637,31 +1648,13 @@ static int lynx_10g_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	lynx_10g_pll_read_configuration(priv);
-	dn = dev_of_node(dev);
 
-	for_each_available_child_of_node(dn, child) {
+	for (int reg = 0; reg < priv->info->num_lanes; reg++) {
 		struct lynx_lane *lane;
 		struct phy *phy;
-		u32 reg;
-
-		/* PHY subnode name must be 'phy'. */
-		if (!(of_node_name_eq(child, "phy")))
-			continue;
-
-		if (of_property_read_u32(child, "reg", &reg)) {
-			dev_err(dev, "No \"reg\" property for %pOF\n", child);
-			of_node_put(child);
-			return -EINVAL;
-		}
-
-		if (reg >= priv->info->num_lanes) {
-			dev_err(dev, "\"reg\" property out of range for %pOF\n", child);
-			of_node_put(child);
-			return -EINVAL;
-		}
 
 		lane = &priv->lane[reg];
-		phy = devm_phy_create(&pdev->dev, child, &lynx_10g_ops);
+		phy = devm_phy_create(&pdev->dev, NULL, &lynx_10g_ops);
 		if (IS_ERR(phy))
 			return PTR_ERR(phy);
 
@@ -1672,7 +1665,7 @@ static int lynx_10g_probe(struct platform_device *pdev)
 		lynx_10g_lane_read_configuration(lane);
 	}
 
-	provider = devm_of_phy_provider_register(&pdev->dev, of_phy_simple_xlate);
+	provider = devm_of_phy_provider_register(&pdev->dev, lynx_10g_xlate);
 	if (IS_ERR(provider))
 		return PTR_ERR(provider);
 
