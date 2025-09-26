@@ -35,8 +35,14 @@ struct lynx_pll {
 	int id;
 	int refclk_sel;
 	int frate_sel;
+	int ex_dly_clk_use_count;
 	bool enabled;
 	bool locked;
+	/*
+	 * There are fewer PLLs than lanes. This serializes calls to
+	 * lynx_10g_pll_get_ex_dly_clk() and lynx_10g_pll_put_ex_dly_clk().
+	 */
+	spinlock_t lock;
 	DECLARE_BITMAP(supported, LANE_MODE_MAX);
 };
 
@@ -105,6 +111,10 @@ static inline void lynx_rmw(struct lynx_priv *priv, unsigned long off, u32 val,
 	iowrite32(val, (lane)->priv->base + reg((lane)->id))
 #define lynx_pll_read(pll, reg)			\
 	ioread32((pll)->priv->base + reg((pll)->id))
+#define lynx_pll_write(pll, reg, val)		\
+	iowrite32(val, (pll)->priv->base + reg((pll)->id))
+#define lynx_pll_rmw(pll, reg, val, mask)      \
+	lynx_rmw((pll)->priv, reg((pll)->id), val, mask)
 
 const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode);
 enum lynx_lane_mode phy_interface_to_lane_mode(phy_interface_t intf);

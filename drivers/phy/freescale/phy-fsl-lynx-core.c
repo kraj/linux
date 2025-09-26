@@ -10,6 +10,8 @@ const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode)
 	switch (lane_mode) {
 	case LANE_MODE_1000BASEX_SGMII:
 		return "1000Base-X/SGMII";
+	case LANE_MODE_1000BASEKX:
+		return "1000Base-KX";
 	case LANE_MODE_2500BASEX:
 		return "2500Base-X";
 	case LANE_MODE_QSGMII:
@@ -34,6 +36,8 @@ enum lynx_lane_mode phy_interface_to_lane_mode(phy_interface_t intf)
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
 		return LANE_MODE_1000BASEX_SGMII;
+	case PHY_INTERFACE_MODE_1000BASEKX:
+		return LANE_MODE_1000BASEKX;
 	case PHY_INTERFACE_MODE_2500BASEX:
 		return LANE_MODE_2500BASEX;
 	case PHY_INTERFACE_MODE_QSGMII:

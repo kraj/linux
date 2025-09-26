@@ -60,6 +60,8 @@
 #define PLLnCR1_FRATE_5G_25GVCO			0x10
 #define PLLnCR1_FRATE_10G_20GVCO		0x6
 #define PLLnCR1_FRATE_12G_25GVCO		0x16
+#define PLLnCR1_EX_DLY_SEL			GENMASK(1, 0)
+#define PLLnCR1_EX_DLY_SEL_312_5_MHZ		2
 
 /* Per SerDes lane registers */
 /* Lane a General Control Register */
@@ -275,6 +277,7 @@
 #define lynx_28g_lane_read			lynx_lane_read
 #define lynx_28g_lane_write			lynx_lane_write
 #define lynx_28g_pll_read			lynx_pll_read
+#define lynx_28g_pll_write			lynx_pll_write
 
 #define lynx_28g_priv				lynx_priv
 #define lynx_28g_lane				lynx_lane
@@ -866,6 +869,52 @@ static const struct lynx_info lynx_info_lx2162a_serdes2 = {
 	.num_lanes = LYNX_28G_NUM_LANE,
 };
 
+/* Enabling ex_dly_clk does not require turning the PLL off, and does not
+ * affect the state of the lanes mapped to it. It is one of the few safe things
+ * that can be done with it at runtime.
+ */
+static void lynx_28g_pll_ex_dly_clk_enable(struct lynx_28g_pll *pll,
+					   bool enable)
+{
+	u32 val = 0;
+
+	if (enable)
+		val = FIELD_PREP(PLLnCR1_EX_DLY_SEL, PLLnCR1_EX_DLY_SEL_312_5_MHZ);
+
+	dev_dbg(pll->priv->dev, "Turning %s EX_DLY_CLK on PLL%c\n",
+		str_on_off(enable), pll->id == 0 ? 'F' : 'S');
+
+	lynx_pll_rmw(pll, PLLnCR1, val, PLLnCR1_EX_DLY_SEL);
+}
+
+static void lynx_28g_pll_get_ex_dly_clk(struct lynx_28g_pll *pll)
+{
+	spin_lock(&pll->lock);
+
+	if (++pll->ex_dly_clk_use_count > 1) {
+		spin_unlock(&pll->lock);
+		return;
+	}
+
+	lynx_28g_pll_ex_dly_clk_enable(pll, true);
+
+	spin_unlock(&pll->lock);
+}
+
+static void lynx_28g_pll_put_ex_dly_clk(struct lynx_28g_pll *pll)
+{
+	spin_lock(&pll->lock);
+
+	if (--pll->ex_dly_clk_use_count != 0) {
+		spin_unlock(&pll->lock);
+		return;
+	}
+
+	lynx_28g_pll_ex_dly_clk_enable(pll, false);
+
+	spin_unlock(&pll->lock);
+}
+
 static void lynx_28g_lane_remap_pll(struct lynx_28g_lane *lane,
 				    enum lynx_lane_mode lane_mode)
 {
@@ -1033,6 +1082,7 @@ static int lynx_28g_lane_enable_pcvt(struct lynx_28g_lane *lane,
 static int lynx_28g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct lynx_28g_lane *lane = phy_get_drvdata(phy);
+	struct lynx_priv *priv = lane->priv;
 	int powered_up = lane->powered_up;
 	enum lynx_lane_mode lane_mode;
 	int err = 0;
@@ -1066,6 +1116,14 @@ static int lynx_28g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	lynx_28g_lane_change_proto_conf(lane, lane_mode);
 	lynx_28g_lane_remap_pll(lane, lane_mode);
 	WARN_ON(lynx_28g_lane_enable_pcvt(lane, lane_mode));
+
+	/* 1000Base-KX lanes need their PLL to generate a 312.5 MHz frequency
+	 * through EX_DLY_CLK.
+	 */
+	if (lane_mode == LANE_MODE_1000BASEKX)
+		lynx_28g_pll_get_ex_dly_clk(lynx_pll_get(priv, lane_mode));
+	else if (lane->mode == LANE_MODE_1000BASEKX)
+		lynx_28g_pll_put_ex_dly_clk(lynx_pll_get(priv, lane->mode));
 
 	lane->mode = lane_mode;
 
@@ -1297,13 +1355,14 @@ static void lynx_28g_pll_dump(struct lynx_28g_pll *pll)
 static void lynx_28g_pll_read_configuration(struct lynx_28g_priv *priv)
 {
 	struct lynx_28g_pll *pll;
+	int i, ex_dly_sel;
 	u32 val;
-	int i;
 
 	for (i = 0; i < LYNX_28G_NUM_PLL; i++) {
 		pll = &priv->pll[i];
 		pll->priv = priv;
 		pll->id = i;
+		spin_lock_init(&pll->lock);
 
 		val = lynx_28g_pll_read(pll, PLLnRSTCTL);
 		pll->enabled = !(val & PLLnRSTCTL_DIS);
@@ -1318,11 +1377,23 @@ static void lynx_28g_pll_read_configuration(struct lynx_28g_priv *priv)
 		if (!pll->enabled)
 			continue;
 
+		ex_dly_sel = FIELD_GET(PLLnCR1_EX_DLY_SEL, val);
+		if (ex_dly_sel) {
+			dev_dbg(priv->dev, "PLL%cCR1[EX_DLY_SEL] found set\n",
+				pll->id == 0 ? 'F' : 'S');
+			pll->ex_dly_clk_use_count = 1;
+		}
+
 		switch (pll->frate_sel) {
 		case PLLnCR1_FRATE_5G_10GVCO:
 		case PLLnCR1_FRATE_5G_25GVCO:
 			/* 5GHz clock net */
 			__set_bit(LANE_MODE_1000BASEX_SGMII, pll->supported);
+			if (ex_dly_sel && ex_dly_sel != PLLnCR1_EX_DLY_SEL_312_5_MHZ) {
+				dev_dbg(priv->dev,
+					"PLL%c has ex_dly_clk provisioned for a frequency incompatible with 1000Base-KX\n",
+					pll->id == 0 ? 'F' : 'S');
+			}
 			break;
 		case PLLnCR1_FRATE_10G_20GVCO:
 			/* 10.3125GHz clock net */
