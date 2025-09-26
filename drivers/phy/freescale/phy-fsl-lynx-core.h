@@ -5,15 +5,7 @@
 #define _PHY_FSL_LYNX_CORE_H
 
 #include <linux/phy.h>
-
-enum lynx_lane_mode {
-	LANE_MODE_UNKNOWN,
-	LANE_MODE_1000BASEX_SGMII,
-	LANE_MODE_10GBASER,
-	LANE_MODE_USXGMII,
-	LANE_MODE_25GBASER,
-	LANE_MODE_MAX,
-};
+#include <linux/phy/phy-fsl-lynx.h>
 
 struct lynx_pccr {
 	int offset;
