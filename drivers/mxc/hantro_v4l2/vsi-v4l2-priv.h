@@ -702,5 +702,10 @@ static inline int vsi_checkctx_capoffdone(struct vsi_v4l2_ctx *ctx)
 	return 0;
 }
 
+const char *vsi_v4l2_cmd_name(u32 id);
+bool vsi_v4l2_is_bufferdone_msg(struct vsi_v4l2_msg *msg);
+const char *vsi_v4l2_status_name(s32 status);
+void vsi_v4l2_set_ctx_status(struct vsi_v4l2_ctx *ctx, s32 status);
+
 #endif	//VSI_V4L2_PRIV_H
 
