@@ -1131,6 +1131,76 @@ static int lynx_28g_exit(struct phy *phy)
 	return lynx_28g_power_on(phy);
 }
 
+static void lynx_28g_check_cdr_lock(struct phy *phy,
+				    struct phy_status_opts_cdr *cdr)
+{
+	struct lynx_28g_lane *lane = phy_get_drvdata(phy);
+
+	cdr->cdr_locked = lynx_28g_cdr_lock_check(lane);
+}
+
+static void lynx_28g_get_pcvt_count(struct phy *phy,
+				    struct phy_status_opts_pcvt_count *opts)
+{
+	struct lynx_28g_lane *lane = phy_get_drvdata(phy);
+	enum lynx_lane_mode lane_mode = lane->mode;
+
+	switch (opts->type) {
+	case PHY_PCVT_ETHERNET_PCS:
+		switch (lane_mode) {
+		case LANE_MODE_1000BASEX_SGMII:
+		case LANE_MODE_10GBASER:
+		case LANE_MODE_USXGMII:
+		case LANE_MODE_25GBASER:
+			opts->num_pcvt = 1;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void lynx_28g_get_pcvt_addr(struct phy *phy,
+				   struct phy_status_opts_pcvt *pcvt)
+{
+	struct lynx_28g_lane *lane = phy_get_drvdata(phy);
+	enum lynx_lane_mode lane_mode = lane->mode;
+	u32 cr1;
+
+	switch (pcvt->type) {
+	case PHY_PCVT_ETHERNET_PCS:
+		WARN_ON(lynx_pcvt_read(lane, lane_mode, CR(1), &cr1));
+		break;
+	default:
+		return;
+	}
+
+	pcvt->addr.mdio = FIELD_GET(MDEV_PORT, cr1);
+}
+
+static int lynx_28g_get_status(struct phy *phy, enum phy_status_type type,
+			       union phy_status_opts *opts)
+{
+	switch (type) {
+	case PHY_STATUS_CDR_LOCK:
+		lynx_28g_check_cdr_lock(phy, &opts->cdr);
+		break;
+	case PHY_STATUS_PCVT_COUNT:
+		lynx_28g_get_pcvt_count(phy, &opts->pcvt_count);
+		break;
+	case PHY_STATUS_PCVT_ADDR:
+		lynx_28g_get_pcvt_addr(phy, &opts->pcvt);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct phy_ops lynx_28g_ops = {
 	.init		= lynx_28g_init,
 	.exit		= lynx_28g_exit,
@@ -1138,6 +1208,7 @@ static const struct phy_ops lynx_28g_ops = {
 	.power_off	= lynx_28g_power_off,
 	.set_mode	= lynx_28g_set_mode,
 	.validate	= lynx_28g_validate,
+	.get_status	= lynx_28g_get_status,
 	.owner		= THIS_MODULE,
 };
 
