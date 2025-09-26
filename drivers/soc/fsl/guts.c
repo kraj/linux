@@ -307,9 +307,11 @@ static int ls1088a_serdes_get_rcw_override(int index, int lane,
 
 	switch (lane_mode) {
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		override->val = 1;
 		break;
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 		override->val = 3;
 		break;
 	default:
@@ -340,9 +342,11 @@ static int ls1046a_serdes_get_rcw_override(int index, int lane,
 
 	switch (lane_mode) {
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		override->val = 1;
 		break;
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 		override->val = 3;
 		break;
 	default:
@@ -370,9 +374,11 @@ static int ls2088a_serdes_get_rcw_override(int index, int lane,
 
 	switch (lane_mode) {
 	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
 		override->val = 1;
 		break;
 	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_1000BASEKX:
 		override->val = 0;
 		break;
 	default:
@@ -398,7 +404,8 @@ static void ls2088a_serdes_init_rcwcr(int serdes_idx)
 
 	/* We need to configure the initial state of all lanes for the SerDes block #1 */
 	for (i = 0; i < MAX_NUM_LANES; i++) {
-		if (soc.lane_mode[serdes_idx - 1][i] == LANE_MODE_10GBASER)
+		if (soc.lane_mode[serdes_idx - 1][i] == LANE_MODE_10GBASER ||
+		    soc.lane_mode[serdes_idx - 1][i] == LANE_MODE_10GBASEKR)
 			reg |= BIT(6 + (7 - i));
 	}
 	fsl_guts_write(&soc.dcfg_dcsr->rcwsr[29], reg);
