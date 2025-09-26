@@ -7,7 +7,28 @@
 #include <linux/phy/phy-fsl-lynx.h>
 #include <linux/phy/phy.h>
 #include <linux/phy.h>
-#include <linux/phy/phy-fsl-lynx.h>
+#include <linux/types.h>
+
+struct lynx_xgkr_algorithm;
+
+struct lynx_xgkr_tx_eq {
+	u32 ratio_preq;
+	u32 ratio_post1q;
+	u32 adapt_eq;
+	u32 amp_reduction;
+};
+
+enum lynx_bin_type {
+	BIN_1,
+	BIN_2,
+	BIN_3,
+	BIN_4,
+	BIN_OFFSET,
+	BIN_BLW,
+	BIN_DATA_AVG,
+	BIN_M1,
+	BIN_LONG,
+};
 
 #define LYNX_NUM_PLL				2
 
@@ -49,6 +70,7 @@ struct lynx_pll {
 struct lynx_lane {
 	struct lynx_priv *priv;
 	struct phy *phy;
+	struct lynx_xgkr_algorithm *algorithm;
 	bool powered_up;
 	bool init;
 	unsigned int id;
@@ -118,6 +140,7 @@ static inline void lynx_rmw(struct lynx_priv *priv, unsigned long off, u32 val,
 
 const char *lynx_lane_mode_str(enum lynx_lane_mode lane_mode);
 enum lynx_lane_mode phy_interface_to_lane_mode(phy_interface_t intf);
+bool lynx_lane_mode_needs_link_training(enum lynx_lane_mode mode);
 bool lynx_lane_supports_mode(struct lynx_lane *lane, enum lynx_lane_mode mode);
 
 struct lynx_pll *lynx_pll_get(struct lynx_priv *priv, enum lynx_lane_mode mode);
@@ -130,5 +153,22 @@ int lynx_pcvt_write(struct lynx_lane *lane, enum lynx_lane_mode mode, int cr,
 		    u32 val);
 int lynx_pcvt_rmw(struct lynx_lane *lane, enum lynx_lane_mode mode, int cr,
 		  u32 val, u32 mask);
+
+struct lynx_xgkr_algorithm_ops {
+	void (*read_tx_eq)(struct phy *phy, struct lynx_xgkr_tx_eq *tx_eq);
+	void (*tune_tx_eq)(struct phy *phy, const struct lynx_xgkr_tx_eq *tx_eq);
+	int (*snapshot_rx_eq_gains)(struct phy *phy, u8 *gaink2, u8 *gaink3,
+				    u8 *eq_offset);
+	int (*snapshot_rx_eq_bin)(struct phy *phy, enum lynx_bin_type bin_type,
+				  s16 *snapshot);
+};
+
+struct lynx_xgkr_algorithm *
+lynx_xgkr_algorithm_create(struct phy *phy,
+			   const struct lynx_xgkr_algorithm_ops *ops);
+void lynx_xgkr_algorithm_destroy(struct lynx_xgkr_algorithm *algorithm);
+void lynx_xgkr_read_default_tx_eq(struct lynx_xgkr_algorithm *algorithm);
+int lynx_xgkr_algorithm_configure(struct lynx_xgkr_algorithm *algorithm,
+				  struct phy_configure_opts_ethernet *opts);
 
 #endif
