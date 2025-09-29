@@ -454,6 +454,20 @@
 	};
 };
 
+&lpspi3 {
+	cs-gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
+	num-cs = <2>;
+	pinctrl-0 = <&pinctrl_lpspi3>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spidev0: spi@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+		spi-max-frequency = <12000000>;
+	};
+};
+
 &lpuart1 {
 	/* console */
 	pinctrl-names = "default";
@@ -876,6 +890,15 @@
 		fsl,pins = <
 			IMX94_PAD_GPIO_IO29__LPI2C6_SDA		0x40000b9e
 			IMX94_PAD_GPIO_IO28__LPI2C6_SCL		0x40000b9e
+		>;
+	};
+
+	pinctrl_lpspi3: lpspi3grp {
+		fsl,pins = <
+			IMX94_PAD_GPIO_IO08__GPIO2_IO8			0x3fe
+			IMX94_PAD_GPIO_IO09__LPSPI3_SIN			0x3fe
+			IMX94_PAD_GPIO_IO10__LPSPI3_SOUT		0x3fe
+			IMX94_PAD_GPIO_IO11__LPSPI3_SCK			0x3fe
 		>;
 	};
 
