@@ -813,6 +813,14 @@
 		>;
 	};
 
+	pinctrl_pdm: pdmgrp {
+		fsl,pins = <
+			IMX94_PAD_PDM_CLK__PDM_CLK			0x31e
+			IMX94_PAD_PDM_BIT_STREAM0__PDM_BIT_STREAM0	0x31e
+			IMX94_PAD_PDM_BIT_STREAM1__PDM_BIT_STREAM1	0x31e
+		>;
+	};
+
 	pinctrl_switch: switchgrp {
 		fsl,pins = <
 			IMX94_PAD_ETH2_TXD3__NETC_PINMUX_ETH2_TXD3		0x51e
