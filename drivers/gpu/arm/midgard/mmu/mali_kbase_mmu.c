@@ -4175,8 +4175,6 @@ static void mmu_teardown_level(struct kbase_device *kbdev, struct kbase_mmu_tabl
 
 static void kbase_mmu_mark_non_movable(struct kbase_device *const kbdev, struct page *page)
 {
-	struct kbase_page_metadata *page_md;
-
 	if (!kbase_is_page_migration_enabled())
 		return;
 
@@ -4189,6 +4187,8 @@ static void kbase_mmu_mark_non_movable(struct kbase_device *const kbdev, struct 
 	if (is_huge_head(as_tagged(page_to_phys(page))) ||
 	    is_partial(as_tagged(page_to_phys(page))))
 		dev_WARN(kbdev->dev, "%s: migration on large-page attempted.", __func__);
+
+	struct kbase_page_metadata *page_md;
 
 	page_md = kbase_page_private(page);
 
