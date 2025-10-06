@@ -18,6 +18,8 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 
+#include "ox05b1s.h"
+
 enum ox05b1s_pad_ids {
 	OX05B1S_PAD_SRC,
 	OX05B1S_PAD_IMGL, /* long exposure image internal pad */
@@ -78,11 +80,6 @@ struct ox05b1s_ctrls {
 	struct v4l2_ctrl *hdr_mode;
 };
 
-#include "os08a20_regs_1080p.h"
-#include "os08a20_regs_4k.h"
-#include "os08a20_regs_4k_hdr.h"
-#include "ox05b1s_regs_5mp.h"
-
 struct ox05b1s_mode {
 	u32 index;
 	u32 width;
@@ -94,8 +91,7 @@ struct ox05b1s_mode {
 	u32 exp; /* max exposure */
 	bool h_bin; /* horizontal binning */
 	s64 pixel_rate;
-	const struct cci_reg_sequence *reg_data;
-	u32 reg_data_count;
+	const struct ox05b1s_reglist *reg_data;
 };
 
 /* regulator supplies */
@@ -138,8 +134,7 @@ static const struct ox05b1s_mode os08a20_supported_modes[] = {
 		.exp		= 0x4a4 - 8,
 		.h_bin		= true,
 		.pixel_rate	= OS08A20_PIXEL_RATE_144M,
-		.reg_data	= os08a20_init_setting_1080p,
-		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_1080p),
+		.reg_data	= os08a20_reglist_1080p_10b,
 	},
 	{
 		/* 4k BGGR10, no hdr, 30fps */
@@ -153,8 +148,7 @@ static const struct ox05b1s_mode os08a20_supported_modes[] = {
 		.exp		= 0x90a - 8,
 		.h_bin		= false,
 		.pixel_rate	= OS08A20_PIXEL_RATE_288M,
-		.reg_data	= os08a20_init_setting_4k_hdr,
-		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_4k_hdr),
+		.reg_data	= os08a20_reglist_4k_10b,
 	},
 	{
 		/* 4k BGGR12, no hdr, 30fps */
@@ -168,9 +162,9 @@ static const struct ox05b1s_mode os08a20_supported_modes[] = {
 		.exp		= 0x90a - 8,
 		.h_bin		= false,
 		.pixel_rate	= OS08A20_PIXEL_RATE_288M,
-		.reg_data	= os08a20_init_setting_4k,
-		.reg_data_count	= ARRAY_SIZE(os08a20_init_setting_4k),
-	}, {
+		.reg_data	= os08a20_reglist_4k_12b,
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -180,10 +174,12 @@ static const struct v4l2_area os08a20_sbggr10_sizes[] = {
 	{
 		.width = 1920,
 		.height = 1080,
-	}, {
+	},
+	{
 		.width = 3840,
 		.height = 2160,
-	}, {
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -192,7 +188,8 @@ static const struct v4l2_area os08a20_sbggr12_sizes[] = {
 	{
 		.width = 3840,
 		.height = 2160,
-	}, {
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -205,7 +202,8 @@ static const struct ox05b1s_sizes os08a20_supported_codes[] = {
 	{
 		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
 		.sizes = os08a20_sbggr12_sizes,
-	}, {
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -224,9 +222,9 @@ static const struct ox05b1s_mode ox05b1s_supported_modes[] = {
 		.exp		= 0x850 - 8,
 		.h_bin		= false,
 		.pixel_rate	= OX05B1S_PIXEL_RATE_48M,
-		.reg_data	= ovx5b_init_setting_2592x1944,
-		.reg_data_count	= ARRAY_SIZE(ovx5b_init_setting_2592x1944),
-	}, {
+		.reg_data	= ox05b1s_reglist_2592x1944,
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -236,7 +234,8 @@ static const struct v4l2_area ox05b1s_sgrbg10_sizes[] = {
 	{
 		.width = 2592,
 		.height = 1944,
-	}, {
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -245,7 +244,8 @@ static const struct ox05b1s_sizes ox05b1s_supported_codes[] = {
 	{
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.sizes = ox05b1s_sgrbg10_sizes,
-	}, {
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -830,16 +830,21 @@ out:
 static int ox05b1s_apply_current_mode(struct ox05b1s *sensor)
 {
 	struct device *dev = &sensor->i2c_client->dev;
-	const struct cci_reg_sequence *reg_data = NULL;
+	const struct ox05b1s_reglist *reg_data = sensor->mode->reg_data;
 	u32 w = sensor->mode->width;
 	u32 h = sensor->mode->height;
 	int ret;
 
 	cci_write(sensor->regmap, OX05B1S_REG_SW_RST, 0x01, &ret);
 
-	reg_data = sensor->mode->reg_data;
-	cci_multi_reg_write(sensor->regmap, reg_data,
-				  sensor->mode->reg_data_count, &ret);
+	while (reg_data->regs) {
+		cci_multi_reg_write(sensor->regmap, reg_data->regs,
+				    reg_data->count, &ret);
+		if (ret)
+			goto out;
+
+		reg_data++;
+	}
 
 	cci_write(sensor->regmap, OX05B1S_REG_X_OUTPUT_SIZE, w, &ret);
 	cci_write(sensor->regmap, OX05B1S_REG_Y_OUTPUT_SIZE, h, &ret);
