@@ -462,6 +462,24 @@ static void neoisp_set_default_context(struct neoisp_dev_s *neoispd, int ctx_id)
 			NEO_PIPE_CONF_INT_EN0_EN_CSI_TERR |
 			NEO_PIPE_CONF_INT_EN0_EN_TRIG_ERR;
 	}
+
+	/*
+	 * As i.MX95 only supports MSB-aligned data when reading buffers coming
+	 * from ISI, reset the input data alignment to MSB for both input nodes
+	 * (i.e. INALIGN0 and INALIGN1) to ensure proper data handling.
+	 */
+	if (neoispd->info->capabilities & NEO_CAP_ALIGNMENT_MSB) {
+		struct neoisp_context_s *context = neoispd->node_group[ctx_id].context;
+		struct neoisp_pipe_conf_s *pc = &context->hw.pipe_conf.common;
+		u32 tmp;
+
+		tmp = pc->img_conf &
+			~(NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN0 |
+			  NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN1);
+		tmp |= NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN0_SET(1) |
+			NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN1_SET(1);
+		pc->img_conf = tmp;
+	}
 }
 
 static int neoisp_prepare_node_streaming(struct neoisp_node_s *node)
@@ -1126,6 +1144,20 @@ static const struct video_device neoisp_videodev = {
 	.release = video_device_release_empty,
 };
 
+static int neoisp_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct neoisp_node_group_s *node_group =
+			container_of(ctrl->handler, struct neoisp_node_group_s, hdl);
+
+	switch (ctrl->id) {
+	case V4L2_CID_NEOISP_QUERYCAP:
+		ctrl->val = node_group->neoisp_dev->info->capabilities;
+		break;
+	}
+
+	return 0;
+}
+
 static int neoisp_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct neoisp_node_group_s *node_group =
@@ -1141,10 +1173,22 @@ static int neoisp_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_ctrl_ops neoisp_ctrl_ops = {
+	.g_volatile_ctrl = neoisp_g_volatile_ctrl,
 	.s_ctrl = neoisp_s_ctrl,
 };
 
 static struct v4l2_ctrl_config controls[] = {
+	[NEOISP_CTRLS_QUERYCAP] = {
+		.ops = &neoisp_ctrl_ops,
+		.id = V4L2_CID_NEOISP_QUERYCAP,
+		.name = "Neoisp custom capabilities",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 0,
+		.max = 0xFFFFFFFF,
+		.step = 1,
+		.def = 0,
+		.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_VOLATILE,
+	},
 	[NEOISP_CTRLS_META_BUFF_API_VER] = {
 		.ops = &neoisp_ctrl_ops,
 		.id = V4L2_CID_NEOISP_META_API_VERSION,
@@ -1320,6 +1364,9 @@ static int neoisp_init_subdev(struct neoisp_node_group_s *node_group)
 		}
 	}
 	sd->ctrl_handler = hdl;
+
+	/* Update custom control*/
+	v4l2_ctrl_s_ctrl(node_group->ctrls[NEOISP_CTRLS_QUERYCAP], neoispd->info->capabilities);
 
 	ret = v4l2_device_register_subdev(&node_group->v4l2_dev, sd);
 	if (ret)
@@ -1839,6 +1886,7 @@ static struct neoisp_context_ops_s neoisp_context_ops[] = {
 
 static const struct neoisp_info_s neoisp_v1_data = {
 	.hw_ver = NEOISP_HW_V1,
+	.capabilities = NEO_CAP_ALIGNMENT_MSB,
 	.api_ver_min = NEOISP_LEGACY_META_BUFFER,
 	.api_ver_max = NEOISP_EXT_META_BUFFER_V1,
 	.context_ops = &neoisp_context_ops[NEOISP_HW_V1],
@@ -1847,6 +1895,7 @@ static const struct neoisp_info_s neoisp_v1_data = {
 
 static const struct neoisp_info_s neoisp_v2_data = {
 	.hw_ver = NEOISP_HW_V2,
+	.capabilities = NEO_CAP_ALIGNMENT_MSB,
 	.api_ver_min = NEOISP_LEGACY_META_BUFFER,
 	.api_ver_max = NEOISP_EXT_META_BUFFER_V1,
 	.context_ops = &neoisp_context_ops[NEOISP_HW_V2],

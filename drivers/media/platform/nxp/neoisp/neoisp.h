@@ -48,6 +48,7 @@
  * in use.
  */
 enum neoisp_ctrls_e {
+	NEOISP_CTRLS_QUERYCAP,
 	NEOISP_CTRLS_META_BUFF_API_VER,
 	NEOISP_CTRLS_COUNT,
 };
@@ -170,6 +171,7 @@ struct isp_block_map_s {
  * struct neoisp_info_s - ISP Hardware various information
  *
  * @hw_ver: ISP hardware version
+ * @capabilities: ISP hardware and driver capabilities
  * @api_ver_min: Neoisp meta buffer minimum supported version
  * @api_ver_max: Neoisp meta buffer maximum supported version
  * @context_ops: Context related operators
@@ -180,6 +182,7 @@ struct isp_block_map_s {
  */
 struct neoisp_info_s {
 	enum neoisp_version_e hw_ver;
+	u32 capabilities;
 	enum neoisp_meta_buffer_version_e api_ver_min;
 	enum neoisp_meta_buffer_version_e api_ver_max;
 	struct neoisp_context_ops_s *context_ops;
