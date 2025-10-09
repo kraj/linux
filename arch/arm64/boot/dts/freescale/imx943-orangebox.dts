@@ -78,13 +78,6 @@
 		status = "okay";
 	};
 
-	extcon_usb3: extcon-usb3 {
-		compatible = "linux,extcon-usb-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb3_extcon>;
-		id-gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
-	};
-
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
@@ -274,16 +267,6 @@
 		};
 	};
 
-	reg_usb3_0_typec_select: regulator-usb3_0_typec_select {
-		compatible = "regulator-fixed";
-		regulator-name = "USB3.0 type-c select";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&pcal6524 9 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-always-on;
-	};
-
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -408,25 +391,48 @@
 			gpios = <16 GPIO_ACTIVE_HIGH>;
 			output-low;
 		};
+
+		usb3-mdm-sel-usb-hog {
+			gpio-hog;
+			gpios = <9 GPIO_ACTIVE_HIGH>;
+			output-high;
+		};
+
+		usb2-m2-sel-usb-hog {
+			gpio-hog;
+			gpios = <22 GPIO_ACTIVE_HIGH>;
+			output-high;
+		};
 	};
 
 	ptn5150: tcpc@1d {
 		compatible = "nxp,ptn5150";
 		reg = <0x1d>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec_usb3_0>;
-		typec-supply = <&reg_usb3_0_typec_select>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+
+			port {
+				typec_con_ss: endpoint {
+					remote-endpoint = <&usb3_data_ss>;
+				};
+			};
+		};
 	};
 
 	ptn5150_2: tcpc@3d {
 		compatible = "nxp,ptn5150";
 		reg = <0x3d>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec_usb2_0>;
+		status = "disabled";
 	};
 };
 
@@ -744,10 +750,10 @@
 
 &usb3_dwc3 {
 	dr_mode = "otg";
+	extcon = <&ptn5150>;
 	adp-disable;
 	hnp-disable;
 	srp-disable;
-	extcon = <&extcon_usb3>;
 	snps,dis-u1-entry-quirk;
 	snps,dis-u2-entry-quirk;
 	status = "okay";
@@ -756,6 +762,12 @@
 &usb3_phy {
 	orientation-switch;
 	status = "okay";
+
+	port {
+		usb3_data_ss: endpoint {
+			remote-endpoint = <&typec_con_ss>;
+		};
+	};
 };
 
 &usdhc1 {
@@ -958,11 +970,7 @@
 	pinctrl_typec_usb3_0: typecgrp3 {
 		fsl,pins = <
 			IMX94_PAD_GPIO_IO44__GPIO3_IO12		0x31e
-		>;
-	};
-
-	pinctrl_usb3_extcon: extcongrp3 {
-		fsl,pins = <
+			/* The CCM_CLKO1 (output) function will make USB_ID not work */
 			IMX94_PAD_CCM_CLKO1__GPIO4_IO0		0x31e
 		>;
 	};
