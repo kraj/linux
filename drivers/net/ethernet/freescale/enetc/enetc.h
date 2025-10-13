@@ -83,13 +83,14 @@ struct enetc_lso_t {
 #define ENETC_LSO_MAX_DATA_LEN		SZ_256K
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
-#define ENETC_RXB_TRUESIZE	(PAGE_SIZE >> 1)
+#define ENETC_PAGE_SIZE(order)		(PAGE_SIZE << (order))
+#define ENETC_RXB_TRUESIZE(order)	(ENETC_PAGE_SIZE(order) >> 1)
 #define ENETC_RXB_PAD		NET_SKB_PAD /* add extra space if needed */
-#define ENETC_RXB_DMA_SIZE	\
-	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - ENETC_RXB_PAD)
-#define ENETC_RXB_DMA_SIZE_XDP	\
-	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - XDP_PACKET_HEADROOM)
-#define ENETC_RS_MAX_BYTES	(ENETC_RXB_DMA_SIZE * (MAX_SKB_FRAGS + 1))
+#define ENETC_RXB_DMA_SIZE(order)	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE(order)) - ENETC_RXB_PAD)
+#define ENETC_RXB_DMA_SIZE_XDP(order)	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE(order)) \
+	 - XDP_PACKET_HEADROOM)
 
 struct enetc_rx_swbd {
 	dma_addr_t dma;
@@ -180,6 +181,7 @@ struct enetc_bdr {
 	};
 	void __iomem *idr; /* Interrupt Detect Register pointer */
 
+	int page_order;
 	int buffer_offset;
 	struct enetc_xdp_data xdp;
 
@@ -558,6 +560,7 @@ struct enetc_ndev_priv {
 	int wolopts;
 
 	struct ethtool_keee eee;
+	int page_order;
 };
 
 #define ENETC_CBD(R, i)	(&(((struct enetc_cbd *)((R).bd_base))[i]))
@@ -614,6 +617,9 @@ void enetc_change_preemptible_tcs(struct enetc_ndev_priv *priv,
 int enetc_suspend(struct net_device *ndev, bool wol);
 int enetc_resume(struct net_device *ndev, bool wol);
 struct fwnode_handle *enetc_fwnode(struct enetc_ndev_priv *priv);
+int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended,
+		      int (*cb)(struct enetc_ndev_priv *priv, void *ctx),
+		      void *ctx);
 
 /* ethtool */
 extern const struct ethtool_ops enetc_pf_ethtool_ops;
