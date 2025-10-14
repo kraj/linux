@@ -8130,7 +8130,7 @@ static const struct of_device_id imx_pxpdma_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_pxpdma_dt_ids);
 
-static int has_pending_task(struct pxps *pxp, struct pxp_channel *task)
+static int has_pending_task(struct pxps *pxp)
 {
 	int found;
 	unsigned long flags;
@@ -8145,7 +8145,6 @@ static int has_pending_task(struct pxps *pxp, struct pxp_channel *task)
 static int pxp_dispatch_thread(void *argv)
 {
 	struct pxps *pxp = (struct pxps *)argv;
-	struct pxp_channel *pending = NULL;
 	unsigned long flags;
 
 	set_freezable();
@@ -8153,7 +8152,7 @@ static int pxp_dispatch_thread(void *argv)
 	while (!kthread_should_stop()) {
 		int ret;
 		ret = wait_event_freezable(pxp->thread_waitq,
-					has_pending_task(pxp, pending) ||
+					has_pending_task(pxp) ||
 					kthread_should_stop());
 		if (ret < 0)
 			continue;
