@@ -4,6 +4,7 @@ comment "IMX VPU memory usage recorder driver"
 
 config MXC_MUR
 	tristate "IMX VPU memory usage recorder driver"
+	depends on VIDEO_DEV
 	help
 	  IMX VPU memory usage recorder is to count
 	  and show the detailed memory usage of VPU
