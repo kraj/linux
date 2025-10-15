@@ -4687,10 +4687,10 @@ static irqreturn_t pxp_irq(int irq, void *dev_id)
 	/* Send histogram status back to caller */
 	desc->hist_status = hist_status;
 
+	pxp_chan->status = PXP_CHANNEL_INITIALIZED;
+
 	if ((desc->txd.flags & DMA_PREP_INTERRUPT) && callback)
 		callback(callback_param);
-
-	pxp_chan->status = PXP_CHANNEL_INITIALIZED;
 
 	list_for_each_entry_safe(child, _child, &desc->tx_list, list) {
 		list_del_init(&child->list);

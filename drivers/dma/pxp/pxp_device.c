@@ -1014,6 +1014,7 @@ err_put:
 			struct pxp_chan_handle chan_handle;
 			int ret, chan_id, handle;
 			struct pxp_chan_obj *obj = NULL;
+			struct pxp_channel *pxp_chan;
 
 			ret = copy_from_user(&chan_handle,
 					     (struct pxp_chan_handle *)arg,
@@ -1026,11 +1027,16 @@ err_put:
 			if (!obj)
 				return -EINVAL;
 			chan_id = obj->chan->chan_id;
+			pxp_chan = to_pxp_channel(obj->chan);
 
-			ret = wait_event_interruptible
+			ret = wait_event_interruptible_timeout
 			    (irq_info[chan_id].waitq,
-			     (atomic_read(&irq_info[chan_id].irq_pending) == 0));
-			if (ret < 0)
+			     ((atomic_read(&irq_info[chan_id].irq_pending) == 0) &&
+			      (pxp_chan->status == PXP_CHANNEL_INITIALIZED)),
+			     2 * HZ);
+			if (ret == 0)
+				return -ETIMEDOUT;
+			else if (ret < 0)
 				return -ERESTARTSYS;
 
 			chan_handle.hist_status = irq_info[chan_id].hist_status;
