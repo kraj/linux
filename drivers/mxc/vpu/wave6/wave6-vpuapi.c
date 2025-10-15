@@ -196,7 +196,7 @@ int wave6_vpu_dec_register_aux_buffer(struct vpu_instance *inst,
 {
 	struct dec_info *p_dec_info;
 	struct aux_buffer *aux_bufs = info.buf_array;
-	struct dec_aux_buffer_size_info size_info;
+	struct dec_aux_buffer_size_info size_info = { 0 };
 	unsigned int expected_size;
 	unsigned int i;
 	int ret;
@@ -648,7 +648,7 @@ int wave6_vpu_enc_register_aux_buffer(struct vpu_instance *inst,
 {
 	struct enc_info *p_enc_info;
 	struct aux_buffer *aux_bufs = info.buf_array;
-	struct enc_aux_buffer_size_info size_info;
+	struct enc_aux_buffer_size_info size_info = { 0 };
 	unsigned int expected_size;
 	unsigned int i;
 	int ret;

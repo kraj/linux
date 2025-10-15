@@ -64,9 +64,7 @@ static struct frame_buffer wave6_dec_get_display_buffer(struct vpu_instance *ins
 {
 	struct dec_info *p_dec_info = &inst->codec_info->dec_info;
 	int i;
-	struct frame_buffer fb;
-
-	memset(&fb, 0, sizeof(struct frame_buffer));
+	struct frame_buffer fb = { 0 };
 
 	for (i = 0; i < WAVE6_MAX_FBS; i++) {
 		if (p_dec_info->disp_buf[i].buf_y == addr) {
@@ -1476,12 +1474,10 @@ static void wave6_gen_change_param_reg_common(struct vpu_instance *inst,
 
 int wave6_vpu_enc_init_seq(struct vpu_instance *inst)
 {
-	struct enc_cmd_set_param_reg reg;
+	struct enc_cmd_set_param_reg reg = { 0 };
 	struct enc_info *p_enc_info = &inst->codec_info->enc_info;
 	u32 i;
 	int ret;
-
-	memset(&reg, 0, sizeof(struct enc_cmd_set_param_reg));
 
 	if (!wave6_update_enc_info(p_enc_info))
 		return -EINVAL;
@@ -1586,11 +1582,9 @@ int wave6_vpu_enc_get_seq_info(struct vpu_instance *inst, struct enc_initial_inf
 
 int wave6_vpu_enc_change_seq(struct vpu_instance *inst, bool *changed)
 {
-	struct enc_cmd_change_param_reg reg;
+	struct enc_cmd_change_param_reg reg = { 0 };
 	struct enc_info *p_enc_info = &inst->codec_info->enc_info;
 	int ret;
-
-	memset(&reg, 0, sizeof(struct enc_cmd_change_param_reg));
 
 	wave6_gen_change_param_reg_common(inst, p_enc_info, &reg);
 
@@ -2117,11 +2111,9 @@ static void wave6_gen_enc_pic_reg(struct enc_info *p_enc_info, bool cbcr_interle
 
 int wave6_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *fail_res)
 {
-	struct enc_cmd_enc_pic_reg reg;
+	struct enc_cmd_enc_pic_reg reg = { 0 };
 	struct enc_info *p_enc_info = &inst->codec_info->enc_info;
 	int ret;
-
-	memset(&reg, 0, sizeof(struct enc_cmd_enc_pic_reg));
 
 	wave6_gen_enc_pic_reg(p_enc_info, inst->cbcr_interleave,
 			      inst->nv21, option, &reg);

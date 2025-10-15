@@ -719,8 +719,8 @@ static int wave6_allocate_aux_buffer(struct vpu_instance *inst,
 				     int num)
 {
 	struct aux_buffer buf[WAVE6_MAX_FBS];
-	struct aux_buffer_info buf_info;
-	struct enc_aux_buffer_size_info size_info;
+	struct aux_buffer_info buf_info = { 0 };
+	struct enc_aux_buffer_size_info size_info = { 0 };
 	unsigned int size;
 	int i, ret;
 
@@ -791,7 +791,7 @@ static void wave6_update_frame_buf_addr(struct vpu_instance *inst,
 
 static int wave6_update_seq_param(struct vpu_instance *inst)
 {
-	struct enc_initial_info initial_info;
+	struct enc_initial_info initial_info = { 0 };
 	bool changed = false;
 	int ret;
 
@@ -825,15 +825,12 @@ static int wave6_vpu_enc_start_encode(struct vpu_instance *inst)
 	struct vb2_v4l2_buffer *dst_buf = NULL;
 	struct vpu_buffer *src_vbuf = NULL;
 	struct vpu_buffer *dst_vbuf = NULL;
-	struct frame_buffer frame_buf;
-	struct enc_param pic_param;
+	struct frame_buffer frame_buf = { 0 };
+	struct enc_param pic_param = { 0 };
 	u32 stride = inst->src_fmt.plane_fmt[0].bytesperline;
 	u32 luma_size = (stride * inst->src_fmt.height);
 	u32 chroma_size;
 	u32 fail_res;
-
-	memset(&pic_param, 0, sizeof(struct enc_param));
-	memset(&frame_buf, 0, sizeof(struct frame_buffer));
 
 	if (inst->src_fmt.pixelformat == V4L2_PIX_FMT_YUV420 ||
 	    inst->src_fmt.pixelformat == V4L2_PIX_FMT_YUV420M)
@@ -1041,7 +1038,7 @@ static void wave6_handle_last_frame(struct vpu_instance *inst,
 static void wave6_vpu_enc_finish_encode(struct vpu_instance *inst, bool error)
 {
 	int ret;
-	struct enc_output_info info;
+	struct enc_output_info info = { 0 };
 
 	if (error) {
 		vb2_queue_error(v4l2_m2m_get_src_vq(inst->v4l2_fh.m2m_ctx));
@@ -1053,7 +1050,6 @@ static void wave6_vpu_enc_finish_encode(struct vpu_instance *inst, bool error)
 		goto finish_encode;
 	}
 
-	memset(&info, 0, sizeof(info));
 	ret = wave6_vpu_enc_get_output_info(inst, &info);
 	if (ret) {
 		dev_err(inst->dev->dev, "vpu_enc_get_output_info fail %d\n", ret);
@@ -1161,7 +1157,7 @@ static int wave6_vpu_enc_try_fmt_cap(struct file *file, void *fh, struct v4l2_fo
 static void wave6_vpu_enc_get_roi_info(enum codec_std std, u32 width, u32 height,
 				       struct vpu_roi_map_info *info)
 {
-	struct vpu_roi_map_info roi;
+	struct vpu_roi_map_info roi = { 0 };
 	u32 grp_width, grp_height;
 
 	if (std == W_AVC_ENC) {
@@ -2228,9 +2224,7 @@ static void wave6_set_enc_open_param(struct enc_open_param *open_param,
 static int wave6_vpu_enc_create_instance(struct vpu_instance *inst)
 {
 	int ret;
-	struct enc_open_param open_param;
-
-	memset(&open_param, 0, sizeof(struct enc_open_param));
+	struct enc_open_param open_param = { 0 };
 
 	inst->performance.ts_start = ktime_get_raw();
 	wave6_vpu_activate(inst->dev);
@@ -2276,7 +2270,7 @@ error_pm:
 static int wave6_vpu_enc_initialize_instance(struct vpu_instance *inst)
 {
 	int ret;
-	struct enc_initial_info initial_info;
+	struct enc_initial_info initial_info = { 0 };
 	struct v4l2_ctrl *ctrl;
 
 	if (inst->enc_ctrls.mirror_direction) {

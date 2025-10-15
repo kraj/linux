@@ -234,12 +234,10 @@ static int wave6_allocate_aux_buffer(struct vpu_instance *inst,
 				     int offset, int num)
 {
 	struct aux_buffer buf[WAVE6_MAX_FBS];
-	struct aux_buffer_info buf_info;
-	struct dec_aux_buffer_size_info size_info;
+	struct aux_buffer_info buf_info = { 0 };
+	struct dec_aux_buffer_size_info size_info = { 0 };
 	unsigned int size;
 	int i, ret;
-
-	memset(buf, 0, sizeof(buf));
 
 	size_info.width = inst->src_fmt.width;
 	size_info.height = inst->src_fmt.height;
@@ -317,8 +315,8 @@ static void wave6_vpu_dec_handle_dst_buffer(struct vpu_instance *inst)
 	u32 fb_stride = inst->dst_fmt.plane_fmt[0].bytesperline;
 	u32 luma_size = fb_stride * inst->dst_fmt.height;
 	u32 chroma_size = (fb_stride / 2) * (inst->dst_fmt.height / 2);
-	struct frame_buffer disp_buffer = {0};
-	struct dec_initial_info initial_info = {0};
+	struct frame_buffer disp_buffer = { 0 };
+	struct dec_initial_info initial_info = { 0 };
 	int consumed_num = wave6_vpu_get_consumed_fb_num(inst);
 	int ret;
 
@@ -531,11 +529,9 @@ static void wave6_update_v4l2_ctrls(struct vpu_instance *inst,
 
 static int wave6_vpu_dec_start_decode(struct vpu_instance *inst)
 {
-	struct dec_param pic_param;
+	struct dec_param pic_param = { 0 };
 	int ret;
 	u32 fail_res = 0;
-
-	memset(&pic_param, 0, sizeof(struct dec_param));
 
 	wave6_handle_bitstream_buffer(inst);
 	if (inst->state == VPU_INST_STATE_OPEN) {
@@ -845,11 +841,10 @@ static void wave6_vpu_dec_handle_decoding_warn_error(struct vpu_instance *inst,
 
 static void wave6_vpu_dec_finish_decode(struct vpu_instance *inst, bool error)
 {
-	struct dec_output_info info;
+	struct dec_output_info info = { 0 };
 	struct v4l2_m2m_ctx *m2m_ctx = inst->v4l2_fh.m2m_ctx;
 	int ret;
 
-	memset(&info, 0, sizeof(info));
 	ret = wave6_vpu_dec_get_output_info(inst, &info);
 	if (ret)
 		goto finish_decode;
@@ -1429,9 +1424,7 @@ static void wave6_set_dec_openparam(struct dec_open_param *open_param,
 static int wave6_vpu_dec_create_instance(struct vpu_instance *inst)
 {
 	int ret;
-	struct dec_open_param open_param;
-
-	memset(&open_param, 0, sizeof(struct dec_open_param));
+	struct dec_open_param open_param = { 0 };
 
 	inst->performance.ts_start = ktime_get_raw();
 	wave6_vpu_activate(inst->dev);
@@ -1620,10 +1613,8 @@ static int wave6_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 
 static int wave6_vpu_dec_seek_header(struct vpu_instance *inst)
 {
-	struct dec_initial_info initial_info;
+	struct dec_initial_info initial_info = { 0 };
 	int ret;
-
-	memset(&initial_info, 0, sizeof(struct dec_initial_info));
 
 	ret = wave6_vpu_dec_issue_seq_init(inst);
 	if (ret) {
@@ -1784,7 +1775,7 @@ exit:
 static int wave6_vpu_dec_buf_init(struct vb2_buffer *vb)
 {
 	struct vpu_instance *inst = vb2_get_drv_priv(vb->vb2_queue);
-	struct dec_initial_info initial_info = {0};
+	struct dec_initial_info initial_info = { 0 };
 	int i;
 
 	wave6_vpu_buf_init(vb);
