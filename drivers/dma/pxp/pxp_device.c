@@ -2,20 +2,20 @@
 /*
  * Copyright (C) 2010-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  */
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
+#include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
-#include <linux/dma-mapping.h>
-#include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/pxp_device.h>
-#include <linux/atomic.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-mapping.h>
 #include <linux/dma/imx-dma.h>
+#include <linux/fs.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/pxp_device.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #define BUFFER_HASH_ORDER 4
 
