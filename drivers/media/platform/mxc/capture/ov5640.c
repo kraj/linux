@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012-2015 Freescale Semiconductor, Inc. All Rights Reserved.
- * Copyright 2019 NXP
+ * Copyright 2019-2025 NXP
  */
 
 /*
@@ -1739,8 +1739,6 @@ static int ioctl_dev_init(struct v4l2_int_device *s)
 	enum ov5640_frame_rate frame_rate;
 	int ret;
 
-	ov5640_data.on = true;
-
 	/* mclk */
 	tgt_xclk = ov5640_data.mclk;
 	tgt_xclk = min(tgt_xclk, (u32)OV5640_XCLK_MAX);
@@ -1918,6 +1916,8 @@ static int ov5640_probe(struct i2c_client *client)
 
 	ov5640_power_down(0);
 
+	ov5640_data.on = true;
+
 	retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
 	if (retval < 0 || chip_id_high != 0x56) {
 		clk_disable_unprepare(ov5640_data.sensor_clk);
@@ -1953,7 +1953,7 @@ static int ov5640_probe(struct i2c_client *client)
 static void ov5640_remove(struct i2c_client *client)
 {
 	v4l2_int_device_unregister(&ov5640_int_device);
-	ov5640_regulator_disable();
+	ioctl_s_power(&ov5640_int_device, false);
 }
 
 module_i2c_driver(ov5640_i2c_driver);
