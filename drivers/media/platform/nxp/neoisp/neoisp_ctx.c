@@ -1801,11 +1801,19 @@ void neoisp_update_context_packetizer(struct neoisp_node_group_s *node_group)
 {
 	struct neoisp_node_s *nd = &node_group->node[NEOISP_FRAME_NODE];
 	struct neoisp_packetizer_s *pck = &node_group->context->hw.packetizer;
-	u32 pixfmt = nd->format.fmt.pix_mp.pixelformat;
+	u32 pixfmt, i;
 	u8 obpp, lsa, rsa, type, order0, order1, order2, a0s, subsample;
 
-	/* Set output bits per pixel */
-	obpp = nd->neoisp_format->bpp_enc;
+	if (neoisp_node_link_is_enabled(nd)) {
+		pixfmt = nd->format.fmt.pix_mp.pixelformat;
+		obpp = nd->neoisp_format->bpp_enc;
+	} else {
+		/* Force dummy buffer configuration to YUYV format */
+		pixfmt = V4L2_PIX_FMT_YUYV;
+		for (i = 0; i < ARRAY_SIZE(formats_vcap); i++)
+			if (formats_vcap[i].fourcc == pixfmt)
+				obpp = formats_vcap[i].bpp_enc;
+	}
 
 	switch (pixfmt) {
 	case V4L2_PIX_FMT_Y10:
@@ -1992,9 +2000,8 @@ void neoisp_update_context_packetizer(struct neoisp_node_group_s *node_group)
 void neoisp_update_context_pipe_conf(struct neoisp_node_group_s *node_group)
 {
 	struct neoisp_pipe_conf_s *cfg = &node_group->context->hw.pipe_conf.common;
-	struct neoisp_node_s *nd = &node_group->node[NEOISP_FRAME_NODE];
+	struct neoisp_node_s *nd;
 	u32 tmp, width, height, obpp, irbpp, inp0_stride, inp1_stride;
-	u32 out_pixfmt = nd->format.fmt.pix_mp.pixelformat;
 
 	/* Input0 specific */
 	nd = &node_group->node[NEOISP_INPUT0_NODE];
@@ -2037,7 +2044,7 @@ void neoisp_update_context_pipe_conf(struct neoisp_node_group_s *node_group)
 	if (neoisp_node_link_is_enabled(nd)) {
 		obpp = (nd->neoisp_format->bit_depth + 7) / 8;
 
-		switch (out_pixfmt) {
+		switch (nd->format.fmt.pix_mp.pixelformat) {
 		case V4L2_PIX_FMT_GREY:
 		case V4L2_PIX_FMT_Y10:
 		case V4L2_PIX_FMT_Y12:
@@ -2085,6 +2092,7 @@ void neoisp_update_context_pipe_conf(struct neoisp_node_group_s *node_group)
 			break;
 		}
 	} else {
+		/* Default dummy pixelformat is set to YUYV */
 		cfg->outch0_addr =
 			NEO_PIPE_CONF_ADDR_SET(node_group->dummy_dma);
 		cfg->outch1_addr =
@@ -2120,9 +2128,8 @@ void neoisp_update_context_buf_addr(struct neoisp_dev_s *neoispd)
 	struct neoisp_buffer_s *buf_inp1 = job->buf[NEOISP_INPUT1_NODE];
 	struct neoisp_buffer_s *buf_out = job->buf[NEOISP_FRAME_NODE];
 	struct neoisp_buffer_s *buf_ir = job->buf[NEOISP_IR_NODE];
-	struct neoisp_node_s *nd = &job->node_group->node[NEOISP_FRAME_NODE];
+	struct neoisp_node_s *nd;
 	u32 width, height, ibpp, inp0_stride, inp1_stride;
-	u32 out_pixfmt = nd->format.fmt.pix_mp.pixelformat;
 	dma_addr_t inp0_addr, inp1_addr;
 
 	/* Input0 specific */
@@ -2156,7 +2163,7 @@ void neoisp_update_context_buf_addr(struct neoisp_dev_s *neoispd)
 	nd = &job->node_group->node[NEOISP_FRAME_NODE];
 	if (neoisp_node_link_is_enabled(nd)) {
 		/* Planar/multiplanar output image addresses */
-		switch (out_pixfmt) {
+		switch (nd->format.fmt.pix_mp.pixelformat) {
 		case V4L2_PIX_FMT_GREY:
 		case V4L2_PIX_FMT_Y10:
 		case V4L2_PIX_FMT_Y12:

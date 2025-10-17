@@ -243,7 +243,6 @@ static int neoisp_prepare_job(struct neoisp_node_group_s *node_group)
 	struct neoisp_node_s *node;
 	unsigned long flags;
 	int i;
-	bool have_frame_or_ir = false;
 
 	lockdep_assert_held(&neoispd->hw_lock);
 
@@ -281,7 +280,6 @@ static int neoisp_prepare_job(struct neoisp_node_group_s *node_group)
 	}
 	node = &node_group->node[NEOISP_FRAME_NODE];
 	if (neoisp_node_link_is_enabled(node)) {
-		have_frame_or_ir = true;
 		if ((BIT(NEOISP_FRAME_NODE) & node_group->streaming_map)
 				!= BIT(NEOISP_FRAME_NODE)) {
 			dev_dbg(&neoispd->pdev->dev, "Frame node not ready, nothing to do\n");
@@ -290,7 +288,6 @@ static int neoisp_prepare_job(struct neoisp_node_group_s *node_group)
 	}
 	node = &node_group->node[NEOISP_IR_NODE];
 	if (neoisp_node_link_is_enabled(node)) {
-		have_frame_or_ir = true;
 		if ((BIT(NEOISP_IR_NODE) & node_group->streaming_map)
 				!= BIT(NEOISP_IR_NODE)) {
 			dev_dbg(&neoispd->pdev->dev, "IR node not ready, nothing to do\n");
@@ -304,11 +301,6 @@ static int neoisp_prepare_job(struct neoisp_node_group_s *node_group)
 			dev_dbg(&neoispd->pdev->dev, "Stats is not disabled and not ready\n");
 			return -EAGAIN;
 		}
-	}
-	if (!have_frame_or_ir) {
-		/* At least one output is needed frame or ir */
-		dev_dbg(&neoispd->pdev->dev, "Missing capture node: one of {frame, ir}\n");
-		return -EAGAIN;
 	}
 
 	for (i = 0; i < NEOISP_NODES_COUNT; i++) {
@@ -515,38 +507,25 @@ static int neoisp_prepare_node_streaming(struct neoisp_node_s *node)
 					V4L2_YCBCR_ENC_DEFAULT :
 					node->format.fmt.pix_mp.ycbcr_enc),
 				  node->format.fmt.pix_mp.quantization);
-
-		if (neoisp_node_link_is_enabled(&node_group->node[NEOISP_IR_NODE])
-				&& !FORMAT_IS_MONOCHROME(pixfmt))
-			break;
-
-		/*
-		 * Prepare dummy buffer if IR node is disabled, or when monochrome
-		 * format is applied, because NEO isp needs a dummy buffer for UV
-		 * components then.
-		 */
-		node_group->dummy_size = node->format.fmt.pix_mp.width *
-			node->format.fmt.pix_mp.height *
-			NEOISP_MAX_BPP;
-		node_group->dummy_buf = dma_alloc_coherent(&neoispd->pdev->dev,
-				node_group->dummy_size,
-				&node_group->dummy_dma,
-				GFP_KERNEL);
 		break;
+	}
 
-	case NEOISP_IR_NODE:
-		if (neoisp_node_link_is_enabled(&node_group->node[NEOISP_FRAME_NODE]))
-			break;
+	/*
+	 * Check output modes (frame, ir, dummy or combination)
+	 */
+	if (!neoisp_node_link_is_enabled(&node_group->node[NEOISP_FRAME_NODE]) ||
+			!neoisp_node_link_is_enabled(&node_group->node[NEOISP_IR_NODE]) ||
+			FORMAT_IS_MONOCHROME(pixfmt)) {
+		if (!node_group->dummy_buf) {
+			struct neoisp_node_s *in0_node = &node_group->node[NEOISP_INPUT0_NODE];
 
-		/* Frame node is not used, prepare dummy buffer for RGB components */
-		node_group->dummy_size = node->format.fmt.pix_mp.width *
-			node->format.fmt.pix_mp.height *
-			NEOISP_MAX_BPP;
-		node_group->dummy_buf = dma_alloc_coherent(&neoispd->pdev->dev,
-				node_group->dummy_size,
-				&node_group->dummy_dma,
-				GFP_KERNEL);
-		break;
+			/* Allocate a single line dummy buffer as line stride is set to 0 */
+			node_group->dummy_size = in0_node->crop.width * NEOISP_MAX_BPP;
+			node_group->dummy_buf =
+				dma_alloc_coherent(&neoispd->pdev->dev,
+						   node_group->dummy_size,
+						   &node_group->dummy_dma, GFP_KERNEL);
+		}
 	}
 
 	return 0;
