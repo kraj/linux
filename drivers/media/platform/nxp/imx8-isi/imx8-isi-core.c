@@ -363,6 +363,7 @@ static const struct mxc_isi_plat_data mxc_imx95_data = {
 	.ier_reg		= &mxc_imx8_isi_ier_v2,
 	.set_thd		= &mxc_imx8_isi_thd_v1,
 	.buf_active_reverse	= true,
+	.gasket_ops             = &mxc_imx95_gasket_ops,
 	.has_36bit_dma		= true,
 	.raw32_chan_cfg		= true,
 	.buf_max_size		= true,
