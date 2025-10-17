@@ -1189,7 +1189,6 @@ static int vsi_v4l2_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->mediacfg.multislice_mode = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:
-		ctx->mediacfg.encparams.specific.enc_h26x_cmd.sliceSize = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:
 		ctx->mediacfg.encparams.specific.enc_h26x_cmd.picRc = ctrl->val;
@@ -1564,7 +1563,7 @@ static struct v4l2_ctrl_config vsi_v4l2_encctrl_defs[] = {
 		.id = V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.min = 1,
-		.max = 120,		//1920 div 16
+		.max = 8160,		//1920x1080
 		.step = 1,
 		.def = 1,
 	},

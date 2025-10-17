@@ -2532,10 +2532,8 @@ void vsi_update_sar(struct vsi_v4l2_ctx *ctx)
 	w = v4l2_ctrl_g_ctrl(ctrl);
 
 	ctrl = v4l2_ctrl_find(ctx->fh.ctrl_handler, V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_HEIGHT);
-	if (!ctrl) {
-		h = 0;
+	if (!ctrl)
 		return;
-	}
 	h = v4l2_ctrl_g_ctrl(ctrl);
 	if (!w || !h)
 		return;
@@ -2543,4 +2541,26 @@ void vsi_update_sar(struct vsi_v4l2_ctx *ctx)
 	divisor = gcd(w, h);
 	cmd->sample_aspect_ratio_width = w / divisor;
 	cmd->sample_aspect_ratio_height = h / divisor;
+}
+
+void vsi_update_slice_size(struct vsi_v4l2_ctx *ctx)
+{
+	u32 width = ctx->mediacfg.encparams.general.width;
+	u32 height = ctx->mediacfg.encparams.general.height;
+	u32 mbs_per_row = DIV_ROUND_UP(width, 16);
+	u32 mbs_per_col = DIV_ROUND_UP(height, 16);
+	u32 mbs_in_slice;
+	u32 slice_size;
+	struct v4l2_ctrl *ctrl;
+
+	if (ctx->mediacfg.multislice_mode != V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB)
+		return;
+
+	ctrl = v4l2_ctrl_find(ctx->fh.ctrl_handler, V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB);
+	if (!ctrl)
+		return;
+
+	mbs_in_slice = v4l2_ctrl_g_ctrl(ctrl);
+	slice_size = clamp(mbs_in_slice / mbs_per_row, 1, mbs_per_col);
+	ctx->mediacfg.encparams.specific.enc_h26x_cmd.sliceSize = slice_size;
 }

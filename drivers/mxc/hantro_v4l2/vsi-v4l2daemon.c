@@ -349,6 +349,7 @@ static u32 format_bufinfo_enc(struct vsi_v4l2_ctx *ctx, struct vsi_v4l2_msg *pms
 		vsi_update_sar(ctx);
 		*update |= UPDATE_INFO;
 	}
+	vsi_update_slice_size(ctx);
 	vsi_convertIPCM(ctx);
 
 	if (binputqueue(buf->type)) {
