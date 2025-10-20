@@ -1963,6 +1963,7 @@ static int wave6_vpu_dec_release(struct file *filp)
 	struct vpu_instance *inst = wave6_to_vpu_inst(file_to_v4l2_fh(filp));
 
 	dprintk(inst->dev->dev, "[%d] release\n", inst->id);
+	cancel_work_sync(&inst->fb_work);
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
 
 	mutex_lock(&inst->queue_lock);
