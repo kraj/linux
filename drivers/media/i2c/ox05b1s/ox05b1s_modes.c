@@ -22,6 +22,8 @@
 #define OS08A20_REG_Y_ODD_INC		CCI_REG8(0x3816)
 #define OS08A20_REG_FORMAT1		CCI_REG8(0x3820)
 #define OS08A20_REG_FORMAT2		CCI_REG8(0x3821)
+#define OS08A20_REG_BLC_CTRL08		CCI_REG8(0x4008)
+#define OS08A20_REG_BLC_CTRL09		CCI_REG8(0x4009)
 #define OS08A20_REG_PCLK_PERIOD		CCI_REG8(0x4837)
 #define OS08A20_REG_ISP_CTRL_1		CCI_REG8(0x5001)
 #define OS08A20_REG_ISP_CTRL_5		CCI_REG8(0x5005)
@@ -32,6 +34,8 @@ static const struct cci_reg_sequence os08a20_init_setting_common[] = {
 	{OS08A20_REG_ANA_CTRL + 0x10, 0x39},
 	{OS08A20_REG_SENSOR_TIMING_CTRL + 0x5e, 0x0b},
 	{OS08A20_REG_L2S_MODE, 0x04},
+	{OS08A20_REG_BLC_CTRL08, 0x02},
+	{OS08A20_REG_BLC_CTRL09, 0x0d},
 	{OS08A20_REG_ISP_CTRL_1, 0x42},
 	{OS08A20_REG_ISP_CTRL_5, 0x00},
 };
@@ -76,6 +80,7 @@ static const struct cci_reg_sequence os08a20_init_setting_1080p_10b[] = {
 	{OS08A20_REG_Y_ODD_INC, 0x03},
 	{OS08A20_REG_FORMAT1, 0x01}, /* vertical bining */
 	{OS08A20_REG_FORMAT2, 0x05}, /* mirror, horizontal bining */
+	{OS08A20_REG_BLC_CTRL09, 0x05},
 	{OS08A20_REG_PCLK_PERIOD, 0x16},
 };
 
