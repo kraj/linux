@@ -26,7 +26,7 @@
 #include "vpu_imx8q.h"
 #include "vpu_malone.h"
 
-static bool low_latency = true;
+static bool low_latency;
 module_param(low_latency, bool, 0644);
 MODULE_PARM_DESC(low_latency, "Set low latency frame flush mode: 0 (disable) or 1 (enable)");
 
