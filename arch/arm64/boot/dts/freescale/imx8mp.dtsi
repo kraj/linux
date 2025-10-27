@@ -9,6 +9,7 @@
 #include <dt-bindings/reset/imx8mp-reset-audiomix.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interconnect/fsl,imx8mp.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 
@@ -150,13 +151,6 @@
 			cache-line-size = <64>;
 			cache-sets = <512>;
 		};
-	};
-
-	display-subsystem {
-		compatible = "fsl,imx-display-subsystem";
-		ports = <&lcdif1_disp>,
-			<&lcdif2_disp>,
-			<&lcdif3_disp>;
 	};
 
 	a53_opp_table: opp-table {
@@ -1524,7 +1518,6 @@
 					dmas = <&sdma2 30 2 0>, <&sdma2 31 2 0>;
 					dma-names = "rx", "tx";
 					resets = <&audio_blk_ctrl 0>;
-					hdmi-phandle = <&hdmi>;
 					status = "disabled";
 				};
 			};
@@ -1586,93 +1579,75 @@
 			#size-cells = <1>;
 			ranges;
 
-			mipi_dsi: mipi_dsi@32e60000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
+			mipi_dsi: dsi@32e60000 {
 				compatible = "fsl,imx8mp-mipi-dsim";
-				reg = <0x32e60000 0x10000>;
+				reg = <0x32e60000 0x400>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_DISP1_PIX_ROOT>;
-				clock-names = "cfg", "pll-ref", "apb-root", "pixel";
-				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF>;
-				assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
-				assigned-clock-rates = <12000000>;
+					 <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF>;
+				clock-names = "bus_clk", "sclk_mipi";
+				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_APB>,
+						  <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF>;
+				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+							 <&clk IMX8MP_CLK_24M>;
+				assigned-clock-rates = <200000000>, <24000000>;
+				samsung,pll-clock-frequency = <24000000>;
 				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_MIPI_DSI_1>;
 				status = "disabled";
 
-				port@0 {
-					dsim_from_lcdif: endpoint {
-						remote-endpoint = <&lcdif_to_dsim>;
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						dsim_from_lcdif1: endpoint {
+							remote-endpoint = <&lcdif1_to_dsim>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+
+						mipi_dsi_out: endpoint {
+						};
 					};
 				};
 			};
 
-			lcdif1: lcd-controller@32e80000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx8mp-lcdif1";
+			lcdif1: display-controller@32e80000 {
+				compatible = "fsl,imx8mp-lcdif";
 				reg = <0x32e80000 0x10000>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_DISP1_PIX_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "pix", "disp-axi", "disp-apb";
-				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_DISP1_PIX>,
-						  <&clk IMX8MP_CLK_MEDIA_AXI>,
-						  <&clk IMX8MP_CLK_MEDIA_APB>;
-				assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>,
-							 <&clk IMX8MP_SYS_PLL2_1000M>,
-							 <&clk IMX8MP_SYS_PLL1_800M>;
-				assigned-clock-rates = <0>, <500000000>, <200000000>;
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-				blk-ctl = <&media_blk_ctrl>;
 				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_LCDIF_1>;
 				status = "disabled";
 
-				lcdif1_disp: port@0 {
-					reg = <0>;
-
-					lcdif_to_dsim: endpoint {
-						remote-endpoint = <&dsim_from_lcdif>;
+				port {
+					lcdif1_to_dsim: endpoint {
+						remote-endpoint = <&dsim_from_lcdif1>;
 					};
 				};
 			};
 
-			lcdif2: lcd-controller@32e90000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx8mp-lcdif2";
+			lcdif2: display-controller@32e90000 {
+				compatible = "fsl,imx8mp-lcdif";
 				reg = <0x32e90000 0x10000>;
-				clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "pix", "disp-axi", "disp-apb";
-				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX>,
-						  <&clk IMX8MP_CLK_MEDIA_AXI>,
-						  <&clk IMX8MP_CLK_MEDIA_APB>;
-				assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>,
-							 <&clk IMX8MP_SYS_PLL2_1000M>,
-							 <&clk IMX8MP_SYS_PLL1_800M>;
-				assigned-clock-rates = <0>, <500000000>, <200000000>;
 				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
 				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_LCDIF_2>;
 				status = "disabled";
 
-				lcdif2_disp: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-
-					lcdif2_disp_ldb_ch0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&ldb_ch0>;
-					};
-
-					lcdif2_disp_ldb_ch1: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&ldb_ch1>;
+				port {
+					lcdif2_to_ldb: endpoint {
+						remote-endpoint = <&ldb_from_lcdif2>;
 					};
 				};
 			};
@@ -1681,6 +1656,8 @@
 				compatible = "fsl,imx8mp-media-blk-ctrl",
 					     "syscon";
 				reg = <0x32ec0000 0x10000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
 				power-domains = <&pgc_mediamix>,
 						<&pgc_mipi_phy1>,
 						<&pgc_mipi_phy1>,
@@ -1718,6 +1695,44 @@
 				assigned-clock-rates = <500000000>, <200000000>,
 						       <0>, <0>, <1039500000>;
 				#power-domain-cells = <1>;
+
+				lvds_bridge: bridge@5c {
+					compatible = "fsl,imx8mp-ldb";
+					reg = <0x5c 0x4>, <0x128 0x4>;
+					reg-names = "ldb", "lvds";
+					clocks = <&clk IMX8MP_CLK_MEDIA_LDB_ROOT>;
+					clock-names = "ldb";
+					assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+					assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							ldb_from_lcdif2: endpoint {
+								remote-endpoint = <&lcdif2_to_ldb>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							ldb_lvds_ch0: endpoint {
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							ldb_lvds_ch1: endpoint {
+							};
+						};
+					};
+				};
 			};
 
 			pcie_phy: pcie-phy@32f00000 {
@@ -1764,8 +1779,11 @@
 						     "pai", "pvi", "trng",
 						     "hdmi-tx", "hdmi-tx-phy",
 						     "hdcp", "hrv";
+				interconnects = <&noc IMX8MP_ICM_HRV &noc IMX8MP_ICN_HDMI>,
+						<&noc IMX8MP_ICM_LCDIF_HDMI &noc IMX8MP_ICN_HDMI>,
+						<&noc IMX8MP_ICM_HDCP &noc IMX8MP_ICN_HDMI>;
+				interconnect-names = "hrv", "lcdif-hdmi", "hdcp";
 				#power-domain-cells = <1>;
-				#reset-cells = <1>;
 			};
 
 			irqsteer_hdmi: interrupt-controller@32fc2000 {
@@ -1781,71 +1799,89 @@
 				power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_IRQSTEER>;
 			};
 
-			hdmi_pavi: hdmi-pai-pvi@32fc4000 {
-				compatible = "fsl,imx8mp-hdmi-pavi";
+			hdmi_pvi: display-bridge@32fc4000 {
+				compatible = "fsl,imx8mp-hdmi-pvi";
 				reg = <0x32fc4000 0x1000>;
-				clocks = <&clk IMX8MP_CLK_HDMI_APB>;
+				interrupt-parent = <&irqsteer_hdmi>;
+				interrupts = <12>;
 				power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_PVI>;
-				resets = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_RESET_PAI>;
-				reset-names = "pai_rst";
 				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						pvi_from_lcdif3: endpoint {
+							remote-endpoint = <&lcdif3_to_pvi>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						pvi_to_hdmi_tx: endpoint {
+							remote-endpoint = <&hdmi_tx_from_pvi>;
+						};
+					};
+				};
 			};
 
-			lcdif3: lcd-controller@32fc6000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx8mp-lcdif1";
-				reg = <0x32fc6000 0x10000>;
-				clocks = <&hdmiphy 0>,
-						<&clk IMX8MP_CLK_HDMI_AXI>,
-						<&clk IMX8MP_CLK_HDMI_APB>;
-				clock-names = "pix", "disp-axi", "disp-apb";
+			lcdif3: display-controller@32fc6000 {
+				compatible = "fsl,imx8mp-lcdif";
+				reg = <0x32fc6000 0x1000>;
+				interrupt-parent = <&irqsteer_hdmi>;
+				interrupts = <8>;
+				clocks = <&hdmi_tx_phy>,
+					 <&clk IMX8MP_CLK_HDMI_APB>,
+					 <&clk IMX8MP_CLK_HDMI_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
 				power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_LCDIF>;
-				assigned-clocks =  <&clk IMX8MP_CLK_HDMI_AXI>,
-								<&clk IMX8MP_CLK_HDMI_APB>;
-				assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_500M>,
-							 <&clk IMX8MP_SYS_PLL1_133M>;
-				assigned-clock-rates = <500000000>, <133000000>;
-				interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-parent = <&irqsteer_hdmi>;
 				status = "disabled";
 
-				lcdif3_disp: port@0 {
-					reg = <0>;
-
-					lcdif3_to_hdmi: endpoint {
-						remote-endpoint = <&hdmi_from_lcdif3>;
+				port {
+					lcdif3_to_pvi: endpoint {
+						remote-endpoint = <&pvi_from_lcdif3>;
 					};
 				};
 			};
 
-			hdmi: hdmi@32fd8000 {
-				compatible = "fsl,imx8mp-hdmi";
+			hdmi_tx: hdmi@32fd8000 {
+				compatible = "fsl,imx8mp-hdmi-tx";
 				reg = <0x32fd8000 0x7eff>;
-				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&irqsteer_hdmi>;
-				power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_HDMI_TX>;
+				interrupts = <0>;
 				clocks = <&clk IMX8MP_CLK_HDMI_APB>,
-						<&clk IMX8MP_CLK_HDMI_24M>,
-						<&hdmiphy 0>;
-				clock-names = "iahb", "isfr", "pix";
-				assigned-clocks = <&clk IMX8MP_CLK_HDMI_APB>,
-							<&clk IMX8MP_CLK_HDMI_AXI>,
-							<&clk IMX8MP_CLK_HDMI_24M>;
-				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_133M>,
-							<&clk IMX8MP_SYS_PLL2_500M>,
-							<&clk IMX8MP_CLK_24M>;
-				assigned-clock-rates = <133000000>, <500000000>, <24000000>;
+					 <&clk IMX8MP_CLK_HDMI_REF_266M>,
+					 <&clk IMX8MP_CLK_32K>,
+					 <&hdmi_tx_phy>;
+				clock-names = "iahb", "isfr", "cec", "pix";
+				assigned-clocks = <&clk IMX8MP_CLK_HDMI_REF_266M>;
+				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>;
+				power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_HDMI_TX>;
+				reg-io-width = <1>;
 				status = "disabled";
 
-				port@0 {
-					hdmi_from_lcdif3: endpoint {
-						remote-endpoint = <&lcdif3_to_hdmi>;
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						hdmi_tx_from_pvi: endpoint {
+							remote-endpoint = <&pvi_to_hdmi_tx>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						/* Point endpoint to the HDMI connector */
 					};
 				};
 			};
 
-			hdmiphy: hdmiphy@32fdff00 {
+			hdmi_tx_phy: phy@32fdff00 {
 				compatible = "fsl,imx8mp-hdmi-phy";
 				reg = <0x32fdff00 0x100>;
 				clocks = <&clk IMX8MP_CLK_HDMI_APB>,
@@ -1853,79 +1889,10 @@
 				clock-names = "apb", "ref";
 				assigned-clocks = <&clk IMX8MP_CLK_HDMI_24M>;
 				assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
-				#clock-cells = <1>;
-				clock-output-names = "hdmi_phy";
-				#phy-cells = <0>;
 				power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_HDMI_TX_PHY>;
+				#clock-cells = <0>;
+				#phy-cells = <0>;
 				status = "disabled";
-			};
-
-			ldb: ldb@32ec005c {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx8mp-ldb-nxp";
-				clocks = <&clk IMX8MP_CLK_MEDIA_LDB_ROOT>;
-				clock-names = "ldb";
-				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
-				assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
-				gpr = <&media_blk_ctrl>;
-				power-domains = <&pgc_mediamix>;
-				status = "disabled";
-
-				lvds-channel@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-					phys = <&ldb_phy1>;
-					phy-names = "ldb_phy";
-					status = "disabled";
-
-					port@0 {
-						reg = <0>;
-
-						ldb_ch0: endpoint {
-							remote-endpoint = <&lcdif2_disp_ldb_ch0>;
-						};
-					};
-				};
-
-				lvds-channel@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-					phys = <&ldb_phy2>;
-					phy-names = "ldb_phy";
-					status = "disabled";
-
-					port@0 {
-						reg = <0>;
-
-						ldb_ch1: endpoint {
-							remote-endpoint = <&lcdif2_disp_ldb_ch1>;
-						};
-					};
-				};
-			};
-
-			ldb_phy: phy@32ec0128 {
-				compatible = "fsl,imx8mp-lvds-phy";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				gpr = <&media_blk_ctrl>;
-				clocks = <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "apb";
-				power-domains = <&pgc_mediamix>;
-				status = "disabled";
-
-				ldb_phy1: port@0 {
-					reg = <0>;
-					#phy-cells = <0>;
-				};
-
-				ldb_phy2: port@1 {
-					reg = <1>;
-					#phy-cells = <0>;
-				};
 			};
 
 			mediamix_gpr: media_gpr@32ec0008 {
