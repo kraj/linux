@@ -1321,6 +1321,8 @@
 
 	ele_fw2: secure-enclave {
 		compatible = "fsl,imx93-se";
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		mbox-names = "tx", "rx";
 		mboxes = <&s4muap 0 0>,
 			<&s4muap 1 0>;
