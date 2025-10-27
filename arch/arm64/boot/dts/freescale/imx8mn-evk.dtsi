@@ -5,6 +5,7 @@
 
 #include <dt-bindings/usb/pd.h>
 #include "imx8mn.dtsi"
+#include "imx8mn-nxp-display.dtsi"
 
 / {
 	chosen {
