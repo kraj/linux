@@ -344,7 +344,7 @@
 
 &enetc1 {
 	clocks = <&scmi_clk IMX94_CLK_MAC4>;
-	clock-names = "enet_ref_clk";
+	clock-names = "ref";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eth3>;
 	phy-handle = <&ethphy3>;
@@ -354,7 +354,7 @@
 
 &enetc2 {
 	clocks = <&scmi_clk IMX94_CLK_MAC5>;
-	clock-names = "enet_ref_clk";
+	clock-names = "ref";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eth4>;
 	phy-handle = <&ethphy4>;
