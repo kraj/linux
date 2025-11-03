@@ -186,6 +186,7 @@ static int neutron_inference_run(struct neutron_inference *inf)
 	ret = ndev->mbox->ops->send_data(ndev->mbox, &msg);
 	if (ret < 0) {
 		inf->status = NEUTRON_UAPI_STATUS_ERROR;
+		neutron_hw_reset(ndev);
 		mutex_unlock(&ndev->mutex);
 		goto inf_stop_early;
 	}
