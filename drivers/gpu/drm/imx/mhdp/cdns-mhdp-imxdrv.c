@@ -275,5 +275,6 @@ static struct platform_driver cdns_mhdp_imx_platform_driver = {
 module_platform_driver(cdns_mhdp_imx_platform_driver);
 
 MODULE_AUTHOR("Sandor YU <sandor.yu@nxp.com>");
+MODULE_DESCRIPTION("NXP i.MX MX8 DRM HDMI/DP");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:cdnhdmi-imx");
