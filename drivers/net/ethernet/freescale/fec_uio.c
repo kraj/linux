@@ -196,8 +196,8 @@ static void imx_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	plat_dat = dwmac->plat_dat;
 
 	if (dwmac->ops->mac_rgmii_txclk_auto_adj ||
-			(plat_dat->mac_interface == PHY_INTERFACE_MODE_RMII) ||
-			(plat_dat->mac_interface == PHY_INTERFACE_MODE_MII))
+			(plat_dat->phy_interface == PHY_INTERFACE_MODE_RMII) ||
+			(plat_dat->phy_interface == PHY_INTERFACE_MODE_MII))
 		return;
 
 	switch (speed) {
@@ -487,7 +487,7 @@ static int stmmac_init_phy(struct net_device *dev)
 
 static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 {
-	int interface = priv->plat->mac_interface;
+	int interface = priv->plat->phy_interface;
 
 	if (priv->dma_cap.pcs) {
 		if ((interface == PHY_INTERFACE_MODE_RGMII) ||
