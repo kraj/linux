@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 #include <linux/mxcfb.h>
 #include <linux/of_device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include "v4l2-int-device.h"
@@ -2379,18 +2378,6 @@ static long mxc_v4l_do_ioctl(struct file *file,
 			retval = vidioc_int_enum_frameintervals(cam->sensor,
 								fival);
 		} else {
-			pr_err("ERROR: v4l2 capture: slave not found!\n");
-			retval = -ENODEV;
-		}
-		break;
-	}
-	case VIDIOC_DBG_G_CHIP_IDENT: {
-		struct v4l2_dbg_chip_ident *p = arg;
-		p->ident = V4L2_IDENT_NONE;
-		p->revision = 0;
-		if (cam->sensor)
-			retval = vidioc_int_g_chip_ident(cam->sensor, (int *)p);
-		else {
 			pr_err("ERROR: v4l2 capture: slave not found!\n");
 			retval = -ENODEV;
 		}
