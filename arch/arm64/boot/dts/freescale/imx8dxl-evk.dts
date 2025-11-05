@@ -141,6 +141,16 @@
 		regulator-always-on;
 	};
 
+	pcie_clk_sel_ext: clk-sel-regulator {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "clk_ext_sel";
+		gpio = <&pca6416_1 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
 	reg_fec1_sel: regulator-1 {
 		compatible = "regulator-fixed";
 		regulator-name = "fec1_supply";
