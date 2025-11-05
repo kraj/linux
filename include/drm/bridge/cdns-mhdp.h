@@ -768,7 +768,7 @@ struct cdns_mhdp_device {
 	struct platform_device	*audio_pdev;
 	struct audio_info	audio_info;
 
-	struct cdns_mhdp_bridge	bridge;
+	struct cdns_mhdp_bridge	*bridge;
 	struct phy		*phy;
 
 	struct video_info	video_info;

@@ -800,10 +800,14 @@ static int __cdns_dp_probe(struct platform_device *pdev,
 			enable_irq(mhdp->irq[IRQ_IN]);
 	}
 
-	mhdp->bridge.base.driver_private = mhdp;
-	mhdp->bridge.base.funcs = &cdns_dp_bridge_funcs;
+	mhdp->bridge = devm_drm_bridge_alloc(dev, struct cdns_mhdp_bridge, base,
+					     &cdns_dp_bridge_funcs);
+	if (IS_ERR(mhdp->bridge))
+		return PTR_ERR(mhdp->bridge);
+
+	mhdp->bridge->base.driver_private = mhdp;
 #ifdef CONFIG_OF
-	mhdp->bridge.base.of_node = dev->of_node;
+	mhdp->bridge->base.of_node = dev->of_node;
 #endif
 
 	dev_set_drvdata(dev, mhdp);
@@ -837,7 +841,7 @@ int cdns_dp_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	drm_bridge_add(&mhdp->bridge.base);
+	drm_bridge_add(&mhdp->bridge->base);
 
 	return 0;
 }
@@ -847,7 +851,7 @@ void cdns_dp_remove(struct platform_device *pdev)
 {
 	struct cdns_mhdp_device *mhdp = platform_get_drvdata(pdev);
 
-	drm_bridge_remove(&mhdp->bridge.base);
+	drm_bridge_remove(&mhdp->bridge->base);
 
 	__cdns_dp_remove(mhdp);
 }
@@ -865,7 +869,7 @@ int cdns_dp_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 	if (ret < 0)
 		return ret;
 
-	ret = drm_bridge_attach(encoder, &mhdp->bridge.base, NULL, 0);
+	ret = drm_bridge_attach(encoder, &mhdp->bridge->base, NULL, 0);
 	if (ret) {
 		cdns_dp_remove(pdev);
 		DRM_ERROR("Failed to initialize bridge with drm\n");
