@@ -1435,6 +1435,7 @@ properties:
       - description: i.MX95 based Boards
         items:
           - enum:
+              - fsl,frdm-imx95-pro        # FRDM-IMX95-PRO Board
               - fsl,imx95-15x15-evk       # i.MX95 15x15 EVK Board
               - fsl,imx95-19x19-evk       # i.MX95 19x19 EVK Board
           - const: fsl,imx95
