@@ -272,6 +272,10 @@
 	cpu-supply = <&buck2_reg>;
 };
 
+&ddrc {
+	status = "disabled";
+};
+
 &ecspi2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
