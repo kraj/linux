@@ -205,6 +205,10 @@
 	};
 };
 
+&ddrc {
+	status = "disabled";
+};
+
 &easrc {
 	#sound-dai-cells = <0>;
 	fsl,asrc-rate = <48000>;
