@@ -540,6 +540,10 @@
 	status = "okay";
 };
 
+&neoisp0 {
+	status = "okay";
+};
+
 &pixel_interleaver {
 	status = "okay";
 
