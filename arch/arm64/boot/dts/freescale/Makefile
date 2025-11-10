@@ -501,6 +501,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx943-evk-netc-rpmsg.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx943-orangebox.dtb
 imx943-orangebox-mic-dtbs := imx943-orangebox.dtb imx943-orangebox-mic.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx943-orangebox-mic.dtb
+imx943-orangebox-netc-m33-dtbs := imx943-orangebox.dtb \
+				  imx943-orangebox-netc-m33.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx943-orangebox-netc-m33.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-flexspi-m2.dtb
