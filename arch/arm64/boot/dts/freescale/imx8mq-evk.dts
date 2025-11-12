@@ -809,7 +809,7 @@
 	status = "okay";
 
 	bluetooth {
-		compatible = "nxp,88w8997-bt";
+		compatible = "nxp,88w8987-bt";
 	};
 };
 
