@@ -41,7 +41,7 @@
 	};
 
 	cm70: imx943-cm70 {
-		compatible = "fsl,imx94-cm7";
+		compatible = "fsl,imx94-cm70";
 		mbox-names = "tx", "rx", "rxdb";
 		mboxes = <&mu11 0 1
 			  &mu11 1 1
@@ -57,7 +57,7 @@
 	};
 
 	cm71: imx943-cm71 {
-		compatible = "fsl,imx94-cm7";
+		compatible = "fsl,imx94-cm71";
 		mbox-names = "tx", "rx", "rxdb";
 		mboxes = <&mu13 0 1
 			  &mu13 1 1
