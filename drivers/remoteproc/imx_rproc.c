@@ -156,9 +156,9 @@ static const struct imx_rproc_att imx_rproc_att_imx95_m7[] = {
 static const struct imx_rproc_att imx_rproc_att_imx94_m70[] = {
 	/* dev addr , sys addr  , size	    , flags */
 	/* TCM CODE NON-SECURE */
-	{ 0x00000000, 0x203C0000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(1) },
+	{ 0x00000000, 0x203C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
 	/* TCM SYS NON-SECURE*/
-	{ 0x20000000, 0x20400000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(1) },
+	{ 0x20000000, 0x20400000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* DDR */
 	{ 0x80000000, 0x80000000, 0x50000000, 0 },
@@ -167,9 +167,9 @@ static const struct imx_rproc_att imx_rproc_att_imx94_m70[] = {
 static const struct imx_rproc_att imx_rproc_att_imx94_m71[] = {
 	/* dev addr , sys addr  , size	    , flags */
 	/* TCM CODE NON-SECURE */
-	{ 0x00000000, 0x202C0000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(7) },
+	{ 0x00000000, 0x202C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
 	/* TCM SYS NON-SECURE*/
-	{ 0x20000000, 0x20300000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(7) },
+	{ 0x20000000, 0x20300000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* DDR */
 	{ 0x80000000, 0x80000000, 0x50000000, 0 },
