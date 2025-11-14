@@ -1084,8 +1084,8 @@ nwl_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	memcpy(&dsi->phy_cfg, &new_cfg, sizeof(new_cfg));
 }
 
-static void nwl_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *state)
+static void nwl_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
 	int ret;
@@ -1136,22 +1136,16 @@ static void nwl_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	 */
 	drm_atomic_bridge_chain_enable(dsi->panel_bridge, state);
 
-	return;
-
-runtime_put:
-	pm_runtime_put_sync(dsi->dev);
-}
-
-static void nwl_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_atomic_state *state)
-{
-	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
-	int ret;
-
 	/* Step 5 from DSI reset-out instructions */
 	ret = dsi->pdata->dpi_reset(dsi, false);
 	if (ret < 0)
 		DRM_DEV_ERROR(dsi->dev, "Failed to deassert DPI: %d\n", ret);
+
+	return;
+
+runtime_put:
+	pm_runtime_put_sync(dsi->dev);
+
 }
 
 static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
@@ -1229,7 +1223,6 @@ static const struct drm_bridge_funcs nwl_dsi_bridge_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset		= drm_atomic_helper_bridge_reset,
 	.atomic_check		= nwl_dsi_bridge_atomic_check,
-	.atomic_pre_enable	= nwl_dsi_bridge_atomic_pre_enable,
 	.atomic_enable		= nwl_dsi_bridge_atomic_enable,
 	.atomic_post_disable	= nwl_dsi_bridge_atomic_post_disable,
 	.atomic_get_input_bus_fmts = nwl_bridge_atomic_get_input_bus_fmts,
