@@ -24,6 +24,7 @@
 #include <linux/version_compat_defs.h>
 
 #include <linux/types.h>
+#include <linux/migrate.h>
 
 struct kbase_device;
 struct file;
@@ -51,6 +52,28 @@ struct page;
 #define IS_PAGE_MOVABLE(status) ((bool)(status & PAGE_MOVABLE_MASK))
 
 #if MALI_PAGE_MIGRATE
+/**
+ * kbase_clear_page_movable - Clear the "movable" property from the page
+ * @p: Page to clear the "movable" property from.
+ *
+ * This function is supposed to be called just before releasing
+ * the page and will take care of removing the "movable" property
+ * from the page, if necessary.
+ */
+void kbase_clear_page_movable(struct page *p);
+
+#if (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE)
+/**
+ * kbase_set_page_movable - Set the "movable" property for the page
+ * @p:   Page to set the "movable" property for.
+ * @ops: Movable operations to be set for the page.
+ *
+ * This function will set the "movable" property for the page and,
+ * if necessary, it will also set and initialize the movable operations.
+ */
+void kbase_set_page_movable(struct page *p, const struct movable_operations *ops);
+#endif
+
 /**
  * kbase_alloc_page_metadata - Allocate and initialize page metadata
  * @kbdev:    Pointer to kbase device.
