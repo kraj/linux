@@ -166,7 +166,7 @@ mali_kbase-y := \
     mali_kbase_io.o
 
 
-MALI_PAGE_MIGRATE := 0
+MALI_PAGE_MIGRATE := 1
 ifeq ($(MALI_PAGE_MIGRATE),1)
 mali_kbase-y += \
     mali_kbase_mem_migrate.o
