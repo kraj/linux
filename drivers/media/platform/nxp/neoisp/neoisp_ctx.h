@@ -8,7 +8,8 @@
 #ifndef NEOISP_CTX_H
 #define NEOISP_CTX_H
 
-#include <uapi/linux/nxp_neoisp.h>
+#include <linux/media/nxp/nxp_neoisp.h>
+
 #include "neoisp.h"
 #include "neoisp_regs.h"
 

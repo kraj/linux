@@ -10,11 +10,11 @@
 
 #include <linux/bits.h>
 #include <linux/debugfs.h>
+#include <linux/media/nxp/nxp_neoisp.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-v4l2.h>
-#include <uapi/linux/nxp_neoisp.h>
 
 #include "neoisp_hw.h"
 
