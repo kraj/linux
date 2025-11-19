@@ -112,5 +112,5 @@ This chapter describes the data types exposed to userspace by Neoisp driver.
 Some structure members are in a fixed-point format, in this case the related description
 will be ended by a fixed-point definition between parenthesis.
 
-.. kernel-doc:: include/uapi/linux/nxp_neoisp.h
+.. kernel-doc:: include/uapi/linux/media/nxp/nxp_neoisp.h
 
