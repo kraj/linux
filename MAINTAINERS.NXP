@@ -324,7 +324,7 @@ F: Documentation/admin-guide/media/nxp-neoisp*
 F: Documentation/devicetree/bindings/media/nxp,neoisp.yaml
 F: Documentation/userspace-api/media/v4l/metafmt-nxp-neoisp.rst
 F: drivers/media/platform/nxp/neoisp/neoisp*
-F: include/uapi/linux/nxp_neoisp.h
+F: include/uapi/linux/media/nxp/nxp_neoisp.h
 
 clock/imx
 M: Jacky Bai <jacky.bai@nxp.com>
