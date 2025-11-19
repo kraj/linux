@@ -18,7 +18,7 @@
 #define V4L2_CID_NEOISP_META_API_VERSION (V4L2_CID_USER_NEOISP_BASE + 1)
 
 /* Values for Neoisp 'capabilities' in custom QUERYCAP */
-#define NEO_CAP_ALIGNMENT_MSB BIT(0)
+#define NEO_CAP_ALIGNMENT_MSB (1u << 0)
 
 /* Local memories sizes (words size) */
 
@@ -30,7 +30,7 @@
 #define NEO_CTEMP_PIX_CNT_CNT (64)
 /* RGBIR histogram - 1024 bytes - 256 x 32bits words */
 #define NEO_RGBIR_HIST_CNT (256)
-/* Hystograms/Statistics - 2048 bytes - 512 x 32bits words */
+/* Histograms/Statistics - 2048 bytes - 512 x 32bits words */
 #define NEO_HIST_STAT_CNT (512)
 /* DRC Global histograms - 1664 bytes - 416 x 32bits words */
 #define NEO_DRC_GLOBAL_HIST_ROI_CNT (416)
@@ -78,7 +78,7 @@ enum neoisp_meta_buffer_version_e {
  * * 1: Update - settings in associated configuration block are applied
  * * 0: Don't update - settings in associated configuration block are ignored
  *
- * @pipe_conf_cfg:	Set 1 to update the Pipeline configurations
+ * @pipe_conf_cfg:	Set 1 to update the Pipeline Configuration unit
  * @head_color_cfg:	Set 1 to update the Head Color unit
  * @hdr_decompress_input0_cfg:	Set 1 to update the HDR Decomp0 unit
  * @hdr_decompress_input1_cfg:	Set 1 to update the HDR Decomp1 unit
@@ -143,13 +143,13 @@ struct neoisp_feat_ctrl_s {
  * @img_conf_inalign1:	Input image 1 pixel alignment (0: LSB; 1: MSB)
  * @img_conf_lpalign1:	Linepath 1 pixel alignment (0: LSB; 1: MSB)
  *
- * These fields configure how the image are fetched into the NEO pipeline.
+ * These fields configure how the images are fetched into the NEO pipeline.
  *
- * INALIGN0/1 configure if the image is fetched MSB or LSB-aligned from the
- * 16-bit aligned words in the DDR buffer..
+ * INALIGN0/1 configures if the image is fetched MSB or LSB-aligned from the
+ * 16-bit aligned words in the DDR buffer.
  *
- * LPALIGN0/1 configure how the N-bit pixel data fetched from the DDR buffer
- * will be stored into the ISP internal pipeline.
+ * LPALIGN0/1 configures how the N-bit pixel data is fetched from the DDR
+ * buffer will be stored into the ISP internal pipeline.
  */
 struct neoisp_pipe_conf_cfg_s {
 	__u8 img_conf_inalign0;
@@ -265,7 +265,7 @@ struct neoisp_hdr_decompress1_cfg_s {
 /**
  * struct neoisp_obwb_cfg_s - Optical Black correction and White Balance configuration
  * @ctrl_obpp:		Indicates the size of pixel components output
- *                      (0:12bpp, 1:14bpp, 2:16bpp, 3:20bpp)
+ *			(0: 12bpp; 1: 14bpp; 2: 16bpp; 3: 20bpp)
  * @r_ctrl_gain:	Provides gain for red channel
  * @r_ctrl_offset:	Provides offset for red channel
  * @gr_ctrl_gain:	Provides gain for green red channel
@@ -291,7 +291,7 @@ struct neoisp_obwb_cfg_s {
  * struct neoisp_hdr_merge_cfg_s - HDR merge of 2 incoming images in a line-by-line manner
  * @ctrl_enable:		Set 1 to enable HDR merge unit, 0 disabled
  * @ctrl_motion_fix_en:		Set 1 to enable fixing of HDR artifacts due to motion
- * @ctrl_blend_3x3:		Selects the HDR blending mode (0:1x1, 1:3x3)
+ * @ctrl_blend_3x3:		Selects the HDR blending mode (0: 1x1; 1:3x3)
  * @ctrl_gain1bpp:		Size of pixel components after gain on line path 1
  * @ctrl_gain0bpp:		Size of pixel components after gain on line path 0
  * @ctrl_obpp:			Size of pixel components for the HDR Merge output
@@ -367,7 +367,6 @@ struct neoisp_stat_hist_cfg_s {
 	__u32 hist_scale_scale;
 };
 
-/* RGBIr components sizes */
 #define NEO_RGBIR_ROI_CNT       (2)
 #define NEO_RGBIR_STAT_HIST_CNT (2)
 
@@ -412,7 +411,7 @@ struct neoisp_stat_cfg_s {
 /**
  * struct neoisp_ir_compress_cfg_s - Infra-red Compression unit configuration
  * @ctrl_enable:		Set 1 to enable ir compression, 0 disabled
- * @ctrl_obpp:			bpp of compressed output IR (0:8bpp, 1:16bpp)
+ * @ctrl_obpp:			bpp of compressed output IR (0: 8bpp; 1: 16bpp)
  * @knee_point1_kneepoint:	Knee point 1 value for interpolation step of ir compression
  * @knee_point2_kneepoint:	Knee point 2 value for interpolation step of ir compression
  * @knee_point3_kneepoint:	Knee point 3 value for interpolation step of ir compression
@@ -461,10 +460,10 @@ struct neoisp_ir_compress_cfg_s {
  * struct neoisp_bnr_cfg_s - Bayer Noise Reduction unit configuration
  * @ctrl_enable:	Set 1 to enable BNR, 0 disabled
  * @ctrl_debug:		Debug view for on-target tuning (0:off)
- * @ctrl_obpp:		Output bpp (0:12bpp, 1:14bpp, 2:16bpp, 3:20bpp)
- * @ctrl_nhood:		Neighbourhood Pattern (0:2x2, 1:1x1)
- * @ypeak_peak_outsel:	Output scaling (0:no scaling, 1:enable scaling)
- * @ypeak_peak_sel:	Selecting the boundary pixel among the sorted list (0..3:1..4 positions)
+ * @ctrl_obpp:		Output bpp (0: 12bpp; 1: 14bpp; 2: 16bpp; 3: 20bpp)
+ * @ctrl_nhood:		Neighbourhood Pattern (0: 2x2; 1: 1x1)
+ * @ypeak_peak_outsel:	Output scaling (0: no scaling; 1: enable scaling)
+ * @ypeak_peak_sel:	Selecting the boundary pixel among the sorted list (0..3: 1..4 positions)
  * @ypeak_peak_low:	Lower scale value of the clipping function (u4.8)
  * @ypeak_peak_high:	Higher scale value of the clipping function (u4.8)
  * @yedge_th0_edge_th0:	Lower edge threshold for long alpha blending coefficient calculation
@@ -582,7 +581,6 @@ struct neoisp_vignetting_ctrl_cfg_s {
 	__u16 blk_stepx_step;
 };
 
-/* Color temperature (ctemp) components sizes */
 #define NEO_CTEMP_COLOR_ROIS_CNT (10)
 #define NEO_CTEMP_CSC_MATRIX_SIZE (3)
 #define NEO_CTEMP_CSC_OFFSET_VECTOR_SIZE (4)
@@ -605,7 +603,7 @@ struct neoisp_ctemp_roi_desc_s {
  * struct neoisp_ctemp_cfg_s - Color temperature unit configuration
  * @ctrl_enable:	Set 1 to enable color temperature unit, 0 disabled
  * @ctrl_cscon:		Color Space Correction ON (1), (0) disabled
- * @ctrl_ibpp:		Size of pixel components on input (0:12bpp, 1:14bpp, 2:16bpp, 3:20bpp)
+ * @ctrl_ibpp:		Size of pixel components on input (0: 12bpp; 1: 14bpp; 2: 16bpp; 3: 20bpp)
  * @luma_th_thl:	Provides the low threshold for luminance range check
  * @luma_th_thh:	Provides the high threshold for luminance range check
  * @roi:		Array of regions of interest
@@ -667,7 +665,7 @@ struct neoisp_ctemp_cfg_s {
 
 /**
  * struct neoisp_demosaic_cfg_s - Demosaic function on the input bayer image configuration
- * @ctrl_fmt:			Format of the input image (0:rggb, 1: rccc, 2:monochrome)
+ * @ctrl_fmt:			Format of the input image (0: rggb; 1: rccc; 2: monochrome)
  * @activity_ctl_alpha:		Alpha Blending Factor (u1.8)
  * @activity_ctl_act_ratio:	Activity Ratio (u8.8)
  * @dynamics_ctl0_strengthg:	Feedback strength for green pixel interpolation (u8.8)
@@ -683,7 +681,6 @@ struct neoisp_demosaic_cfg_s {
 	__u16 dynamics_ctl2_max_impact;
 };
 
-/* Rgb2yuv components sizes */
 #define NEO_RGB2YUV_MATRIX_SIZE (3)
 
 /**
@@ -750,7 +747,6 @@ struct neoisp_nr_cfg_s {
 	__u32 blend_th0_th;
 };
 
-/* AutoFocus (af) components sizes */
 #define NEO_AF_ROIS_CNT (9)
 #define NEO_AF_FILTERS_CNT (9)
 
@@ -758,9 +754,9 @@ struct neoisp_nr_cfg_s {
  * struct neoisp_af_cfg_s - AutoFocus unit configuration
  * @af_roi:		Array of regions of interest
  * @fil0_coeffs:	Array of Autofocus Filter 0 Coefficients
- * @fil0_shift_shift:	Provides the shift (scale down) factor at the output of filters 0 (u5)
- * @fil1_coeffs:	Array of Autofocus Filter 0 Coefficients
- * @fil1_shift_shift:	Provides the shift (scale down) factor at the output of filters 1 (u5)
+ * @fil0_shift_shift:	Provides the shift (scale down) factor at the output of filter 0 (u5)
+ * @fil1_coeffs:	Array of Autofocus Filter 1 Coefficients
+ * @fil1_shift_shift:	Provides the shift (scale down) factor at the output of filter 1 (u5)
  */
 struct neoisp_af_cfg_s {
 	struct neoisp_roi_cfg_s af_roi[NEO_AF_ROIS_CNT];
@@ -773,7 +769,9 @@ struct neoisp_af_cfg_s {
 /**
  * struct neoisp_ee_cfg_s - Edge Enhancement unit configuration
  * @ctrl_enable:	Set 1 to enable edge enhancement, 0 disabled
- * @ctrl_debug:		This field controls if tuning/debug information
+ * @ctrl_debug:		This field controls if tuning/debug information is shown in the
+ *			output image (0: Off; 1: edge pixels shown as white; 2: edge
+ *			pixels shown as white and all others)
  * @maskgain_gain:	Gain value for the HPF factor determination (u4.4)
  * @coring_coring:	Coring value for the mask factor determination (u20)
  * @clip_clip:		Clip value for the mask factor determination (u20)
@@ -805,7 +803,7 @@ struct neoisp_df_cfg_s {
 /**
  * struct neoisp_convmed_cfg_s - Color Convolution and Median Filter unit configuration
  * @ctrl_flt:	This field controls the type of filtering to be executed:
- *		(0: Bypassed, 1: convolution (5x5 binomial), 2: median (5x5))
+ *		(0: bypassed; 1: convolution (5x5 binomial); 2: median (5x5))
  */
 struct neoisp_convmed_cfg_s {
 	__u8 ctrl_flt;
@@ -825,7 +823,6 @@ struct neoisp_cas_cfg_s {
 	__u16 offset_offset;
 };
 
-/* Gamma Correction Matrix (gcm) components sizes */
 #define NEO_GAMMA_MATRIX_SIZE (3)
 #define NEO_GAMMA_OFFSETS_SIZE (3)
 
@@ -1108,7 +1105,7 @@ enum neoisp_param_block_type_e {
  * If userspace wants to apply a new configuration, it shall fully populate the
  * ISP block and set the @flag field to NEOISP_EXT_PARAMS_BLK_FL_UPDATE. If it
  * wants a block to be ignored, the NEOISP_EXT_PARAMS_BLK_FL_NONE bit should be
- * set in the  * @flags field. In that case userspace may optionally omit the
+ * set in the @flags field. In that case userspace may optionally omit the
  * remainder of the configuration block, which will in any case be ignored by
  * the driver. It actually behaves the same as if the configuration block is
  * missing.
@@ -1695,7 +1692,7 @@ struct neoisp_reg_stats_crois_s {
  * @gr_sum_sum:		Sum of counted GR values (msb: 27 bits mantissa, lsb: 5 bits exponent)
  * @gb_sum_sum:		Sum of counted GB values (msb: 27 bits mantissa, lsb: 5 bits exponent)
  * @gr2_sum_sum:	Sum of squared GR values (msb: 27 bits mantissa, lsb: 5 bits exponent)
- * @gb2_sum_sum:	Sum of squared GB values (msb: 27 bits mantissa, lsb: 5 bits exponent
+ * @gb2_sum_sum:	Sum of squared GB values (msb: 27 bits mantissa, lsb: 5 bits exponent)
  * @pad:		Pad two word for alignment
  * @grgb_sum_sum:	Sum of GR*GB values (msb: 27 bits mantissa, lsb: 5 bits exponent)
  */
@@ -1733,8 +1730,8 @@ struct neoisp_drc_reg_stats_s {
 
 /**
  * struct neoisp_af_reg_stats_sums_s - common Auto Focus sum registers pair
- * @sum0:	Provides the 32-bit accumulated value for filter 0 for each ROIs
- * @sum1:	Provides the 32-bit accumulated value for filter 1 for each ROIs
+ * @sum0:	Provides the 32-bit accumulated value for filter 0 for a ROI
+ * @sum1:	Provides the 32-bit accumulated value for filter 1 for a ROI
  */
 struct neoisp_af_reg_stats_sums_s {
 	__u32 sum0;
@@ -1743,7 +1740,7 @@ struct neoisp_af_reg_stats_sums_s {
 
 /**
  * struct neoisp_af_reg_stats_s - Auto Focus statistics
- * @rois:	Array of rois filters 0 ad 1 sum
+ * @rois:	Array of filters 0 and 1 sums for each ROI
  */
 struct neoisp_af_reg_stats_s {
 	struct neoisp_af_reg_stats_sums_s rois[NEO_AF_REG_STATS_ROIS_CNT];
