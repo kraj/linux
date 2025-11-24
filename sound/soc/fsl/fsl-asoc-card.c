@@ -64,6 +64,7 @@ enum fsl_asoc_card_type {
  * @mclk_id: MCLK (or main clock) id for set_sysclk()
  * @fll_id: FLL (or secordary clock) id for set_sysclk()
  * @pll_id: PLL id for set_pll()
+ * @pll_ratio_s24: ratio for 24bit format
  */
 struct codec_priv {
 	struct clk *mclk;
@@ -72,6 +73,7 @@ struct codec_priv {
 	u32 mclk_id;
 	int fll_id;
 	int pll_id;
+	int pll_ratio_s24;
 };
 
 /**
@@ -254,7 +256,7 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 		if (codec_priv->pll_id >= 0 && codec_priv->fll_id >= 0) {
 			if (priv->sample_format == SNDRV_PCM_FORMAT_S24_LE ||
 			    priv->sample_format == SNDRV_PCM_FORMAT_S20_3LE)
-				pll_out = priv->sample_rate * 384;
+				pll_out = priv->sample_rate * codec_priv->pll_ratio_s24;
 			else
 				pll_out = priv->sample_rate * 256;
 
@@ -941,12 +943,14 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv[0].mclk_id = WM8962_SYSCLK_MCLK;
 		priv->codec_priv[0].fll_id = WM8962_SYSCLK_FLL;
 		priv->codec_priv[0].pll_id = WM8962_FLL;
+		priv->codec_priv[0].pll_ratio_s24 = 384;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
 		priv->card_type = CARD_WM8962;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-wm8960")) {
 		codec_dai_name[0] = "wm8960-hifi";
 		priv->codec_priv[0].fll_id = WM8960_SYSCLK_AUTO;
 		priv->codec_priv[0].pll_id = WM8960_SYSCLK_AUTO;
+		priv->codec_priv[0].pll_ratio_s24 = 384;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
 		priv->card_type = CARD_WM8960;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-ac97")) {
@@ -988,6 +992,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv[0].mclk_id = WM8994_FLL_SRC_MCLK1;
 		priv->codec_priv[0].fll_id = WM8994_SYSCLK_FLL1;
 		priv->codec_priv[0].pll_id = WM8994_FLL1;
+		priv->codec_priv[0].pll_ratio_s24 = 384;
 		priv->codec_priv[0].free_freq = priv->codec_priv[0].mclk_freq;
 		priv->card.dapm_routes = NULL;
 		priv->card.num_dapm_routes = 0;
@@ -997,6 +1002,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv[0].mclk_id = NAU8822_CLK_MCLK;
 		priv->codec_priv[0].fll_id = NAU8822_CLK_PLL;
 		priv->codec_priv[0].pll_id = NAU8822_CLK_PLL;
+		priv->codec_priv[0].pll_ratio_s24 = 384;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
 		if (codec_dev[0])
 			priv->codec_priv[0].mclk = devm_clk_get(codec_dev[0], NULL);
@@ -1005,6 +1011,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv[0].mclk_id = WM8904_FLL_MCLK;
 		priv->codec_priv[0].fll_id = WM8904_CLK_FLL;
 		priv->codec_priv[0].pll_id = WM8904_FLL_MCLK;
+		priv->codec_priv[0].pll_ratio_s24 = 192;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
 		priv->card_type = CARD_WM8904;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-spdif")) {
