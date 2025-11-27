@@ -10,6 +10,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/uio_driver.h>
@@ -71,6 +72,12 @@ static int fce_probe(struct platform_device *pdev)
 	ret = devm_uio_register_device(dev, info);
 	if (ret) {
 		dev_err(dev, "UIO V2X FCE register failed\n");
+		return ret;
+	}
+
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		dev_err(dev, "failed to init reserved memory region\n");
 		return ret;
 	}
 
