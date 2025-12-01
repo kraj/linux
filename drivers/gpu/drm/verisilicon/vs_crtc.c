@@ -9,6 +9,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_modes.h>
 #include <drm/vs_drm.h>
 
 #include "vs_crtc.h"
@@ -267,6 +268,17 @@ static bool vs_crtc_mode_fixup(struct drm_crtc *crtc,
     return vs_crtc->funcs->mode_fixup(vs_crtc->dev, crtc, mode, adjusted_mode);
 }
 
+static enum drm_mode_status vs_crtc_mode_valid(struct drm_crtc *crtc,
+                       const struct drm_display_mode *mode)
+{
+    struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
+
+    if (vs_crtc->funcs->mode_valid)
+        return vs_crtc->funcs->mode_valid(vs_crtc->dev, crtc, mode);
+
+    return MODE_OK;
+}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
 static void vs_crtc_atomic_enable(struct drm_crtc *crtc,
                   struct drm_atomic_state *old_state)
@@ -361,6 +373,7 @@ static void vs_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs vs_crtc_helper_funcs = {
+    .mode_valid = vs_crtc_mode_valid,
     .mode_fixup = vs_crtc_mode_fixup,
     .atomic_enable  = vs_crtc_atomic_enable,
     .atomic_disable = vs_crtc_atomic_disable,

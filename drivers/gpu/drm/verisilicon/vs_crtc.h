@@ -20,6 +20,9 @@ struct vs_crtc_funcs {
                struct drm_crtc *crtc,
                const struct drm_display_mode *mode,
                struct drm_display_mode *adjusted_mode);
+    enum drm_mode_status (*mode_valid)(struct device *dev,
+               struct drm_crtc *crtc,
+               const struct drm_display_mode *mode);
     void (*set_gamma)(struct device *dev, struct drm_crtc *crtc,
                struct drm_color_lut *lut, unsigned int size);
     void (*enable_gamma)(struct device *dev, struct drm_crtc *crtc,

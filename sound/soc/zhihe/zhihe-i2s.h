@@ -297,21 +297,93 @@ enum {
 #define SR_TXBUSY_Msk			(0x1U << SR_TXBUSY_Pos)
 #define SR_TXBUSY_STATUS		SR_TXBUSY_Msk
 
-#define SR_TFNF_Pos			(2U)
-#define SR_TFNF_Msk			(0x1U << SR_TFNF_Pos)
-#define SR_TFNF_TX_FIFO_NOT_FULL	SR_TFNF_Msk
+#define SR_TFNF0_Pos			(2U)
+#define SR_TFNF0_Msk			(0x1U << SR_TFNF0_Pos)
+#define SR_TFNF0_TX_FIFO_NOT_FULL	SR_TFNF0_Msk
 
-#define SR_TFE_Pos			(3U)
-#define SR_TFE_Msk			(0x1U << SR_TFE_Pos)
-#define SR_TFE_TX_FIFO_EMPTY		SR_TFE_Msk
+#define SR_TFE0_Pos			(3U)
+#define SR_TFE0_Msk			(0x1U << SR_TFE0_Pos)
+#define SR_TFE0_TX_FIFO_EMPTY		SR_TFE0_Msk
 
-#define SR_RFNE_Pos			(4U)
-#define SR_RFNE_Msk			(0x1U << SR_RFNE_Pos)
-#define SR_RFNE_RX_FIFO_NOT_EMPTY	SR_RFNE_Msk
+#define SR_RFNE0_Pos			(4U)
+#define SR_RFNE0_Msk			(0x1U << SR_RFNE0_Pos)
+#define SR_RFNE0_RX_FIFO_NOT_EMPTY	SR_RFNE0_Msk
 
-#define SR_RFF_Pos			(5U)
-#define SR_RFF_Msk			(0x1U << SR_RFF_Pos)
-#define SR_RFF_RX_FIFO_FULL		SR_RFF_Msk
+#define SR_RFF0_Pos			(5U)
+#define SR_RFF0_Msk			(0x1U << SR_RFF0_Pos)
+#define SR_RFF0_RX_FIFO_FULL		SR_RFF0_Msk
+
+#define SR_TFNF1_Pos			(6U)
+#define SR_TFNF1_Msk			(0x1U << SR_TFNF1_Pos)
+#define SR_TFNF1_TX_FIFO_NOT_FULL	SR_TFNF1_Msk
+
+#define SR_TFE1_Pos			(7U)
+#define SR_TFE1_Msk			(0x1U << SR_TFE1_Pos)
+#define SR_TFE1_TX_FIFO_EMPTY		SR_TFE1_Msk
+
+#define SR_RFNE1_Pos			(8U)
+#define SR_RFNE1_Msk			(0x1U << SR_RFNE1_Pos)
+#define SR_RFNE1_RX_FIFO_NOT_EMPTY	SR_RFNE1_Msk
+
+#define SR_RFF1_Pos			(9U)
+#define SR_RFF1_Msk			(0x1U << SR_RFF1_Pos)
+#define SR_RFF1_RX_FIFO_FULL		SR_RFF1_Msk
+
+#define SR_TFNF2_Pos			(10U)
+#define SR_TFNF2_Msk			(0x1U << SR_TFNF2_Pos)
+#define SR_TFNF2_TX_FIFO_NOT_FULL	SR_TFNF2_Msk
+
+#define SR_TFE2_Pos			(11U)
+#define SR_TFE2_Msk			(0x1U << SR_TFE2_Pos)
+#define SR_TFE2_TX_FIFO_EMPTY		SR_TFE2_Msk
+
+#define SR_RFNE2_Pos			(12U)
+#define SR_RFNE2_Msk			(0x1U << SR_RFNE2_Pos)
+#define SR_RFNE2_RX_FIFO_NOT_EMPTY	SR_RFNE2_Msk
+
+#define SR_RFF2_Pos			(13U)
+#define SR_RFF2_Msk			(0x1U << SR_RFF2_Pos)
+#define SR_RFF2_RX_FIFO_FULL		SR_RFF2_Msk
+
+#define SR_TFNF3_Pos			(14U)
+#define SR_TFNF3_Msk			(0x1U << SR_TFNF3_Pos)
+#define SR_TFNF3_TX_FIFO_NOT_FULL	SR_TFNF3_Msk
+
+#define SR_TFE3_Pos			(15U)
+#define SR_TFE3_Msk			(0x1U << SR_TFE3_Pos)
+#define SR_TFE3_TX_FIFO_EMPTY		SR_TFE3_Msk
+
+#define SR_RFNE3_Pos			(16U)
+#define SR_RFNE3_Msk			(0x1U << SR_RFNE3_Pos)
+#define SR_RFNE3_RX_FIFO_NOT_EMPTY	SR_RFNE3_Msk
+
+#define SR_RFF3_Pos			(17U)
+#define SR_RFF3_Msk			(0x1U << SR_RFF3_Pos)
+#define SR_RFF3_RX_FIFO_FULL		SR_RFF3_Msk
+
+#define SR_TFNF_TX_FIFO_NOT_FULL_Msk	(SR_TFNF0_TX_FIFO_NOT_FULL | \
+					 SR_TFNF1_TX_FIFO_NOT_FULL | \
+					 SR_TFNF2_TX_FIFO_NOT_FULL | \
+					 SR_TFNF3_TX_FIFO_NOT_FULL)
+#define SR_TFNF_TX_FIFO_NOT_FULL	SR_TFNF_TX_FIFO_NOT_FULL_Msk
+
+#define SR_TFE_TX_FIFO_EMPTY_Msk	(SR_TFE0_TX_FIFO_EMPTY | \
+					 SR_TFE1_TX_FIFO_EMPTY | \
+					 SR_TFE2_TX_FIFO_EMPTY | \
+					 SR_TFE3_TX_FIFO_EMPTY)
+#define SR_TFE_TX_FIFO_EMPTY		SR_TFE_TX_FIFO_EMPTY_Msk
+
+#define SR_RFNE_RX_FIFO_NOT_EMPTY_Msk	(SR_RFNE0_RX_FIFO_NOT_EMPTY | \
+					 SR_RFNE1_RX_FIFO_NOT_EMPTY | \
+					 SR_RFNE2_RX_FIFO_NOT_EMPTY | \
+					 SR_RFNE3_RX_FIFO_NOT_EMPTY)
+#define SR_RFNE_RX_FIFO_NOT_EMPTY	SR_RFNE_RX_FIFO_NOT_EMPTY_Msk
+
+#define SR_RFF_RX_FIFO_FULL_Msk		(SR_RFF0_RX_FIFO_FULL | \
+					 SR_RFF1_RX_FIFO_FULL | \
+					 SR_RFF2_RX_FIFO_FULL | \
+					 SR_RFF3_RX_FIFO_FULL)
+#define SR_RFF_RX_FIFO_FULL		SR_RFF_RX_FIFO_FULL_Msk
 
 /* IMR, offset: 0x30 */
 #define IMR_WADEM_Pos			(0U)
@@ -547,6 +619,7 @@ struct zhihe_i2s_priv {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regmap *audio_cpr_regmap;
+	void __iomem *regs;
 	void __iomem *sys_csr;
 	struct reset_control *rst;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
@@ -557,6 +630,7 @@ struct zhihe_i2s_priv {
 	bool alolrc_high;
 	bool rx_ch_left;
 	bool hdmi_connected;
+	unsigned int ch_cnt;
 	int board;
 
 	spinlock_t zhihe_i2s_lock;

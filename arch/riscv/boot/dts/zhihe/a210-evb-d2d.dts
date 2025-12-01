@@ -1,0 +1,416 @@
+/dts-v1/;
+
+#include "a210-soc-core.dtsi"
+#include "a210-soc-core-die1.dtsi"
+#include "a210-soc-peri.dtsi"
+#include "a210-soc-peri-die1.dtsi"
+#include "a210-platform-d2d.dtsi"
+
+/ {
+	model = "A210 EVB D2D configuration";
+
+	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+
+		gpio0 = &ao_gpio0;
+		gpio1 = &ao_gpio1;
+		gpio2 = &gpio0;
+		gpio3 = &gpio1;
+		gpio4 = &gpio2;
+		gpio5 = &gpio3;
+		gpio6 = &gpio4;
+		gpio7 = &gpio0_die1;
+		gpio8 = &gpio1_die1;
+		gpio9 = &gpio2_die1;
+		gpio10 = &gpio3_die1;
+
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
+		serial6 = &uart6;
+		serial7 = &uart7;
+		serial8 = &uart8;
+		serial9 = &uart9;
+		serial14 = &uart4_die1;
+
+		spi0 = &qspi0;
+		spi1 = &qspi1;
+		spi2 = &spi0;
+		spi3 = &spi1;
+		spi4 = &qspi0_die1;
+		spi5 = &qspi1_die1;
+	};
+
+	/* The first 2M will be reserved in the Kernel, and the entire available range is set here */
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00 0x80000000  0x01 0x00000000>; /* 4G - 64MB */
+		numa-node-id = <0>;
+	};
+
+	memory@2080000000 {
+		device_type = "memory";
+		reg = <0x20 0x80000000  0x02 0x00000000>; // 8G
+		numa-node-id = <1>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00 0x40000000>;
+			alloc-ranges = <0x00 0x90000000 0x00 0x40000000>;
+			linux,cma-default;
+		};
+
+		memory@1c000000 {
+			reg = <0x00 0x1c000000 0x00 0x2000000>;
+			no-map;
+		};
+
+		framebuffer: framebuffer@10000000 {
+			reg = <0x01 0x00 0x00 0x5000000>;
+			no-map;
+		};
+
+		// zh_videomem@100000000 {
+		// 	reg = <0x01 0x00 0x00 0x20000000>;
+		// 	no-map;
+		// };
+
+		npu_mmu_memory@130000000 {
+			reg = <0x01 0x30000000 0x00 0x04000000>;
+			no-map;
+		};
+
+		npu1_mmu_memory@2130000000 {
+			reg = <0x21 0x30000000 0x00 0x04000000>;
+			no-map;
+		};
+
+		memblock-memory@17b800000 {
+			reg = <0x01 0x7b800000 0x00 0x04000000>;
+			no-map;
+		};
+	};
+
+	/* The bootargs in U-Boot will override the configuration set here. */
+	chosen {
+		stdout-path = "serial4";
+	};
+};
+
+/* DIE0 */
+&peri1_padctrl {
+	gmac0_pins: gmac0-0 {
+		txclk-pins {
+			pins = "GPIO0_0", /* GMAC0_TX_CLK */
+					"GPIO0_12"; /* GMAC0_MDC */
+			function = "gmac0";
+			bias-disable;
+			drive-strength = <13>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		tx-pins {
+			pins = "GPIO0_2", /* GMAC0_TXEN */
+					"GPIO0_3", /* GMAC0_TXD0 */
+					"GPIO0_4", /* GMAC0_TXD1 */
+					"GPIO0_5", /* GMAC0_TXD2 */
+					"GPIO0_6"; /* GMAC0_TXD3 */
+			function = "gmac0";
+			bias-disable;
+			drive-strength = <20>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pins = "GPIO0_1",  /* GMAC0_RX_CLK */
+					"GPIO0_7",  /* GMAC0_RXDV */
+					"GPIO0_8",  /* GMAC0_RXD0 */
+					"GPIO0_9",  /* GMAC0_RXD1 */
+					"GPIO0_10", /* GMAC0_RXD2 */
+					"GPIO0_11", /* GMAC0_RXD3 */
+					"GPIO0_13"; /* GMAC0_MDIO */
+			function = "gmac0";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+	};
+	qspi0_pins: qspi0-0 {
+		qspi-pins {
+			pins = "GPIO0_18", "GPIO0_20", "GPIO0_21", "GPIO0_22", "GPIO0_23";
+			function = "qspi0";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	sdhci_pins: sdhci0-1 {
+		sd-pins {
+			pins = "GPIO1_0";
+			function = "sdio";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&peri2_padctrl {
+	uart4_pins: uart4-0 {
+		tx-pins {
+			pins = "GPIO2_0";
+			function = "uart4";
+			bias-disable;
+			drive-strength = <3>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pins = "GPIO2_1";
+			function = "uart4";
+			bias-disable;
+			drive-strength = <1>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	hdmi_pins: hdmi-0 {
+		hdmi-pins {
+			pins = "GPIO2_25", "GPIO2_30", "GPIO2_31";
+			function = "hdmi";
+			bias-disable;
+			drive-strength = <3>;
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+	};
+	qspi1_pins: qspi1-1 {
+		qspi-pins {
+			pins = "GPIO3_2", "GPIO3_5", "GPIO3_6", "GPIO3_7", "GPIO3_8";
+			function = "qspi1";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&gmac0 {
+	phy-mode = "rgmii-id";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac0_pins>;
+	rx-clk-delay = <0x00>; /* for RGMII */
+	tx-clk-delay = <0x00>; /* for RGMII */
+	phy-handle = <&phy0>;
+};
+
+&mdio0 {
+	phy0: ethernet-phy@0 {
+		reg = <0x0>;
+	};
+};
+
+
+&qspi0 {
+	cs-gpios = <&gpio0 19 0>;
+	rx-sample-dly = <2>;
+	spi-swap-data = <1>;
+	spi-max-frequency = <55000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi0_pins>;
+
+	spi_norflash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <55000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		reg = <0>;
+		status = "okay";
+	};
+};
+
+&qspi1 {
+	cs-gpios = <&gpio2 29 0>;
+	rx-sample-dly = <2>;
+	spi-swap-data = <1>;
+	spi-max-frequency = <55000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi1_pins>;
+
+	spi_norflash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <55000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		reg = <0>;
+		status = "okay";
+	};
+};
+
+&uart4 {
+	current-speed = <115200>; /* OpenSBI */
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins>;
+};
+
+&hdmi_tx {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_pins>;
+};
+
+&emmc {
+	max-frequency = <196608000>;
+	non-removable;
+	mmc-hs400-1_8v;
+	mmc-hs200-1_8v;
+	io_fixed_1v8;
+	is_emmc;
+	no-sdio;
+	no-sd;
+	pull_up;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	clk-delay-mmc-hs200 = <60>;
+};
+
+&sdhci0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhci_pins>;
+	max-frequency = <196608000>;
+	cap-sd-highspeed;
+	bus-width = <4>;
+	sd-uhs-sdr104;
+	no-sdio;
+	pull_up;
+	wprtn_ignore;
+};
+
+/* DIE1 */
+&peri1_padctrl_die1 {
+	qspi0_pins_die1: qspi0-0 {
+		qspi-pins {
+			pins = "GPIO0_18", "GPIO0_20", "GPIO0_21", "GPIO0_22", "GPIO0_23";
+			function = "qspi0";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&peri2_padctrl_die1 {
+	uart4_pins_die1: uart4-0 {
+		tx-pins {
+			pins = "GPIO2_0";
+			function = "uart4";
+			bias-disable;
+			drive-strength = <3>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pins = "GPIO2_1";
+			function = "uart4";
+			bias-disable;
+			drive-strength = <1>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	qspi1_pins_die1: qspi1-1 {
+		qspi-pins {
+			pins = "GPIO3_2", "GPIO3_5", "GPIO3_6", "GPIO3_7", "GPIO3_8";
+			function = "qspi1";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&qspi0_die1 {
+	cs-gpios = <&gpio0_die1 19 0>;
+	rx-sample-dly = <2>;
+	spi-swap-data = <1>;
+	spi-max-frequency = <55000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi0_pins_die1>;
+
+	spi_norflash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <55000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		reg = <0>;
+		status = "okay";
+	};
+};
+
+&qspi1_die1 {
+	cs-gpios = <&gpio2_die1 29 0>;
+	rx-sample-dly = <2>;
+	spi-swap-data = <1>;
+	spi-max-frequency = <55000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi1_pins_die1>;
+
+	spi_norflash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <55000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		reg = <0>;
+		status = "okay";
+	};
+};
+
+&uart4_die1 {
+	current-speed = <115200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins_die1>;
+};

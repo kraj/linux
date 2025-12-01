@@ -582,9 +582,7 @@ static const struct snd_kcontrol_new aw87519_controls[] = {
 
 static int aw87519_component_probe(struct snd_soc_component* component)
 {
-	struct aw87519 *pa = snd_soc_component_get_drvdata(component);
-
-	return 0; // snd_soc_add_component_controls(component, aw87519_controls, ARRAY_SIZE(aw87519_controls));
+	return 0;
 }
 
 static int  aw87519_power_event(struct snd_soc_dapm_widget *w,

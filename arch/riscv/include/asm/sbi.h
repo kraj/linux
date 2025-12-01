@@ -31,6 +31,8 @@ enum sbi_ext_id {
 	SBI_EXT_SRST = 0x53525354,
 	SBI_EXT_SUSP = 0x53555350,
 	SBI_EXT_PMU = 0x504D55,
+	SBI_EXT_CONFIG_IOPMP = 0x5A5A5A5A,
+	SBI_EXT_DBTR = 0x44425452,
 
 	/* Experimentals extensions must lie within this range */
 	SBI_EXT_EXPERIMENTAL_START = 0x08000000,
@@ -38,13 +40,40 @@ enum sbi_ext_id {
 
 	/* Vendor extensions must lie within this range */
 	SBI_EXT_VENDOR_START = 0x09000000,
-	SBI_EXT_CONFIG_IOPMP = 0x0900005a,
 	SBI_EXT_VENDOR_END = 0x09FFFFFF,
 };
 
 enum sbi_ext_config_iopmp_fid {
 	SBI_EXT_CONFIG_IOPMP_ADD_RULE = 0,
 	SBI_EXT_CONFIG_IOPMP_REMOVE_RULE,
+};
+
+/* SBI debug triggers function IDs */
+enum sbi_ext_dbtr_fid {
+	SBI_EXT_DBTR_NUM_TRIGGERS = 0,
+	SBI_EXT_DBTR_SETUP_SHMEM,
+	SBI_EXT_DBTR_TRIG_READ,
+	SBI_EXT_DBTR_TRIG_INSTALL,
+	SBI_EXT_DBTR_TRIG_UPDATE,
+	SBI_EXT_DBTR_TRIG_UNINSTALL,
+	SBI_EXT_DBTR_TRIG_ENABLE,
+	SBI_EXT_DBTR_TRIG_DISABLE,
+};
+
+struct sbi_dbtr_data_msg {
+	unsigned long tstate;
+	unsigned long tdata1;
+	unsigned long tdata2;
+	unsigned long tdata3;
+};
+
+struct sbi_dbtr_id_msg {
+	unsigned long idx;
+};
+
+union sbi_dbtr_shmem_entry {
+	struct sbi_dbtr_data_msg data;
+	struct sbi_dbtr_id_msg id;
 };
 
 enum sbi_ext_base_fid {

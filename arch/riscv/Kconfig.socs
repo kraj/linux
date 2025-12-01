@@ -34,6 +34,7 @@ config SOC_STARFIVE
 
 config ARCH_ZHIHE
 	bool "ZhiHe SoCs"
+	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
 	help
 	  This enables support for ZhiHe SoC platform hardware.
 

@@ -1149,7 +1149,6 @@ static int a210_pinctrl_suspend(struct device *dev)
 		case A210_PADCTRL_2:
 			ret = a210_pinctrl_backup_regs(pp, A210_PADCTRL2_CFG_REG_NUMS, A210_PADCTRL2_MUX_REG_NUMS);
 			clk_disable_unprepare(pp->clk);
-			pp->mux_bak[A210_AUDIO_IO_SEL_IDX] = readl(pp->base);
 			break;
 		default:
 			break;

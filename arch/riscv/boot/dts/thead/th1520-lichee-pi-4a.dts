@@ -700,7 +700,7 @@
 
 &gmac0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_pins>;
+	pinctrl-0 = <&gmac0_pins &mdio0_pins>;
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
 	status = "okay";
@@ -785,9 +785,6 @@
 };
 
 &mdio0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mdio0_pins>;
-
 	phy0: ethernet-phy@1 {
 		reg = <1>;
 	};
@@ -1216,7 +1213,7 @@
 		broken-cd;
 		io_fixed_1v8;
 		non-removable;
-		post-power-on-delay-ms = <200>;
+		post-power-on-delay-ms = <1000>;
 		wprtn_ignore;
 		cap-sd-highspeed;
 		wakeup-source;

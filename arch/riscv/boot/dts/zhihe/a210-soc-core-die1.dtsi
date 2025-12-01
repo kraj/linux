@@ -22,11 +22,14 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
-			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <32768>;
+			i-cache-sets = <256>;
+			d-cache-block-size = <64>;
+			d-cache-size = <32768>;
+			d-cache-sets = <256>;
+			next-level-cache = <&c2_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <768>;
 			#cooling-cells = <2>;
@@ -46,11 +49,14 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
-			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <32768>;
+			i-cache-sets = <256>;
+			d-cache-block-size = <64>;
+			d-cache-size = <32768>;
+			d-cache-sets = <256>;
+			next-level-cache = <&c2_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <768>;
 			#cooling-cells = <2>;
@@ -70,11 +76,14 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
-			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <32768>;
+			i-cache-sets = <256>;
+			d-cache-block-size = <64>;
+			d-cache-size = <32768>;
+			d-cache-sets = <256>;
+			next-level-cache = <&c2_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <768>;
 			#cooling-cells = <2>;
@@ -94,11 +103,15 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <32768>;
+			i-cache-sets = <256>;
+			d-cache-block-size = <64>;
+			d-cache-size = <32768>;
+			d-cache-sets = <256>;
+			next-level-cache = <&c2_l2_cache>;
 			cpu-l2cache = "512KB";
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <768>;
 			#cooling-cells = <2>;
@@ -119,11 +132,15 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.6Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
 			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <65536>;
+			i-cache-sets = <512>;
+			d-cache-block-size = <64>;
+			d-cache-size = <65536>;
+			d-cache-sets = <512>;
+			next-level-cache = <&c3_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
@@ -143,11 +160,14 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.6Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
-			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <65536>;
+			i-cache-sets = <512>;
+			d-cache-block-size = <64>;
+			d-cache-size = <65536>;
+			d-cache-sets = <512>;
+			next-level-cache = <&c3_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
@@ -167,11 +187,14 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.6Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
-			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <65536>;
+			i-cache-sets = <512>;
+			d-cache-block-size = <64>;
+			d-cache-size = <65536>;
+			d-cache-sets = <512>;
+			next-level-cache = <&c3_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
@@ -191,11 +214,14 @@
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.6Ghz";
-			cpu-icache = "32KB";
-			cpu-dcache = "32KB";
-			cpu-l2cache = "512KB";
+			i-cache-block-size = <64>;
+			i-cache-size = <65536>;
+			i-cache-sets = <512>;
+			d-cache-block-size = <64>;
+			d-cache-size = <65536>;
+			d-cache-sets = <512>;
+			next-level-cache = <&c3_l2_cache>;
 			cpu-tlb = "1024 4-ways";
-			cpu-cacheline = "64Bytes";
 			cpu-vector = "1.0";
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
@@ -205,6 +231,23 @@
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
+		};
+
+		c2_l2_cache: c2_l2-cache {
+			compatible = "cache";
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-size = <524288>;
+			cache-sets = <512>;
+			cache-unified;
+		};
+		c3_l2_cache: c3_l2-cache {
+			compatible = "cache";
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-sets = <1024>;
+			cache-unified;
 		};
 
 		cpu-map {
@@ -312,6 +355,594 @@
 			riscv,max-priority = <7>;
 			riscv,ndev = <400>;
 			cpu-id = <8>;
+		};
+
+		clocks1 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			osc_32k_die1: clock-osc-32k {
+				compatible = "fixed-clock";
+				clock-frequency = <32768>;
+				clock-output-names = "osc_32k_die1";
+				#clock-cells = <0>;
+			};
+
+			osc_24m_die1: clock-osc-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "osc_24m_die1";
+				#clock-cells = <0>;
+			};
+
+			aon_110m_die1: clock-osc-110m {
+				compatible = "fixed-clock";
+				clock-frequency = <110000000>;
+				clock-output-names = "aon_110m_die1";
+				#clock-cells = <0>;
+			};
+
+			rc_24m_die1: clock-rc-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "rc_24m_die1";
+				#clock-cells = <0>;
+			};
+
+			apb_clk_die1: apb-clk-clock {
+				compatible = "fixed-clock";
+				clock-frequency = <62500000>;
+				clock-output-names = "apb_clk_die1";
+				#clock-cells = <0>;
+			};
+		};
+
+		clk_die1: clock-controller@10 {
+			compatible = "zhihe,a210-clk-die1";
+			reg = <0x20 0x00260000 0x0 0x1000>,<0x20 0x00250000 0x0 0x1000>,
+			      <0x20 0x10141600 0x0 0x100>,<0x20 0x10141400 0x0 0x100>,
+			      <0x20 0x04810000 0x0 0x1000>,<0x20 0x05810000 0x0 0x1000>,
+			      <0x20 0x04900000 0x0 0x1000>,<0x20 0x20250000 0x0 0x1000>,
+			      <0x20 0x10140000 0x0 0xE00>;
+			reg-names = "PLL_WRAP","TOP_CRG","CPU_SS_CLK_SYSREG","CPU_SS_CPU_PLL",
+			"DDR0_SYSREG","DDR1_SYSREG","SLC_DUAL_SYSREG","TOP_CRG_T","CPU_SS_CCU";
+			#clock-cells = <1>;
+			clocks = <&osc_32k_die1>, <&osc_24m_die1>, <&rc_24m_die1>;
+			clock-names = "osc_32k", "osc_24m", "rc_24m";
+			assigned-clocks = <&clk_die1 AUDIO0_PLL_FOUTVCO>, <&clk_die1 AUDIO1_PLL_FOUTVCO>,
+					  <&clk_die1 VIDEO_PLL_FOUTVCO>, <&clk_die1 GMAC_PLL_FOUTVCO>,
+					  <&clk_die1 DVFS_PLL_FOUTVCO>, <&clk_die1 DPU0_PLL_FOUTVCO>,
+					  <&clk_die1 DPU1_PLL_FOUTVCO>, <&clk_die1 DPU2_PLL_FOUTVCO>,
+					  <&clk_die1 TOP_CFG_ACLK_DIV>, <&clk_die1 TOP_PCLK_DIV>,
+					  <&clk_die1 SW_AMUX_660_CLK_EN>, <&clk_die1 SW_IOMMU_PTW_330_ACLK_EN>,
+					  <&clk_die1 SW_NOC_CCLK_EN>, <&clk_die1 TOP_CPUSYS_BUS_CLK_DIV>,
+					  <&clk_die1 TOP_CPUSYS_PIC_CLK_DIV>;
+			assigned-clock-rates = <2359296000>, <2528870400>, /* audio0_pll_foutvco,audio1_pll_foutvco */
+					       <2640000000>, <3000000000>, /* video_pll_foutvco,gmac_pll_foutvco */
+					       <1920000000>, <2376000000>, /* dvfs_pll_foutvco,dpu0_pll_foutvco */
+					       <2376000000>, <2376000000>, /* dpu1_pll_foutvco,dpu2_pll_foutvco */
+					       <330000000>, <165000000>, /* top_cfg_aclk,top_pclk */
+					       <660000000>, <330000000>, /* top_amux_clk,iommu_ptw_aclk */
+					       <950000000>, <1320000000>, /* noc_cclk,top_cpusys_bus_clk */
+					       <1000000000>; /* top_cpusys_pic_clk */
+			status = "okay";
+		};
+		clk_gpu_die1: clock-controller@11 {
+			compatible = "zhihe,a210-gpu-clk-die1";
+			reg = <0x20 0x06D02200 0x0 0x200>, <0x20 0x06E06200 0x0 0x200>;
+			reg-names = "GPU_SS_PWRAP_CLK_EN","GPU_SS_TOP_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_GPU_CORE_CLK_DIV>;
+			assigned-clock-rates = <792000000>;
+			status = "okay";
+		};
+
+		clk_pcie_die1: clock-controller@12 {
+			compatible = "zhihe,a210-pcie-clk-die1";
+			reg = <0x20 0x0a000000 0x0 0x28>;
+			reg-names = "PCIE_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_PCIE_SCAN_REF_CLK0_DIV>, <&clk_die1 TOP_PCIE_SCAN_REF_CLK1_DIV>,
+					  <&clk_die1 TOP_PCIE_AXI_M_ACLK_DIV>;
+			assigned-clock-rates = <396000000>, <1000000000>,
+					       <786432000>;
+			status = "okay";
+		};
+
+		clk_usb_die1: clock-controller@13 {
+			compatible = "zhihe,a210-usb-clk-die1";
+			reg = <0x20 0x08000000 0x0 0x24>;
+			reg-names = "USB_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_USB_USB20_SCAN_REF_CLK_DIV>, <&clk_die1 TOP_USB_SCAN_REF_CLK3_DIV>,
+					  <&clk_die1 TOP_USB_SCAN_REF_CLK2_DIV>, <&clk_die1 TOP_USB_SCAN_REF_CLK1_DIV>,
+					  <&clk_die1 TOP_USB_SCAN_REF_CLK0_DIV>, <&clk_die1 TOP_USB_BUS_ACLK_DIV>,
+					  <&clk_die1 TOP_USB_DP_AUX_CLK_DIV>;
+			assigned-clock-rates = <475200000>, <792000000>,
+					       <600000000>, <500000000>,
+					       <396000000>, <330000000>,
+					       <16000000>;
+			status = "okay";
+		};
+
+		clk_vi_die1: clock-controller@14 {
+			compatible = "zhihe,a210-vi-clk-die1";
+			reg = <0x20 0x063a0200 0x0 0x200>;
+			reg-names = "VI_CLK";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		clk_vp_die1: clock-controller@15 {
+			compatible = "zhihe,a210-vp-clk-die1";
+			reg = <0x20 0x06b20200 0x0 0x200>;
+			reg-names = "VP_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_VP_ACLK_DIV>, <&clk_die1 TOP_VP_VDEC_CCLK_DIV>,
+				 	  <&clk_die1 TOP_VP_VENC_CCLK_DIV>, <&clk_die1 TOP_VP_G2D_CCLK_DIV>;
+			assigned-clock-rates = <880000000>, <786432000>,
+					       <600000000>, <786432000>;
+			status = "okay";
+		};
+
+		clk_vo_die1: clock-controller@16 {
+			compatible = "zhihe,a210-vo-clk-die1";
+			reg = <0x20 0x06720048 0x0 0x4>, <0x20 0x06720200 0x0 0xc>;
+			reg-names = "VO_PATH_CTRL","VO_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_vo_die1 VO_DPUC_CLK_EN>, <&clk_vo_die1 VO_CH0_PIXCLK_EN>,
+					  <&clk_vo_die1 VO_CH1_PIXCLK_EN>, <&clk_vo_die1 VO_CH2_PIXCLK_EN>,
+					  <&clk_vo_die1 VO_DPU_ACLK_EN>, <&clk_vo_die1 VO_HDMI_PCLK_EN>,
+					  <&clk_vo_die1 VO_DECOMP0_CLK_EN>, <&clk_vo_die1 VO_DECOMP1_CLK_EN>;
+			assigned-clock-rates = <880000000>, <594000000>,
+					       <594000000>, <594000000>,
+					       <880000000>, <165000000>,
+					       <220000000>, <220000000>;
+			status = "okay";
+		};
+
+		clk_npu_die1: clock-controller@17 {
+			compatible = "zhihe,a210-npu-clk-die1";
+			reg = <0x20 0x07112210 0x0 0x4>,<0x20 0x07301050 0x0 0x4>;
+			reg-names = "NPU_CLK","NPU_TOP_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_NPU_CCLK_DIV>, <&clk_die1 TOP_NPU_ACLK_DIV>;
+			assigned-clock-rates = <880000000>, <880000000>;
+			status = "okay";
+		};
+
+		clk_d2d_die1: clock-controller@18 {
+			compatible = "zhihe,a210-d2d-clk-die1";
+			reg = <0x20 0x09010000 0x0 0x4>;
+			reg-names = "D2D_CRG_REG";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_D2D_ACLK_DIV>, <&clk_die1 TOP_D2D_REF_CLK_MUX>;
+			assigned-clock-rates = <950000000>, <100000000>;
+			status = "okay";
+		};
+
+		clk_peri_die1: clock-controller@19 {
+			compatible = "zhihe,a210-peri-clk-die1";
+			reg = <0x20 0x00300200 0x0 0x4>,
+			      <0x20 0x02010200 0x0 0x8>,<0x20 0x08400200 0x0 0x8>,
+			      <0x20 0x00540200 0x0 0x4>,<0x20 0x27420200 0x0 0x200>;
+			reg-names = "PERI0_SYSREG","PERI1_SYSREG","PERI2_SYSREG",
+			"PERI3_SYSREG","TEE_CRG";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die1 TOP_PERI_TIMER_CLK_MUX>, <&clk_die1 TOP_PERI_I2S_2CH0_SRC_CLK_MUX>,
+					  <&clk_die1 TOP_PERI_I2S_2CH1_SRC_CLK_MUX>, <&clk_die1 TOP_PERI_I2S_2CH2_SRC_CLK_MUX>,
+					  <&clk_die1 TOP_PERI_I2S_8CH0_SRC_CLK_MUX>, <&clk_die1 TOP_PERI_SPI_SSI_CLK0_DIV>,
+					  <&clk_die1 TOP_PERI_SPI_SSI_CLK1_DIV>, <&clk_die1 TOP_PERI_QSPI_SSI_CLK_MUX0>,
+					  <&clk_die1 TOP_PERI_QSPI_SSI_CLK_MUX1>, <&clk_die1 TOP_PERI_PDM_MCLK_DIV>,
+					  <&clk_die1 TOP_PERI_TDM_SRC_CLK_MUX>, <&clk_die1 TOP_PAD_SENSOR_VCLK0_DIV>,
+					  <&clk_die1 TOP_PAD_SENSOR_VCLK1_DIV>, <&clk_die1 TOP_PERI_HIRES_CLK0_DIV>,
+					  <&clk_die1 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die1 TOP_TEE_CLK_DIV>,
+					  <&clk_die1 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die1 TOP_PERI_MST_ACLK0_DIV>, 
+					  <&clk_die1 TOP_PERI_MST_CLK1_DIV>;
+			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
+					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */
+					       <316108800>, <421478400>, /* peri2_i2s3_src_clk,peri1_spi_ssi_clk */
+					       <421478400>, <421478400>, /* peri2_spi_ssi_clk,peri1_qspi_ssi_clk */
+					       <421478400>, <31610880>, /* peri2_qspi_ssi_clk,peri1_pdm_mclk */
+					       <316108800>, <74250000>, /* peri1_tdm_src_clk,top_pad_sensor_vclk0_div */
+					       <148500000>, <80000000>, /* top_pad_sensor_vclk1,peri1_hires_clk */
+					       <80000000>, <786432000>, /* peri2_hires_clk,emmc_ref_clk */
+					       <330000000>, <440000000>, /* peri1_mst_aclk,peri3_mst_aclk */
+					       <377142858>; /* tee_clk */
+			status = "okay";
+		};
+
+		clocks2 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			osc_32k_die2: clock-osc-32k {
+				compatible = "fixed-clock";
+				clock-frequency = <32768>;
+				clock-output-names = "osc_32k_die2";
+				#clock-cells = <0>;
+			};
+
+			osc_24m_die2: clock-osc-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "osc_24m_die2";
+				#clock-cells = <0>;
+			};
+
+			aon_110m_die2: clock-osc-110m {
+				compatible = "fixed-clock";
+				clock-frequency = <110000000>;
+				clock-output-names = "aon_110m_die2";
+				#clock-cells = <0>;
+			};
+
+			rc_24m_die2: clock-rc-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "rc_24m_die2";
+				#clock-cells = <0>;
+			};
+
+			apb_clk_die2: apb-clk-clock {
+				compatible = "fixed-clock";
+				clock-frequency = <62500000>;
+				clock-output-names = "apb_clk_die2";
+				#clock-cells = <0>;
+			};
+		};
+
+		clk_die2: clock-controller@20 {
+			compatible = "zhihe,a210-clk-die2";
+			reg = <0x40 0x00260000 0x0 0x1000>,<0x40 0x00250000 0x0 0x1000>,
+			      <0x40 0x10141600 0x0 0x100>,<0x40 0x10141400 0x0 0x100>,
+			      <0x40 0x04810000 0x0 0x1000>,<0x40 0x05810000 0x0 0x1000>,
+			      <0x40 0x04900000 0x0 0x1000>,<0x40 0x20250000 0x0 0x1000>,
+			      <0x40 0x10140000 0x0 0xE00>;
+			reg-names = "PLL_WRAP","TOP_CRG","CPU_SS_CLK_SYSREG","CPU_SS_CPU_PLL",
+			"DDR0_SYSREG","DDR1_SYSREG","SLC_DUAL_SYSREG","TOP_CRG_T","CPU_SS_CCU";
+			#clock-cells = <1>;
+			clocks = <&osc_32k_die2>, <&osc_24m_die2>, <&rc_24m_die2>;
+			clock-names = "osc_32k", "osc_24m", "rc_24m";
+			assigned-clocks = <&clk_die2 AUDIO0_PLL_FOUTVCO>, <&clk_die2 AUDIO1_PLL_FOUTVCO>,
+					  <&clk_die2 VIDEO_PLL_FOUTVCO>, <&clk_die2 GMAC_PLL_FOUTVCO>,
+					  <&clk_die2 DVFS_PLL_FOUTVCO>, <&clk_die2 DPU0_PLL_FOUTVCO>,
+					  <&clk_die2 DPU1_PLL_FOUTVCO>, <&clk_die2 DPU2_PLL_FOUTVCO>,
+					  <&clk_die2 TOP_CFG_ACLK_DIV>, <&clk_die2 TOP_PCLK_DIV>,
+					  <&clk_die2 SW_AMUX_660_CLK_EN>, <&clk_die2 SW_IOMMU_PTW_330_ACLK_EN>,
+					  <&clk_die2 SW_NOC_CCLK_EN>, <&clk_die2 TOP_CPUSYS_BUS_CLK_DIV>,
+					  <&clk_die2 TOP_CPUSYS_PIC_CLK_DIV>;
+			assigned-clock-rates = <2359296000>, <2528870400>, /* audio0_pll_foutvco,audio1_pll_foutvco */
+					       <2640000000>, <3000000000>, /* video_pll_foutvco,gmac_pll_foutvco */
+					       <1920000000>, <2376000000>, /* dvfs_pll_foutvco,dpu0_pll_foutvco */
+					       <2376000000>, <2376000000>, /* dpu1_pll_foutvco,dpu2_pll_foutvco */
+					       <330000000>, <165000000>, /* top_cfg_aclk,top_pclk */
+					       <660000000>, <330000000>, /* top_amux_clk,iommu_ptw_aclk */
+					       <950000000>, <1320000000>, /* noc_cclk,top_cpusys_bus_clk */
+					       <1000000000>; /* top_cpusys_pic_clk */
+			status = "okay";
+		};
+		clk_gpu_die2: clock-controller@21 {
+			compatible = "zhihe,a210-gpu-clk-die2";
+			reg = <0x40 0x06D02200 0x0 0x200>, <0x40 0x06E06200 0x0 0x200>;
+			reg-names = "GPU_SS_PWRAP_CLK_EN","GPU_SS_TOP_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_GPU_CORE_CLK_DIV>;
+			assigned-clock-rates = <792000000>;
+			status = "okay";
+		};
+
+		clk_pcie_die2: clock-controller@22 {
+			compatible = "zhihe,a210-pcie-clk-die2";
+			reg = <0x40 0x0a000000 0x0 0x28>;
+			reg-names = "PCIE_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_PCIE_SCAN_REF_CLK0_DIV>, <&clk_die2 TOP_PCIE_SCAN_REF_CLK1_DIV>,
+					  <&clk_die2 TOP_PCIE_AXI_M_ACLK_DIV>;
+			assigned-clock-rates = <396000000>, <1000000000>,
+					       <786432000>;
+			status = "okay";
+		};
+
+		clk_usb_die2: clock-controller@23 {
+			compatible = "zhihe,a210-usb-clk-die2";
+			reg = <0x40 0x08000000 0x0 0x24>;
+			reg-names = "USB_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_USB_USB20_SCAN_REF_CLK_DIV>, <&clk_die2 TOP_USB_SCAN_REF_CLK3_DIV>,
+					  <&clk_die2 TOP_USB_SCAN_REF_CLK2_DIV>, <&clk_die2 TOP_USB_SCAN_REF_CLK1_DIV>,
+					  <&clk_die2 TOP_USB_SCAN_REF_CLK0_DIV>, <&clk_die2 TOP_USB_BUS_ACLK_DIV>,
+					  <&clk_die2 TOP_USB_DP_AUX_CLK_DIV>;
+			assigned-clock-rates = <475200000>, <792000000>,
+					       <600000000>, <500000000>,
+					       <396000000>, <330000000>,
+					       <16000000>;
+			status = "okay";
+		};
+
+		clk_vi_die2: clock-controller@24 {
+			compatible = "zhihe,a210-vi-clk-die2";
+			reg = <0x40 0x063a0200 0x0 0x200>;
+			reg-names = "VI_CLK";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		clk_vp_die2: clock-controller@25 {
+			compatible = "zhihe,a210-vp-clk-die2";
+			reg = <0x40 0x06b20200 0x0 0x200>;
+			reg-names = "VP_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_VP_ACLK_DIV>, <&clk_die2 TOP_VP_VDEC_CCLK_DIV>,
+				 	  <&clk_die2 TOP_VP_VENC_CCLK_DIV>, <&clk_die2 TOP_VP_G2D_CCLK_DIV>;
+			assigned-clock-rates = <880000000>, <786432000>,
+					       <600000000>, <786432000>;
+			status = "okay";
+		};
+
+		clk_vo_die2: clock-controller@26 {
+			compatible = "zhihe,a210-vo-clk-die2";
+			reg = <0x40 0x06720048 0x0 0x4>, <0x40 0x06720200 0x0 0xc>;
+			reg-names = "VO_PATH_CTRL","VO_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_vo_die2 VO_DPUC_CLK_EN>, <&clk_vo_die2 VO_CH0_PIXCLK_EN>,
+					  <&clk_vo_die2 VO_CH1_PIXCLK_EN>, <&clk_vo_die2 VO_CH2_PIXCLK_EN>,
+					  <&clk_vo_die2 VO_DPU_ACLK_EN>, <&clk_vo_die2 VO_HDMI_PCLK_EN>,
+					  <&clk_vo_die2 VO_DECOMP0_CLK_EN>, <&clk_vo_die2 VO_DECOMP1_CLK_EN>;
+			assigned-clock-rates = <880000000>, <594000000>,
+					       <594000000>, <594000000>,
+					       <880000000>, <165000000>,
+					       <220000000>, <220000000>;
+			status = "okay";
+		};
+
+		clk_npu_die2: clock-controller@27 {
+			compatible = "zhihe,a210-npu-clk-die2";
+			reg = <0x40 0x07112210 0x0 0x4>,<0x40 0x07301050 0x0 0x4>;
+			reg-names = "NPU_CLK","NPU_TOP_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_NPU_CCLK_DIV>, <&clk_die2 TOP_NPU_ACLK_DIV>;
+			assigned-clock-rates = <880000000>, <880000000>;
+			status = "okay";
+		};
+
+		clk_d2d_die2: clock-controller@28 {
+			compatible = "zhihe,a210-d2d-clk-die2";
+			reg = <0x40 0x09010000 0x0 0x4>;
+			reg-names = "D2D_CRG_REG";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_D2D_ACLK_DIV>, <&clk_die2 TOP_D2D_REF_CLK_MUX>;
+			assigned-clock-rates = <950000000>, <100000000>;
+			status = "okay";
+		};
+
+		clk_peri_die2: clock-controller@29 {
+			compatible = "zhihe,a210-peri-clk-die2";
+			reg = <0x40 0x00300200 0x0 0x4>,
+			      <0x40 0x02010200 0x0 0x8>,<0x40 0x08400200 0x0 0x8>,
+			      <0x40 0x00540200 0x0 0x4>,<0x40 0x27420200 0x0 0x200>;
+			reg-names = "PERI0_SYSREG","PERI1_SYSREG","PERI2_SYSREG",
+			"PERI3_SYSREG","TEE_CRG";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die2 TOP_PERI_TIMER_CLK_MUX>, <&clk_die2 TOP_PERI_I2S_2CH0_SRC_CLK_MUX>,
+					  <&clk_die2 TOP_PERI_I2S_2CH1_SRC_CLK_MUX>, <&clk_die2 TOP_PERI_I2S_2CH2_SRC_CLK_MUX>,
+					  <&clk_die2 TOP_PERI_I2S_8CH0_SRC_CLK_MUX>, <&clk_die2 TOP_PERI_SPI_SSI_CLK0_DIV>,
+					  <&clk_die2 TOP_PERI_SPI_SSI_CLK1_DIV>, <&clk_die2 TOP_PERI_QSPI_SSI_CLK_MUX0>,
+					  <&clk_die2 TOP_PERI_QSPI_SSI_CLK_MUX1>, <&clk_die2 TOP_PERI_PDM_MCLK_DIV>,
+					  <&clk_die2 TOP_PERI_TDM_SRC_CLK_MUX>, <&clk_die2 TOP_PAD_SENSOR_VCLK0_DIV>,
+					  <&clk_die2 TOP_PAD_SENSOR_VCLK1_DIV>, <&clk_die2 TOP_PERI_HIRES_CLK0_DIV>,
+					  <&clk_die2 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die2 TOP_TEE_CLK_DIV>,
+					  <&clk_die2 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die2 TOP_PERI_MST_ACLK0_DIV>, 
+					  <&clk_die2 TOP_PERI_MST_CLK1_DIV>;
+			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
+					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */
+					       <316108800>, <421478400>, /* peri2_i2s3_src_clk,peri1_spi_ssi_clk */
+					       <421478400>, <421478400>, /* peri2_spi_ssi_clk,peri1_qspi_ssi_clk */
+					       <421478400>, <31610880>, /* peri2_qspi_ssi_clk,peri1_pdm_mclk */
+					       <316108800>, <74250000>, /* peri1_tdm_src_clk,top_pad_sensor_vclk0_div */
+					       <148500000>, <80000000>, /* top_pad_sensor_vclk1,peri1_hires_clk */
+					       <80000000>, <786432000>, /* peri2_hires_clk,emmc_ref_clk */
+					       <330000000>, <440000000>, /* peri1_mst_aclk,peri3_mst_aclk */
+					       <377142858>; /* tee_clk */
+			status = "okay";
+		};
+
+		clocks3 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			osc_32k_die3: clock-osc-32k {
+				compatible = "fixed-clock";
+				clock-frequency = <32768>;
+				clock-output-names = "osc_32k_die3";
+				#clock-cells = <0>;
+			};
+
+			osc_24m_die3: clock-osc-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "osc_24m_die3";
+				#clock-cells = <0>;
+			};
+
+			aon_110m_die3: clock-osc-110m {
+				compatible = "fixed-clock";
+				clock-frequency = <110000000>;
+				clock-output-names = "aon_110m_die3";
+				#clock-cells = <0>;
+			};
+
+			rc_24m_die3: clock-rc-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "rc_24m_die3";
+				#clock-cells = <0>;
+			};
+
+			apb_clk_die3: apb-clk-clock {
+				compatible = "fixed-clock";
+				clock-frequency = <62500000>;
+				clock-output-names = "apb_clk_die3";
+				#clock-cells = <0>;
+			};
+		};
+
+		clk_die3: clock-controller@30 {
+			compatible = "zhihe,a210-clk-die3";
+			reg = <0x60 0x00260000 0x0 0x1000>,<0x60 0x00250000 0x0 0x1000>,
+			      <0x60 0x10141600 0x0 0x100>,<0x60 0x10141400 0x0 0x100>,
+			      <0x60 0x04810000 0x0 0x1000>,<0x60 0x05810000 0x0 0x1000>,
+			      <0x60 0x04900000 0x0 0x1000>,<0x60 0x20250000 0x0 0x1000>,
+			      <0x60 0x10140000 0x0 0xE00>;
+			reg-names = "PLL_WRAP","TOP_CRG","CPU_SS_CLK_SYSREG","CPU_SS_CPU_PLL",
+			"DDR0_SYSREG","DDR1_SYSREG","SLC_DUAL_SYSREG","TOP_CRG_T","CPU_SS_CCU";
+			#clock-cells = <1>;
+			clocks = <&osc_32k_die3>, <&osc_24m_die3>, <&rc_24m_die3>;
+			clock-names = "osc_32k", "osc_24m", "rc_24m";
+			assigned-clocks = <&clk_die3 AUDIO0_PLL_FOUTVCO>, <&clk_die3 AUDIO1_PLL_FOUTVCO>,
+					  <&clk_die3 VIDEO_PLL_FOUTVCO>, <&clk_die3 GMAC_PLL_FOUTVCO>,
+					  <&clk_die3 DVFS_PLL_FOUTVCO>, <&clk_die3 DPU0_PLL_FOUTVCO>,
+					  <&clk_die3 DPU1_PLL_FOUTVCO>, <&clk_die3 DPU2_PLL_FOUTVCO>,
+					  <&clk_die3 TOP_CFG_ACLK_DIV>, <&clk_die3 TOP_PCLK_DIV>,
+					  <&clk_die3 SW_AMUX_660_CLK_EN>, <&clk_die3 SW_IOMMU_PTW_330_ACLK_EN>,
+					  <&clk_die3 SW_NOC_CCLK_EN>, <&clk_die3 TOP_CPUSYS_BUS_CLK_DIV>,
+					  <&clk_die3 TOP_CPUSYS_PIC_CLK_DIV>;
+			assigned-clock-rates = <2359296000>, <2528870400>, /* audio0_pll_foutvco,audio1_pll_foutvco */
+					       <2640000000>, <3000000000>, /* video_pll_foutvco,gmac_pll_foutvco */
+					       <1920000000>, <2376000000>, /* dvfs_pll_foutvco,dpu0_pll_foutvco */
+					       <2376000000>, <2376000000>, /* dpu1_pll_foutvco,dpu2_pll_foutvco */
+					       <330000000>, <165000000>, /* top_cfg_aclk,top_pclk */
+					       <660000000>, <330000000>, /* top_amux_clk,iommu_ptw_aclk */
+					       <950000000>, <1320000000>, /* noc_cclk,top_cpusys_bus_clk */
+					       <1000000000>; /* top_cpusys_pic_clk */
+			status = "okay";
+		};
+		clk_gpu_die3: clock-controller@31 {
+			compatible = "zhihe,a210-gpu-clk-die3";
+			reg = <0x60 0x06D02200 0x0 0x200>, <0x60 0x06E06200 0x0 0x200>;
+			reg-names = "GPU_SS_PWRAP_CLK_EN","GPU_SS_TOP_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_GPU_CORE_CLK_DIV>;
+			assigned-clock-rates = <792000000>;
+			status = "okay";
+		};
+
+		clk_pcie_die3: clock-controller@32 {
+			compatible = "zhihe,a210-pcie-clk-die3";
+			reg = <0x60 0x0a000000 0x0 0x28>;
+			reg-names = "PCIE_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_PCIE_SCAN_REF_CLK0_DIV>, <&clk_die3 TOP_PCIE_SCAN_REF_CLK1_DIV>,
+					  <&clk_die3 TOP_PCIE_AXI_M_ACLK_DIV>;
+			assigned-clock-rates = <396000000>, <1000000000>,
+					       <786432000>;
+			status = "okay";
+		};
+
+		clk_usb_die3: clock-controller@33 {
+			compatible = "zhihe,a210-usb-clk-die3";
+			reg = <0x60 0x08000000 0x0 0x24>;
+			reg-names = "USB_CLK_EN";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_USB_USB20_SCAN_REF_CLK_DIV>, <&clk_die3 TOP_USB_SCAN_REF_CLK3_DIV>,
+					  <&clk_die3 TOP_USB_SCAN_REF_CLK2_DIV>, <&clk_die3 TOP_USB_SCAN_REF_CLK1_DIV>,
+					  <&clk_die3 TOP_USB_SCAN_REF_CLK0_DIV>, <&clk_die3 TOP_USB_BUS_ACLK_DIV>,
+					  <&clk_die3 TOP_USB_DP_AUX_CLK_DIV>;
+			assigned-clock-rates = <475200000>, <792000000>,
+					       <600000000>, <500000000>,
+					       <396000000>, <330000000>,
+					       <16000000>;
+			status = "okay";
+		};
+
+		clk_vi_die3: clock-controller@34 {
+			compatible = "zhihe,a210-vi-clk-die3";
+			reg = <0x60 0x063a0200 0x0 0x200>;
+			reg-names = "VI_CLK";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		clk_vp_die3: clock-controller@35 {
+			compatible = "zhihe,a210-vp-clk-die3";
+			reg = <0x60 0x06b20200 0x0 0x200>;
+			reg-names = "VP_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_VP_ACLK_DIV>, <&clk_die3 TOP_VP_VDEC_CCLK_DIV>,
+				 	  <&clk_die3 TOP_VP_VENC_CCLK_DIV>, <&clk_die3 TOP_VP_G2D_CCLK_DIV>;
+			assigned-clock-rates = <880000000>, <786432000>,
+					       <600000000>, <786432000>;
+			status = "okay";
+		};
+
+		clk_vo_die3: clock-controller@36 {
+			compatible = "zhihe,a210-vo-clk-die3";
+			reg = <0x60 0x06720048 0x0 0x4>, <0x60 0x06720200 0x0 0xc>;
+			reg-names = "VO_PATH_CTRL","VO_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_vo_die3 VO_DPUC_CLK_EN>, <&clk_vo_die3 VO_CH0_PIXCLK_EN>,
+					  <&clk_vo_die3 VO_CH1_PIXCLK_EN>, <&clk_vo_die3 VO_CH2_PIXCLK_EN>,
+					  <&clk_vo_die3 VO_DPU_ACLK_EN>, <&clk_vo_die3 VO_HDMI_PCLK_EN>,
+					  <&clk_vo_die3 VO_DECOMP0_CLK_EN>, <&clk_vo_die3 VO_DECOMP1_CLK_EN>;
+			assigned-clock-rates = <880000000>, <594000000>,
+					       <594000000>, <594000000>,
+					       <880000000>, <165000000>,
+					       <220000000>, <220000000>;
+			status = "okay";
+		};
+
+		clk_npu_die3: clock-controller@37 {
+			compatible = "zhihe,a210-npu-clk-die3";
+			reg = <0x60 0x07112210 0x0 0x4>,<0x60 0x07301050 0x0 0x4>;
+			reg-names = "NPU_CLK","NPU_TOP_CLK";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_NPU_CCLK_DIV>, <&clk_die3 TOP_NPU_ACLK_DIV>;
+			assigned-clock-rates = <880000000>, <880000000>;
+			status = "okay";
+		};
+
+		clk_d2d_die3: clock-controller@38 {
+			compatible = "zhihe,a210-d2d-clk-die3";
+			reg = <0x60 0x09010000 0x0 0x4>;
+			reg-names = "D2D_CRG_REG";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_D2D_ACLK_DIV>, <&clk_die3 TOP_D2D_REF_CLK_MUX>;
+			assigned-clock-rates = <950000000>, <100000000>;
+			status = "okay";
+		};
+
+		clk_peri_die3: clock-controller@39 {
+			compatible = "zhihe,a210-peri-clk-die3";
+			reg = <0x60 0x00300200 0x0 0x4>,
+			      <0x60 0x02010200 0x0 0x8>,<0x60 0x08400200 0x0 0x8>,
+			      <0x60 0x00540200 0x0 0x4>,<0x60 0x27420200 0x0 0x200>;
+			reg-names = "PERI0_SYSREG","PERI1_SYSREG","PERI2_SYSREG",
+			"PERI3_SYSREG","TEE_CRG";
+			#clock-cells = <1>;
+			assigned-clocks = <&clk_die3 TOP_PERI_TIMER_CLK_MUX>, <&clk_die3 TOP_PERI_I2S_2CH0_SRC_CLK_MUX>,
+					  <&clk_die3 TOP_PERI_I2S_2CH1_SRC_CLK_MUX>, <&clk_die3 TOP_PERI_I2S_2CH2_SRC_CLK_MUX>,
+					  <&clk_die3 TOP_PERI_I2S_8CH0_SRC_CLK_MUX>, <&clk_die3 TOP_PERI_SPI_SSI_CLK0_DIV>,
+					  <&clk_die3 TOP_PERI_SPI_SSI_CLK1_DIV>, <&clk_die3 TOP_PERI_QSPI_SSI_CLK_MUX0>,
+					  <&clk_die3 TOP_PERI_QSPI_SSI_CLK_MUX1>, <&clk_die3 TOP_PERI_PDM_MCLK_DIV>,
+					  <&clk_die3 TOP_PERI_TDM_SRC_CLK_MUX>, <&clk_die3 TOP_PAD_SENSOR_VCLK0_DIV>,
+					  <&clk_die3 TOP_PAD_SENSOR_VCLK1_DIV>, <&clk_die3 TOP_PERI_HIRES_CLK0_DIV>,
+					  <&clk_die3 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die3 TOP_TEE_CLK_DIV>,
+					  <&clk_die3 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die3 TOP_PERI_MST_ACLK0_DIV>, 
+					  <&clk_die3 TOP_PERI_MST_CLK1_DIV>;
+			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
+					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */
+					       <316108800>, <421478400>, /* peri2_i2s3_src_clk,peri1_spi_ssi_clk */
+					       <421478400>, <421478400>, /* peri2_spi_ssi_clk,peri1_qspi_ssi_clk */
+					       <421478400>, <31610880>, /* peri2_qspi_ssi_clk,peri1_pdm_mclk */
+					       <316108800>, <74250000>, /* peri1_tdm_src_clk,top_pad_sensor_vclk0_div */
+					       <148500000>, <80000000>, /* top_pad_sensor_vclk1,peri1_hires_clk */
+					       <80000000>, <786432000>, /* peri2_hires_clk,emmc_ref_clk */
+					       <330000000>, <440000000>, /* peri1_mst_aclk,peri3_mst_aclk */
+					       <377142858>; /* tee_clk */
+			status = "okay";
 		};
 	};
 };

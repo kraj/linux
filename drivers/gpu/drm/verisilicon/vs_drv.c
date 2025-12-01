@@ -472,14 +472,18 @@ static int vs_drm_bind(struct device *dev)
 
     /* Now try and bind all our sub-components */
     ret = component_bind_all(dev, drm_dev);
-    if (ret)
+    if (ret) {
+        DRM_ERROR("Failed to bind all components\n");
         goto err_mode;
+    }
 
     vs_mode_config_init(drm_dev);
 
     ret = drm_vblank_init(drm_dev, drm_dev->mode_config.num_crtc);
-    if (ret)
+    if (ret) {
+        dev_err(drm_dev->dev, "vblank init failed.\n");
         goto err_bind;
+    }
 
     drm_mode_config_reset(drm_dev);
 
@@ -490,8 +494,10 @@ static int vs_drm_bind(struct device *dev)
     drm_kms_helper_poll_init(drm_dev);
 
     ret = drm_dev_register(drm_dev, 0);
-    if (ret)
+    if (ret) {
+        dev_err(drm_dev->dev, "Failed to register DRM device: %d\n", ret);
         goto err_helper;
+    }
 
 
     ret = sysfs_create_group(&drm_dev->primary->kdev->kobj, &vs_dev_attr_group);

@@ -158,7 +158,7 @@ static void zhihe_tdm_set_div(struct zhihe_tdm_priv *chip, u32 sample_rate,
 	bool is_divclk1 = false;
 	u32 src_clk;
 	u32 div0;
-	int i, ret;
+	int i;
 
 	clk_set_rate(chip->sclk, AUDIO_DIVCLK0);
 

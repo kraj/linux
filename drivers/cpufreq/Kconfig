@@ -321,5 +321,13 @@ config RISCV_XUANTIE_TH1520_CPUFREQ
 	  This adds the CPUFreq driver support for XuanTie th1520 SoCs
 	  which are capable of changing the CPU's frequency dynamically.
 
+config RISCV_ZHIHE_CPUFREQ
+	bool "CPU frequency scaling driver for zhihe riscv SoCs"
+	depends on OF && COMMON_CLK && ZHIHE_AON
+	select PM_OPP
+	help
+	  This adds the CPUFreq driver support for Zhihe riscv A210 SoCs
+	  which are capable of changing the CPU's frequency dynamically.
+
 endif
 endmenu

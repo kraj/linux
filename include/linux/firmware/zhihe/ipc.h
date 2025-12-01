@@ -10,76 +10,76 @@
 #include <linux/types.h>
 
 #define AON_RPC_MSG_MAGIC               (0xef)
-#define A210_AON_RPC_VERSION            (2)
-#define A210_AON_RPC_MSG_NUM            (7)
+#define AON_RPC_VERSION            (2)
+#define AON_RPC_MSG_NUM            (7)
 
-struct a210_aon_ipc;
+struct zhihe_aon_ipc;
 
-enum a210_aon_rpc_svc {
-	A210_AON_RPC_SVC_UNKNOWN = 0,
-	A210_AON_RPC_SVC_PM =	1,
-	A210_AON_RPC_SVC_MISC = 2,
-	A210_AON_RPC_SVC_AVFS = 3,
-	A210_AON_RPC_SVC_SYS = 4,
-	A210_AON_RPC_SVC_WDG = 5,
-	A210_AON_RPC_SVC_LPM = 6,
-	A210_AON_RPC_SVC_MAX = 0x3F,
+enum aon_rpc_svc {
+	AON_RPC_SVC_UNKNOWN = 0,
+	AON_RPC_SVC_PM =	1,
+	AON_RPC_SVC_MISC = 2,
+	AON_RPC_SVC_AVFS = 3,
+	AON_RPC_SVC_SYS = 4,
+	AON_RPC_SVC_WDG = 5,
+	AON_RPC_SVC_LPM = 6,
+	AON_RPC_SVC_MAX = 0x3F,
 };
 
-enum a210_aon_misc_func {
-	A210_AON_MISC_FUNC_UNKNOWN = 0,
-	A210_AON_MISC_FUNC_SET_CONTROL = 1,
-	A210_AON_MISC_FUNC_GET_CONTROL = 2,
-	A210_AON_MISC_FUNC_REGDUMP_CFG = 3,
+enum aon_misc_func {
+	AON_MISC_FUNC_UNKNOWN = 0,
+	AON_MISC_FUNC_SET_CONTROL = 1,
+	AON_MISC_FUNC_GET_CONTROL = 2,
+	AON_MISC_FUNC_REGDUMP_CFG = 3,
 };
 
-enum a210_aon_wdg_func {
-	A210_AON_WDG_FUNC_UNKNOWN = 0,
-	A210_AON_WDG_FUNC_START = 1,
-	A210_AON_WDG_FUNC_STOP = 2,
-	A210_AON_WDG_FUNC_PING = 3,
-	A210_AON_WDG_FUNC_TIMEOUTSET = 4,
-	A210_AON_WDG_FUNC_RESTART = 5,
-	A210_AON_WDG_FUNC_GET_STATE = 6,
-	A210_AON_WDG_FUNC_POWER_OFF = 7,
-	A210_AON_WDG_FUNC_AON_WDT_ON  = 8,
-	A210_AON_WDG_FUNC_AON_WDT_OFF = 9,
+enum aon_wdg_func {
+	AON_WDG_FUNC_UNKNOWN = 0,
+	AON_WDG_FUNC_START = 1,
+	AON_WDG_FUNC_STOP = 2,
+	AON_WDG_FUNC_PING = 3,
+	AON_WDG_FUNC_TIMEOUTSET = 4,
+	AON_WDG_FUNC_RESTART = 5,
+	AON_WDG_FUNC_GET_STATE = 6,
+	AON_WDG_FUNC_POWER_OFF = 7,
+	AON_WDG_FUNC_AON_WDT_ON  = 8,
+	AON_WDG_FUNC_AON_WDT_OFF = 9,
 };
 
-enum a210_aon_sys_func {
-	A210_AON_SYS_FUNC_UNKNOWN = 0,
-	A210_AON_SYS_FUNC_AON_RESERVE_MEM = 1,
+enum aon_sys_func {
+	AON_SYS_FUNC_UNKNOWN = 0,
+	AON_SYS_FUNC_AON_RESERVE_MEM = 1,
 };
 
-enum a210_aon_lpm_func {
-	A210_AON_LPM_FUNC_UNKNOWN = 0,
-	A210_AON_LPM_FUNC_REQUIRE_STR = 1,
-	A210_AON_LPM_FUNC_RESUME_STR = 2,
-	A210_AON_LPM_FUNC_REQUIRE_STD = 3,
-	A210_AON_LPM_FUNC_CPUHP = 4,
-	A210_AON_LPM_FUNC_REGDUMP_CFG = 5,
+enum aon_lpm_func {
+	AON_LPM_FUNC_UNKNOWN = 0,
+	AON_LPM_FUNC_REQUIRE_STR = 1,
+	AON_LPM_FUNC_RESUME_STR = 2,
+	AON_LPM_FUNC_REQUIRE_STD = 3,
+	AON_LPM_FUNC_CPUHP = 4,
+	AON_LPM_FUNC_REGDUMP_CFG = 5,
 };
 
-enum a210_aon_pm_func {
-	A210_AON_PM_FUNC_UNKNOWN = 0,
-	A210_AON_PM_FUNC_SET_RESOURCE_REGULATOR = 1,
-	A210_AON_PM_FUNC_GET_RESOURCE_REGULATOR = 2,
-	A210_AON_PM_FUNC_SET_RESOURCE_POWER_MODE = 3,
-	A210_AON_PM_FUNC_PWR_SET = 4,
-	A210_AON_PM_FUNC_PWR_GET = 5,
-	A210_AON_PM_FUNC_CHECK_FAULT = 6,
-	A210_AON_PM_FUNC_GET_TEMPERATURE = 7,
+enum aon_pm_func {
+	AON_PM_FUNC_UNKNOWN = 0,
+	AON_PM_FUNC_SET_RESOURCE_REGULATOR = 1,
+	AON_PM_FUNC_GET_RESOURCE_REGULATOR = 2,
+	AON_PM_FUNC_SET_RESOURCE_POWER_MODE = 3,
+	AON_PM_FUNC_PWR_SET = 4,
+	AON_PM_FUNC_PWR_GET = 5,
+	AON_PM_FUNC_CHECK_FAULT = 6,
+	AON_PM_FUNC_GET_TEMPERATURE = 7,
 };
 
-struct a210_aon_rpc_msg_hdr {
+struct aon_rpc_msg_hdr {
 	uint8_t ver;    ///< version of msg hdr
 	uint8_t size;   ///< msg size ,uinit in bytes,the size includes rpc msg header self.
 	uint8_t svc;    ///< rpc main service id
 	uint8_t func;   ///< rpc sub func id of specific service, sent by caller
 } __packed __aligned(1);
 
-struct a210_aon_rpc_ack_common {
-	struct a210_aon_rpc_msg_hdr hdr;
+struct aon_rpc_ack_common {
+	struct aon_rpc_msg_hdr hdr;
 	uint8_t err_code;
 } __packed __aligned(1);
 
@@ -158,13 +158,13 @@ struct a210_aon_rpc_ack_common {
 /*
  * Defines for SC PM Power Mode
  */
-#define A210_AON_PM_PW_MODE_OFF     0	/* Power off */
-#define A210_AON_PM_PW_MODE_STBY    1	/* Power in standby */
-#define A210_AON_PM_PW_MODE_LP      2	/* Power in low-power */
-#define A210_AON_PM_PW_MODE_ON      3	/* Power on */
+#define AON_PM_PW_MODE_OFF     0	/* Power off */
+#define AON_PM_PW_MODE_STBY    1	/* Power in standby */
+#define AON_PM_PW_MODE_LP      2	/* Power in low-power */
+#define AON_PM_PW_MODE_ON      3	/* Power on */
 
-int a210_aon_call_rpc(struct a210_aon_ipc *ipc,	void *msg, void *ack_msg, bool have_resp);
-int a210_aon_get_handle(struct a210_aon_ipc **ipc, char* name);
-int a210_aon_misc_set_control(struct a210_aon_ipc *ipc,	u16 resource, u32 ctrl, u32 val);
-int a210_aon_misc_get_control(struct a210_aon_ipc *ipc, u16 resource, u32 ctrl, u32 *val);
+int zhihe_aon_call_rpc(struct zhihe_aon_ipc *ipc,	void *msg, void *ack_msg, bool have_resp);
+int zhihe_aon_get_handle(struct zhihe_aon_ipc **ipc, char* name);
+int zhihe_aon_misc_set_control(struct zhihe_aon_ipc *ipc,	u16 resource, u32 ctrl, u32 val);
+int zhihe_aon_misc_get_control(struct zhihe_aon_ipc *ipc, u16 resource, u32 ctrl, u32 *val);
 #endif /* _SC_IPC_H */

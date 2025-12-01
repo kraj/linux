@@ -319,7 +319,7 @@
 };
 
 &spi0 {
-	cs-gpios = <&gpio1_porta 7 0>;
+	cs-gpios = <&gpio1 7 0>;
 	rx-sample-delay-ns = <10>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>;
@@ -345,7 +345,7 @@
 };
 
 &spi1 {
-	// cs-gpios = <&gpio2_porta 15 0>;
+	// cs-gpios = <&gpio2 15 0>;
 	rx-sample-delay-ns = <10>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins>;
@@ -362,7 +362,7 @@
 };
 
 &qspi0 {
-	cs-gpios = <&gpio0_porta 19 0>;
+	cs-gpios = <&gpio0 19 0>;
 	rx-sample-dly = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi0_pins>;
@@ -396,7 +396,7 @@
 };
 
 &qspi1 {
-	cs-gpios = <&gpio2_porta 29 0>;
+	cs-gpios = <&gpio2 29 0>;
 	rx-sample-dly = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi1_pins>;

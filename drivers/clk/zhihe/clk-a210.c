@@ -18,8 +18,59 @@
 
 #include "clk-helper.h"
 
+/* top reg idx */
+#define PLL_WRAP		0
+#define TOP_CRG			1
+#define CPU_SS_CLK_SYSREG	2
+#define CPU_SS_CPU_PLL		3
+#define DDR0_SYSREG		4
+#define DDR1_SYSREG		5
+#define SLC_DUAL_SYSREG		6
+#define TOP_CRG_T		7
+#define CPU_SS_CCU		8
+/* gpu reg idx */
+#define GPU_SS_PWRAP_CLK_EN	0
+#define GPU_SS_TOP_CLK_EN	1
+/* pcie reg idx */
+#define PCIE_CLK_EN		0
+/* usb reg idx */
+#define USB_CLK_EN		0
+/* vi reg idx */
+#define VI_CLK			0
+/* vp reg idx */
+#define VP_CLK			0
+/* vo reg idx */
+#define VO_CLK			0
+#define VO_PATH_CTRL		1
+/* npu reg idx */
+#define NPU_CLK			0
+#define NPU_TOP_CLK		1
+/* d2d reg idx */
+#define D2D_CRG_REG		0
+/* peri reg idx */
+#define PERI0_SYSREG		0
+#define PERI1_SYSREG		1
+#define PERI2_SYSREG		2
+#define PERI3_SYSREG		3
+#define TEE_CRG			4
+
 static u32 share_cnt_ddr_pll_clk_en;
 static u32 share_cnt_peri3_clkgen_sdio_ref_clk;
+
+enum a210_pll_clktype {
+	AUDIO0_PLL,
+	AUDIO1_PLL,
+	VIDEO_PLL,
+	GMAC_PLL,
+	DVFS_PLL,
+	DPU0_PLL,
+	DPU1_PLL,
+	DPU2_PLL,
+	TEE_PLL,
+	DDR_PLL,
+	C920_PLL,
+	C908_PLL,
+};
 
 static const char * const noc_cclk_mux_parents[] = {"dpu1_pll_foutvco", "video_pll_foutvco", "gmac_pll_foutvco"};
 static const char * const top_cpu_ddr1_aclk_parents[] = {"cbus2ddr_aclk1", "gmac_pll_foutpostdiv"};
@@ -79,82 +130,82 @@ static const char * const vo_mipi_pixclk_mux_parents[] = {"dpu0_pixclk", "dpu1_p
 static const char * const vo_hdmi_pixclk_mux_parents[] = {"dpu0_pixclk", "dpu1_pixclk", "dpu2_pixclk"};
 static const char * const vo_dptx_pixclk_mux_parents[] = {"dpu0_pixclk", "dpu1_pixclk", "dpu2_pixclk"};
 
-static struct p100_pll_rate_table p100_teepll_tbl[] = {
+static struct zhihe_pll_rate_table a210_teepll_tbl[] = {
 	PLL_RATE(2400000000, 800000000U, 1, 100, 0, 3, 1),
 };
 
-static struct p100_pll_rate_table p100_dpu2pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_dpu2pll_tbl[] = {
 	PLL_RATE(2376000000, 1188000000U, 1, 99, 0, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_dpu1pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_dpu1pll_tbl[] = {
 	PLL_RATE(2376000000, 1188000000U, 1, 99, 0, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_dpu0pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_dpu0pll_tbl[] = {
 	PLL_RATE(2376000000, 1188000000U, 1, 99, 0, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_dvfspll_tbl[] = {
+static struct zhihe_pll_rate_table a210_dvfspll_tbl[] = {
 	PLL_RATE(1920000000, 960000000U, 1, 80, 0, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_gmacpll_tbl[] = {
+static struct zhihe_pll_rate_table a210_gmacpll_tbl[] = {
 	PLL_RATE(3000000000, 1000000000U, 1, 125, 0, 3, 1),
 };
 
-static struct p100_pll_rate_table p100_videopll_tbl[] = {
+static struct zhihe_pll_rate_table a210_videopll_tbl[] = {
 	PLL_RATE(2640000000U, 1320000000U, 1, 110, 0, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_audio0pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_audio0pll_tbl[] = {
 	PLL_RATE(2359296000U, 1179648000U, 1, 98, 5100274, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_audio1pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_audio1pll_tbl[] = {
 	PLL_RATE(2528870400U, 1264435200U, 1, 105, 6200859, 2, 1),
 };
 
-static struct p100_pll_rate_table p100_c908pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_c908pll_tbl[] = {
 	PLL_RATE(1200000000U, 1200000000U, 1, 50, 0, 1, 1),
 	PLL_RATE(1500000000U, 1500000000U, 2, 125, 0, 1, 1),
 	PLL_RATE(1698000000U, 1698000000U, 4, 283, 0, 1, 1),
 	PLL_RATE(1896000000U, 1896000000U, 1, 79, 0, 1, 1),
 };
 
-static struct p100_pll_rate_table p100_c920pll_tbl[] = {
+static struct zhihe_pll_rate_table a210_c920pll_tbl[] = {
 	PLL_RATE(1500000000U, 1500000000U, 2, 125, 0, 1, 1),
 	PLL_RATE(1698000000U, 1698000000U, 4, 283, 0, 1, 1),
 	PLL_RATE(1896000000U, 1896000000U, 1, 79, 0, 1, 1),
 	PLL_RATE(2298000000U, 2298000000U, 4, 383, 0, 1, 1),
 };
 
-static struct p100_clk_info_pll plls_top[] = {
-	PLL_PARAM(TEE_PLL, P100_PLL_VCO, p100_teepll_tbl, ARRAY_SIZE(p100_teepll_tbl), 0x160, 0x170,
+static struct zhihe_clk_info_pll plls_top[] = {
+	PLL_PARAM(TEE_PLL, ZHIHE_PLL_VCO, a210_teepll_tbl, ARRAY_SIZE(a210_teepll_tbl), 0x160, 0x170,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "tee_pll_foutvco_frequency"),
-	PLL_PARAM(DPU2_PLL, P100_PLL_VCO, p100_dpu2pll_tbl, ARRAY_SIZE(p100_dpu2pll_tbl), 0x120, 0x130,
+	PLL_PARAM(DPU2_PLL, ZHIHE_PLL_VCO, a210_dpu2pll_tbl, ARRAY_SIZE(a210_dpu2pll_tbl), 0x120, 0x130,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "dpu2_pll_foutvco_frequency"),
-	PLL_PARAM(DPU1_PLL, P100_PLL_VCO, p100_dpu1pll_tbl, ARRAY_SIZE(p100_dpu1pll_tbl), 0x100, 0x110,
+	PLL_PARAM(DPU1_PLL, ZHIHE_PLL_VCO, a210_dpu1pll_tbl, ARRAY_SIZE(a210_dpu1pll_tbl), 0x100, 0x110,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "dpu1_pll_foutvco_frequency"),
-	PLL_PARAM(DPU0_PLL, P100_PLL_VCO, p100_dpu0pll_tbl, ARRAY_SIZE(p100_dpu0pll_tbl), 0x80, 0x90,
+	PLL_PARAM(DPU0_PLL, ZHIHE_PLL_VCO, a210_dpu0pll_tbl, ARRAY_SIZE(a210_dpu0pll_tbl), 0x80, 0x90,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "dpu0_pll_foutvco_frequency"),
-	PLL_PARAM(DVFS_PLL, P100_PLL_VCO, p100_dvfspll_tbl, ARRAY_SIZE(p100_dvfspll_tbl), 0x60, 0x70,
+	PLL_PARAM(DVFS_PLL, ZHIHE_PLL_VCO, a210_dvfspll_tbl, ARRAY_SIZE(a210_dvfspll_tbl), 0x60, 0x70,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "dvfs_pll_foutvco_frequency"),
-	PLL_PARAM(AUDIO0_PLL, P100_PLL_VCO, p100_audio0pll_tbl, ARRAY_SIZE(p100_audio0pll_tbl), 0x0, 0x10,
+	PLL_PARAM(AUDIO0_PLL, ZHIHE_PLL_VCO, a210_audio0pll_tbl, ARRAY_SIZE(a210_audio0pll_tbl), 0x0, 0x10,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_FRAC, "audio0_pll_foutvco_frequency"),
-	PLL_PARAM(AUDIO1_PLL, P100_PLL_VCO, p100_audio1pll_tbl, ARRAY_SIZE(p100_audio1pll_tbl), 0x20, 0x30,
+	PLL_PARAM(AUDIO1_PLL, ZHIHE_PLL_VCO, a210_audio1pll_tbl, ARRAY_SIZE(a210_audio1pll_tbl), 0x20, 0x30,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_FRAC, "audio1_pll_foutvco_frequency"),
-	PLL_PARAM(GMAC_PLL, P100_PLL_VCO, p100_gmacpll_tbl, ARRAY_SIZE(p100_gmacpll_tbl), 0x40, 0x50,
+	PLL_PARAM(GMAC_PLL, ZHIHE_PLL_VCO, a210_gmacpll_tbl, ARRAY_SIZE(a210_gmacpll_tbl), 0x40, 0x50,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "gmac_pll_foutvco_frequency"),
-	PLL_PARAM(VIDEO_PLL, P100_PLL_VCO, p100_videopll_tbl, ARRAY_SIZE(p100_videopll_tbl), 0x140, 0x150,
+	PLL_PARAM(VIDEO_PLL, ZHIHE_PLL_VCO, a210_videopll_tbl, ARRAY_SIZE(a210_videopll_tbl), 0x140, 0x150,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, "video_pll_foutvco_frequency"),
-	PLL_PARAM(C908_PLL, P100_PLL_VCO, p100_c908pll_tbl, ARRAY_SIZE(p100_c908pll_tbl), 0x0, 0x10,
+	PLL_PARAM(C908_PLL, ZHIHE_PLL_VCO, a210_c908pll_tbl, ARRAY_SIZE(a210_c908pll_tbl), 0x0, 0x10,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, ""),
-	PLL_PARAM(C920_PLL, P100_PLL_VCO, p100_c920pll_tbl, ARRAY_SIZE(p100_c920pll_tbl), 0x40, 0x50,
+	PLL_PARAM(C920_PLL, ZHIHE_PLL_VCO, a210_c920pll_tbl, ARRAY_SIZE(a210_c920pll_tbl), 0x40, 0x50,
 			  BIT(0), BIT(31), BIT(30), PLL_MODE_INT, ""),
 };
 
-static struct p100_clk_reg regs_top[] = {
+static struct zhihe_clk_reg regs_top[] = {
 	REG(PLL_WRAP),
 	REG(TOP_CRG),
 	REG(CPU_SS_CLK_SYSREG),
@@ -163,44 +214,45 @@ static struct p100_clk_reg regs_top[] = {
 	REG(DDR1_SYSREG),
 	REG(SLC_DUAL_SYSREG),
 	REG(TOP_CRG_T),
+	REG(CPU_SS_CCU),
 };
 
-static struct p100_clk_reg regs_gpu[] = {
+static struct zhihe_clk_reg regs_gpu[] = {
 	REG(GPU_SS_PWRAP_CLK_EN),
 	REG(GPU_SS_TOP_CLK_EN),
 };
 
-static struct p100_clk_reg regs_pcie[] = {
+static struct zhihe_clk_reg regs_pcie[] = {
 	REG(PCIE_CLK_EN),
 };
 
-static struct p100_clk_reg regs_usb[] = {
+static struct zhihe_clk_reg regs_usb[] = {
 	REG(USB_CLK_EN),
 };
 
-static struct p100_clk_reg regs_vi[] = {
+static struct zhihe_clk_reg regs_vi[] = {
 	REG(VI_CLK),
 };
 
-static struct p100_clk_reg regs_vp[] = {
+static struct zhihe_clk_reg regs_vp[] = {
 	REG(VP_CLK),
 };
 
-static struct p100_clk_reg regs_vo[] = {
+static struct zhihe_clk_reg regs_vo[] = {
 	REG(VO_CLK),
 	REG(VO_PATH_CTRL),
 };
 
-static struct p100_clk_reg regs_npu[] = {
+static struct zhihe_clk_reg regs_npu[] = {
 	REG(NPU_CLK),
 	REG(NPU_TOP_CLK),
 };
 
-static struct p100_clk_reg regs_d2d[] = {
+static struct zhihe_clk_reg regs_d2d[] = {
 	REG(D2D_CRG_REG),
 };
 
-static struct p100_clk_reg regs_peri[] = {
+static struct zhihe_clk_reg regs_peri[] = {
 	REG(PERI0_SYSREG),
 	REG(PERI1_SYSREG),
 	REG(PERI2_SYSREG),
@@ -208,7 +260,7 @@ static struct p100_clk_reg regs_peri[] = {
 	REG(TEE_CRG),
 };
 
-static struct p100_clk_info info_top[] = {
+static struct zhihe_clk_info info_top[] = {
 	/* FIXED */
 	FIXED(AON_OSC_CLK_PHY, "aon_osc_clk_phy", "osc_24m", 24000000),
 	FIXED(AON_OSC_CLK_LOGIC, "aon_osc_clk_logic", "osc_24m", 24000000),
@@ -285,6 +337,12 @@ static struct p100_clk_info info_top[] = {
 	    NO_DIV_EN, MUX_TYPE_DIV, 2, 15),
 	DIV(TOP_CPU_BAK_PLL1_CLK_DIV4, "top_cpu_bak_pll1_clk_div4", "video_pll_foutvco", TOP_CRG, 0x44, 0, 8,
 	    NO_DIV_EN, MUX_TYPE_DIV, 2, 255),
+	DIV(TOP_CPUSYS_CFG_ACLK_DIV, "top_cpusys_sys_cfg_axi_clk", "video_pll_fout1ph0", CPU_SS_CCU, 0x1c, 0, 16,
+	    NO_DIV_EN, MUX_TYPE_CDE, 1, 5),
+	DIV(TOP_CPUSYS_COM_APB_CLK_DIV, "top_cpusys_sys_com_apb_clk", "video_pll_fout1ph0", CPU_SS_CCU, 0x21c, 0, 16,
+	    NO_DIV_EN, MUX_TYPE_CDE, 3, 7),
+	DIV(TOP_CPUSYS_APB_CLK_DIV, "top_cpusys_cpu_apb_clk", "video_pll_fout1ph0", CPU_SS_CCU, 0x41c, 0, 16,
+	    NO_DIV_EN, MUX_TYPE_CDE, 3, 7),
 	/* TOP SS - NOC_CCLK */
 	GATE(SW_NOC_CCLK_EN, "noc_cclk", "noc_cclk_div", TOP_CRG, 0x200, 3),
 	DIV(NOC_CCLK_DIV, "noc_cclk_div", "noc_cclk_mux", TOP_CRG, 0, 20, 4,
@@ -436,9 +494,9 @@ static struct p100_clk_info info_top[] = {
 	GATE(SW_TOP_PAD_SENSOR_VCLK1_EN, "top_pad_sensor_vclk1", "top_pad_sensor_vclk1_div", TOP_CRG, 0x200, 5),
 	/* CPU SS */
 	MUX(C908_CPU_TO_CDE_CLK_MUX, "c908_cpu_clk", CPU_SS_CLK_SYSREG, 0x0, 0, 1,
-	    c908_cpu_clk_parents, ARRAY_SIZE(c908_cpu_clk_parents), CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
+	    c908_cpu_clk_parents, ARRAY_SIZE(c908_cpu_clk_parents), CLK_SET_RATE_PARENT),
 	MUX(C920_CPU_TO_CDE_CLK_MUX, "c920_cpu_clk", CPU_SS_CLK_SYSREG, 0x4, 0, 1,
-	    c920_cpu_clk_parents, ARRAY_SIZE(c920_cpu_clk_parents), CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
+	    c920_cpu_clk_parents, ARRAY_SIZE(c920_cpu_clk_parents), CLK_SET_RATE_PARENT),
 	/* DDR SS */
 	GATE(DDR0_PHY_DFICLK_EN, "ddr0_phy_dficlk", "ddr_pll_foutpostdiv", DDR0_SYSREG, 0x8, 3),
 	GATE(DDR0_DDRC_ACLK_EN, "ddr0_aclk", "ddr_pll_foutpostdiv", DDR0_SYSREG, 0x8, 2),
@@ -454,7 +512,7 @@ static struct p100_clk_info info_top[] = {
 	    ddr_pll_clkout_parents, ARRAY_SIZE(ddr_pll_clkout_parents), CLK_SET_RATE_PARENT),
 };
 
-static struct p100_clk_info info_gpu[] = {
+static struct zhihe_clk_info info_gpu[] = {
 	FIXED_FACTOR(GPU_TOP_SYS_CLK, "gpu_top_sys_clk", "top_cfg_aclk", 1, 1),
 	FIXED_FACTOR(GPU_PCLK_CDT, "gpu_pclk_cdt", "gpu_top_sys_clk", 1, 2),
 	GATE(SW_PWR_WRAP_DFMU_PCLK_EN, "gpu_top_pclk", "gpu_pclk_cdt", GPU_SS_PWRAP_CLK_EN, 0, 7),
@@ -462,7 +520,7 @@ static struct p100_clk_info info_gpu[] = {
 	GATE(SW_PWR_WRAP_GPU_CORE_CLK_EN, "gpu_core_clk", "top_gpu_core_clk", GPU_SS_PWRAP_CLK_EN, 0, 0),
 };
 
-static struct p100_clk_info info_pcie[] = {
+static struct zhihe_clk_info info_pcie[] = {
 	FIXED_FACTOR(PCIE_SS_APB_CLK, "pcie_ss_apb_clk", "gmac_pll_foutpostdiv", 1, 10),
 	GATE(E16PHY_PCLK_EN, "e16phy_apbs_pclk", "pcie_ss_apb_clk", PCIE_CLK_EN, 0x8, 0),
 	GATE(SATA_PMALIVE_CLK_EN, "sata_pmalive_clk", "aon_osc_clk_logic", PCIE_CLK_EN, 0x14, 0),
@@ -479,7 +537,7 @@ static struct p100_clk_info info_pcie[] = {
 	GATE(PCIE_RP_GEN3X1_PCLK_EN, "pcie_rp_gen3x1_pclk", "pcie_ss_apb_clk", PCIE_CLK_EN, 0x24, 4),
 };
 
-static struct p100_clk_info info_usb[] = {
+static struct zhihe_clk_info info_usb[] = {
 	GATE(DPTX_I2S_CLK_EN, "usb_dptx_i2s_clk", "audio0_pll_foutvco", USB_CLK_EN, 0x4, 16),
 	GATE(DPTX_IPI_CLK_EN, "usb_dptx_ipi_clk", "usb_ss_gtc_clk", USB_CLK_EN, 0x4, 12),
 	GATE(DPTX_AUX_CLK_EN, "usb_dptx_aux_clk", "clkgen_usb_ss_aux_clk", USB_CLK_EN, 0x4, 8),
@@ -499,7 +557,7 @@ static struct p100_clk_info info_usb[] = {
 	GATE(USB_SS_PERI2_CFG_ACLK_EN, "usb_peri2_cfg_aclk", "aon_osc_clk_logic", USB_CLK_EN, 0x20, 4),
 };
 
-static struct p100_clk_info info_vi[] = {
+static struct zhihe_clk_info info_vi[] = {
 	GATE(VI_VSE_CLK_EN, "dw200_vseclk", "vi_pre_vse_clk_div", VI_CLK, 0, 29),
 	GATE(VI_VSEOUT_CLK_EN, "dw200_vseout_clk", "vi_pre_vse_clk_div", VI_CLK, 0, 22),
 	DIV(VI_PRE_VSE_CLK_DIV_NUM, "vi_pre_vse_clk_div", "gmac_pll_foutpostdiv", VI_CLK, 0xc, 4, 4,
@@ -573,7 +631,7 @@ static struct p100_clk_info info_vi[] = {
 	GATE(VI_REC_ACLK_EN, "vi_rec_aclk", "top_cfg_aclk", VI_CLK, 0x4, 14),
 };
 
-static struct p100_clk_info info_vp[] = {
+static struct zhihe_clk_info info_vp[] = {
 	GATE(VP_DECOMP_EXTPCLK_EN, "vp_decomp_extpclk", "top_cfg_aclk", VP_CLK, 0, 23),
 	GATE(VP_COMP_EXTPCLK_EN, "vp_comp_extpclk", "top_cfg_aclk", VP_CLK, 0, 22),
 	GATE(VP_VENC_RS_ACLK_EN, "vp_venc_rs_aclk", "vp_aclk", VP_CLK, 0, 21),
@@ -604,7 +662,7 @@ static struct p100_clk_info info_vp[] = {
 	    12, MUX_TYPE_DIV, 2, 15),
 };
 
-static struct p100_clk_info info_vo[] = {
+static struct zhihe_clk_info info_vo[] = {
 	GATE(VO_X2H1_CLK_EN, "vo_x2h1_clk", "top_cfg_aclk", VO_CLK, 0, 24),
 	GATE(VO_X2H0_CLK_EN, "vo_x2h0_clk", "top_cfg_aclk", VO_CLK, 0, 23),
 	GATE(VO_PTW_ACLK_EN, "vo_ptw_aclk", "iommu_ptw_aclk", VO_CLK, 0, 22),
@@ -651,7 +709,7 @@ static struct p100_clk_info info_vo[] = {
 	    vo_dptx_pixclk_mux_parents, ARRAY_SIZE(vo_dptx_pixclk_mux_parents), CLK_SET_RATE_PARENT|CLK_SET_RATE_NO_REPARENT),
 };
 
-static struct p100_clk_info info_npu[] = {
+static struct zhihe_clk_info info_npu[] = {
 	GATE(SW_SEMA_PCLK_EN, "npu_clkgen_sema_pclk", "top_cfg_aclk", NPU_CLK, 0, 23),
 	GATE(SW_SEMA_ACLK_EN, "npu_clkgen_sema_aclk", "npu_aclk", NPU_CLK, 0, 22),
 	GATE(SW_NPU_X2P_ACLK_EN, "npu_x2p_aclk", "top_cfg_aclk", NPU_CLK, 0, 21),
@@ -661,12 +719,12 @@ static struct p100_clk_info info_npu[] = {
 	GATE(SW_NPU_IP_ACLK_EN, "npu_ip_aclk", "npu_aclk", NPU_CLK, 0, 10),
 };
 
-static struct p100_clk_info info_d2d[] = {
+static struct zhihe_clk_info info_d2d[] = {
 	GATE(D2D_SS_CTRL0_CLK_EN, "d2d_ss_ctrl0_cg_aclk", "top_d2d_aclk", D2D_CRG_REG, 0, 1),
 	GATE(D2D_SS_CTRL1_CLK_EN, "d2d_ss_ctrl1_cg_aclk", "top_d2d_aclk", D2D_CRG_REG, 0, 0),
 };
 
-static struct p100_clk_info info_peri[] = {
+static struct zhihe_clk_info info_peri[] = {
 	/* PERI0 SS */
 	GATE(PERI0_MBOX1_PCLK_EN, "peri0_mbox1_pclk", "top_cfg_aclk", PERI0_SYSREG, 0, 6),
 	GATE(PERI0_MBOX0_PCLK_EN, "peri0_mbox0_pclk", "top_cfg_aclk", PERI0_SYSREG, 0, 5),
@@ -821,78 +879,134 @@ static struct p100_clk_info info_peri[] = {
 	GATE(TEE_KEYRAM_CLKEN, "tee_keyram_clk", "tee_pclk", TEE_CRG, 0, 0),
 };
 
-static struct p100_clk_subsys top_clk = CLK_SUBSYS("top clk", regs_top, ARRAY_SIZE(regs_top),
-					    info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), false);
-static struct p100_clk_subsys top_clk_fpga = CLK_SUBSYS("top clk fpga", regs_top, ARRAY_SIZE(regs_top),
-						 info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), true);
-static struct p100_clk_subsys gpu_clk = CLK_SUBSYS("gpu clk", regs_gpu, ARRAY_SIZE(regs_gpu),
-					    info_gpu, ARRAY_SIZE(info_gpu), NULL, 0, false);
-static struct p100_clk_subsys pcie_clk = CLK_SUBSYS("pcie clk", regs_pcie, ARRAY_SIZE(regs_pcie),
-					     info_pcie, ARRAY_SIZE(info_pcie), NULL, 0, false);
-static struct p100_clk_subsys usb_clk = CLK_SUBSYS("usb clk", regs_usb, ARRAY_SIZE(regs_usb),
-					    info_usb, ARRAY_SIZE(info_usb), NULL, 0, false);
-static struct p100_clk_subsys vi_clk = CLK_SUBSYS("vi clk", regs_vi, ARRAY_SIZE(regs_vi),
-					   info_vi, ARRAY_SIZE(info_vi), NULL, 0, false);
-static struct p100_clk_subsys vp_clk = CLK_SUBSYS("vp clk", regs_vp, ARRAY_SIZE(regs_vp),
-					   info_vp, ARRAY_SIZE(info_vp), NULL, 0, false);
-static struct p100_clk_subsys vo_clk = CLK_SUBSYS("vo clk", regs_vo, ARRAY_SIZE(regs_vo),
-					   info_vo, ARRAY_SIZE(info_vo), NULL, 0, false);
-static struct p100_clk_subsys npu_clk = CLK_SUBSYS("npu clk", regs_npu, ARRAY_SIZE(regs_npu),
-					   info_npu, ARRAY_SIZE(info_npu), NULL, 0, false);
-static struct p100_clk_subsys d2d_clk = CLK_SUBSYS("d2d clk", regs_d2d, ARRAY_SIZE(regs_d2d),
-					   info_d2d, ARRAY_SIZE(info_d2d), NULL, 0, false);
-static struct p100_clk_subsys peri_clk = CLK_SUBSYS("peri clk", regs_peri, ARRAY_SIZE(regs_peri),
-					   info_peri, ARRAY_SIZE(info_peri), NULL, 0, false);
+static struct zhihe_clk_subsys top_clk = CLK_SUBSYS("top clk", regs_top, ARRAY_SIZE(regs_top),
+						  info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), false, 0);
+static struct zhihe_clk_subsys top_clk_fpga = CLK_SUBSYS("top clk fpga", regs_top, ARRAY_SIZE(regs_top),
+						       info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), true, 0);
+static struct zhihe_clk_subsys gpu_clk = CLK_SUBSYS("gpu clk", regs_gpu, ARRAY_SIZE(regs_gpu),
+						  info_gpu, ARRAY_SIZE(info_gpu), NULL, 0, false, 0);
+static struct zhihe_clk_subsys pcie_clk = CLK_SUBSYS("pcie clk", regs_pcie, ARRAY_SIZE(regs_pcie),
+						   info_pcie, ARRAY_SIZE(info_pcie), NULL, 0, false, 0);
+static struct zhihe_clk_subsys usb_clk = CLK_SUBSYS("usb clk", regs_usb, ARRAY_SIZE(regs_usb),
+						  info_usb, ARRAY_SIZE(info_usb), NULL, 0, false, 0);
+static struct zhihe_clk_subsys vi_clk = CLK_SUBSYS("vi clk", regs_vi, ARRAY_SIZE(regs_vi),
+						 info_vi, ARRAY_SIZE(info_vi), NULL, 0, false, 0);
+static struct zhihe_clk_subsys vp_clk = CLK_SUBSYS("vp clk", regs_vp, ARRAY_SIZE(regs_vp),
+						 info_vp, ARRAY_SIZE(info_vp), NULL, 0, false, 0);
+static struct zhihe_clk_subsys vo_clk = CLK_SUBSYS("vo clk", regs_vo, ARRAY_SIZE(regs_vo),
+						 info_vo, ARRAY_SIZE(info_vo), NULL, 0, false, 0);
+static struct zhihe_clk_subsys npu_clk = CLK_SUBSYS("npu clk", regs_npu, ARRAY_SIZE(regs_npu),
+						  info_npu, ARRAY_SIZE(info_npu), NULL, 0, false, 0);
+static struct zhihe_clk_subsys d2d_clk = CLK_SUBSYS("d2d clk", regs_d2d, ARRAY_SIZE(regs_d2d),
+						  info_d2d, ARRAY_SIZE(info_d2d), NULL, 0, false, 0);
+static struct zhihe_clk_subsys peri_clk = CLK_SUBSYS("peri clk", regs_peri, ARRAY_SIZE(regs_peri),
+						   info_peri, ARRAY_SIZE(info_peri), NULL, 0, false, 0);
+static struct zhihe_clk_subsys top_clk_die1 = CLK_SUBSYS("top clk", regs_top, ARRAY_SIZE(regs_top),
+						       info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), false, 1);
+static struct zhihe_clk_subsys gpu_clk_die1 = CLK_SUBSYS("gpu clk", regs_gpu, ARRAY_SIZE(regs_gpu),
+						       info_gpu, ARRAY_SIZE(info_gpu), NULL, 0, false, 1);
+static struct zhihe_clk_subsys pcie_clk_die1 = CLK_SUBSYS("pcie clk", regs_pcie, ARRAY_SIZE(regs_pcie),
+							info_pcie, ARRAY_SIZE(info_pcie), NULL, 0, false, 1);
+static struct zhihe_clk_subsys usb_clk_die1 = CLK_SUBSYS("usb clk", regs_usb, ARRAY_SIZE(regs_usb),
+						       info_usb, ARRAY_SIZE(info_usb), NULL, 0, false, 1);
+static struct zhihe_clk_subsys vi_clk_die1 = CLK_SUBSYS("vi clk", regs_vi, ARRAY_SIZE(regs_vi),
+						      info_vi, ARRAY_SIZE(info_vi), NULL, 0, false, 1);
+static struct zhihe_clk_subsys vp_clk_die1 = CLK_SUBSYS("vp clk", regs_vp, ARRAY_SIZE(regs_vp),
+						      info_vp, ARRAY_SIZE(info_vp), NULL, 0, false, 1);
+static struct zhihe_clk_subsys vo_clk_die1 = CLK_SUBSYS("vo clk", regs_vo, ARRAY_SIZE(regs_vo),
+						      info_vo, ARRAY_SIZE(info_vo), NULL, 0, false, 1);
+static struct zhihe_clk_subsys npu_clk_die1 = CLK_SUBSYS("npu clk", regs_npu, ARRAY_SIZE(regs_npu),
+						       info_npu, ARRAY_SIZE(info_npu), NULL, 0, false, 1);
+static struct zhihe_clk_subsys d2d_clk_die1 = CLK_SUBSYS("d2d clk", regs_d2d, ARRAY_SIZE(regs_d2d),
+						       info_d2d, ARRAY_SIZE(info_d2d), NULL, 0, false, 1);
+static struct zhihe_clk_subsys peri_clk_die1 = CLK_SUBSYS("peri clk", regs_peri, ARRAY_SIZE(regs_peri),
+							info_peri, ARRAY_SIZE(info_peri), NULL, 0, false, 1);
+static struct zhihe_clk_subsys top_clk_die2 = CLK_SUBSYS("top clk", regs_top, ARRAY_SIZE(regs_top),
+						       info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), false, 2);
+static struct zhihe_clk_subsys gpu_clk_die2 = CLK_SUBSYS("gpu clk", regs_gpu, ARRAY_SIZE(regs_gpu),
+						       info_gpu, ARRAY_SIZE(info_gpu), NULL, 0, false, 2);
+static struct zhihe_clk_subsys pcie_clk_die2 = CLK_SUBSYS("pcie clk", regs_pcie, ARRAY_SIZE(regs_pcie),
+							info_pcie, ARRAY_SIZE(info_pcie), NULL, 0, false, 2);
+static struct zhihe_clk_subsys usb_clk_die2 = CLK_SUBSYS("usb clk", regs_usb, ARRAY_SIZE(regs_usb),
+						       info_usb, ARRAY_SIZE(info_usb), NULL, 0, false, 2);
+static struct zhihe_clk_subsys vi_clk_die2 = CLK_SUBSYS("vi clk", regs_vi, ARRAY_SIZE(regs_vi),
+						      info_vi, ARRAY_SIZE(info_vi), NULL, 0, false, 2);
+static struct zhihe_clk_subsys vp_clk_die2 = CLK_SUBSYS("vp clk", regs_vp, ARRAY_SIZE(regs_vp),
+						      info_vp, ARRAY_SIZE(info_vp), NULL, 0, false, 2);
+static struct zhihe_clk_subsys vo_clk_die2 = CLK_SUBSYS("vo clk", regs_vo, ARRAY_SIZE(regs_vo),
+						      info_vo, ARRAY_SIZE(info_vo), NULL, 0, false, 2);
+static struct zhihe_clk_subsys npu_clk_die2 = CLK_SUBSYS("npu clk", regs_npu, ARRAY_SIZE(regs_npu),
+						       info_npu, ARRAY_SIZE(info_npu), NULL, 0, false, 2);
+static struct zhihe_clk_subsys d2d_clk_die2 = CLK_SUBSYS("d2d clk", regs_d2d, ARRAY_SIZE(regs_d2d),
+						       info_d2d, ARRAY_SIZE(info_d2d), NULL, 0, false, 2);
+static struct zhihe_clk_subsys peri_clk_die2 = CLK_SUBSYS("peri clk", regs_peri, ARRAY_SIZE(regs_peri),
+							info_peri, ARRAY_SIZE(info_peri), NULL, 0, false, 2);
+static struct zhihe_clk_subsys top_clk_die3 = CLK_SUBSYS("top clk", regs_top, ARRAY_SIZE(regs_top),
+						       info_top, ARRAY_SIZE(info_top), plls_top, ARRAY_SIZE(plls_top), false, 3);
+static struct zhihe_clk_subsys gpu_clk_die3 = CLK_SUBSYS("gpu clk", regs_gpu, ARRAY_SIZE(regs_gpu),
+						       info_gpu, ARRAY_SIZE(info_gpu), NULL, 0, false, 3);
+static struct zhihe_clk_subsys pcie_clk_die3 = CLK_SUBSYS("pcie clk", regs_pcie, ARRAY_SIZE(regs_pcie),
+							info_pcie, ARRAY_SIZE(info_pcie), NULL, 0, false, 3);
+static struct zhihe_clk_subsys usb_clk_die3 = CLK_SUBSYS("usb clk", regs_usb, ARRAY_SIZE(regs_usb),
+						       info_usb, ARRAY_SIZE(info_usb), NULL, 0, false, 3);
+static struct zhihe_clk_subsys vi_clk_die3 = CLK_SUBSYS("vi clk", regs_vi, ARRAY_SIZE(regs_vi),
+						      info_vi, ARRAY_SIZE(info_vi), NULL, 0, false, 3);
+static struct zhihe_clk_subsys vp_clk_die3 = CLK_SUBSYS("vp clk", regs_vp, ARRAY_SIZE(regs_vp),
+						      info_vp, ARRAY_SIZE(info_vp), NULL, 0, false, 3);
+static struct zhihe_clk_subsys vo_clk_die3 = CLK_SUBSYS("vo clk", regs_vo, ARRAY_SIZE(regs_vo),
+						      info_vo, ARRAY_SIZE(info_vo), NULL, 0, false, 3);
+static struct zhihe_clk_subsys npu_clk_die3 = CLK_SUBSYS("npu clk", regs_npu, ARRAY_SIZE(regs_npu),
+						       info_npu, ARRAY_SIZE(info_npu), NULL, 0, false, 3);
+static struct zhihe_clk_subsys d2d_clk_die3 = CLK_SUBSYS("d2d clk", regs_d2d, ARRAY_SIZE(regs_d2d),
+						       info_d2d, ARRAY_SIZE(info_d2d), NULL, 0, false, 3);
+static struct zhihe_clk_subsys peri_clk_die3 = CLK_SUBSYS("peri clk", regs_peri, ARRAY_SIZE(regs_peri),
+							info_peri, ARRAY_SIZE(info_peri), NULL, 0, false, 3);
 
-static struct clk_onecell_data clk_data;
-
-static int p100_clocks_probe(struct platform_device *pdev)
+static int a210_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct p100_clk_subsys *priv;
+	struct zhihe_clk_subsys *priv;
 	int ret;
 
-	if (clk_data.clks == NULL) {
-		clk_data.clks = devm_kcalloc(dev, CLK_END, sizeof(*clk_data.clks),
-						GFP_KERNEL);
-		if (!clk_data.clks)
-			return -ENOMEM;
-		clk_data.clk_num = CLK_END;
+	struct clk_onecell_data *clk_data = devm_kzalloc(dev, sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
+		return -ENOMEM;
 
-		for (int i = 0; i < CLK_END; i++)
-			clk_data.clks[i] = ERR_PTR(-ENOENT);
-	}
+	clk_data->clks = devm_kcalloc(dev, CLK_END, sizeof(*clk_data->clks),
+					GFP_KERNEL);
+	if (!clk_data->clks)
+		return -ENOMEM;
+	clk_data->clk_num = CLK_END;
 
-	priv = (struct p100_clk_subsys *)device_get_match_data(&pdev->dev);
+	for (int i = 0; i < CLK_END; i++)
+		clk_data->clks[i] = ERR_PTR(-ENOENT);
+
+
+	priv = (struct zhihe_clk_subsys *)device_get_match_data(&pdev->dev);
 	if (priv->is_fpga) {
-		zhihe_p100_clk_fake_pll_fixed_ops();
+		zhihe_clk_fake_pll_fixed_ops();
 	}
-	priv->clk_data = &clk_data;
+
+	priv->clk_data = clk_data;
 
 	dev_set_drvdata(dev, priv);
 
-	ret = p100_parse_regbase(pdev);
+	ret = zhihe_parse_regbase(pdev);
 	if (ret) {
 		dev_err(dev, "fail to parse reg base");
 		return ret;
 	}
 
-	p100_register_clock(pdev);
+	zhihe_register_clock(pdev);
 
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get, priv->clk_data);
 	if (ret < 0) {
-		dev_err(dev, "failed to register clks for p100\n");
+		dev_err(dev, "failed to register clks for a210\n");
 		goto unregister_clks;
 	}
 
-	ret = zhihe_clk_of_bulk_init(dev, priv->clk_data->clks);
-	if (ret < 0) {
-		dev_err(dev, "failed to init clks for p100\n");
-		goto unregister_clks;
-	}
-
-	dev_info(dev, "succeed to register p100 %s driver\n", priv->name);
+	dev_info(dev, "succeed to register a210 %s driver on die%d\n", priv->name, priv->die_num);
 
 	return 0;
 
@@ -901,32 +1015,62 @@ unregister_clks:
 	return ret;
 }
 
-static const struct of_device_id p100_clk_of_match[] = {
-	{ .compatible = "zhihe,p100-clk",	.data = (const void *)&top_clk},
-	{ .compatible = "zhihe,p100-clk-emu",	.data = (const void *)&top_clk_fpga},
-	{ .compatible = "zhihe,p100-clk-haps",	.data = (const void *)&top_clk_fpga},
-	{ .compatible = "zhihe,p100-gpu-clk",	.data = (const void *)&gpu_clk},
-	{ .compatible = "zhihe,p100-pcie-clk",	.data = (const void *)&pcie_clk},
-	{ .compatible = "zhihe,p100-usb-clk",	.data = (const void *)&usb_clk},
-	{ .compatible = "zhihe,p100-vi-clk",	.data = (const void *)&vi_clk},
-	{ .compatible = "zhihe,p100-vp-clk",	.data = (const void *)&vp_clk},
-	{ .compatible = "zhihe,p100-vo-clk",	.data = (const void *)&vo_clk},
-	{ .compatible = "zhihe,p100-npu-clk",	.data = (const void *)&npu_clk},
-	{ .compatible = "zhihe,p100-d2d-clk",	.data = (const void *)&d2d_clk},
-	{ .compatible = "zhihe,p100-peri-clk",	.data = (const void *)&peri_clk},
+static const struct of_device_id a210_clk_of_match[] = {
+	{ .compatible = "zhihe,a210-clk",		.data = (const void *)&top_clk},
+	{ .compatible = "zhihe,a210-gpu-clk",		.data = (const void *)&gpu_clk},
+	{ .compatible = "zhihe,a210-pcie-clk",		.data = (const void *)&pcie_clk},
+	{ .compatible = "zhihe,a210-usb-clk",		.data = (const void *)&usb_clk},
+	{ .compatible = "zhihe,a210-vi-clk",		.data = (const void *)&vi_clk},
+	{ .compatible = "zhihe,a210-vp-clk",		.data = (const void *)&vp_clk},
+	{ .compatible = "zhihe,a210-vo-clk",		.data = (const void *)&vo_clk},
+	{ .compatible = "zhihe,a210-npu-clk",		.data = (const void *)&npu_clk},
+	{ .compatible = "zhihe,a210-d2d-clk",		.data = (const void *)&d2d_clk},
+	{ .compatible = "zhihe,a210-peri-clk",		.data = (const void *)&peri_clk},
+	{ .compatible = "zhihe,a210-clk-emu",		.data = (const void *)&top_clk_fpga},
+	{ .compatible = "zhihe,a210-clk-haps",		.data = (const void *)&top_clk_fpga},
+	{ .compatible = "zhihe,a210-clk-die1",		.data = (const void *)&top_clk_die1},
+	{ .compatible = "zhihe,a210-gpu-clk-die1",	.data = (const void *)&gpu_clk_die1},
+	{ .compatible = "zhihe,a210-pcie-clk-die1",	.data = (const void *)&pcie_clk_die1},
+	{ .compatible = "zhihe,a210-usb-clk-die1",	.data = (const void *)&usb_clk_die1},
+	{ .compatible = "zhihe,a210-vi-clk-die1",	.data = (const void *)&vi_clk_die1},
+	{ .compatible = "zhihe,a210-vp-clk-die1",	.data = (const void *)&vp_clk_die1},
+	{ .compatible = "zhihe,a210-vo-clk-die1",	.data = (const void *)&vo_clk_die1},
+	{ .compatible = "zhihe,a210-npu-clk-die1",	.data = (const void *)&npu_clk_die1},
+	{ .compatible = "zhihe,a210-d2d-clk-die1",	.data = (const void *)&d2d_clk_die1},
+	{ .compatible = "zhihe,a210-peri-clk-die1",	.data = (const void *)&peri_clk_die1},
+	{ .compatible = "zhihe,a210-clk-die2",		.data = (const void *)&top_clk_die2},
+	{ .compatible = "zhihe,a210-gpu-clk-die2",	.data = (const void *)&gpu_clk_die2},
+	{ .compatible = "zhihe,a210-pcie-clk-die2",	.data = (const void *)&pcie_clk_die2},
+	{ .compatible = "zhihe,a210-usb-clk-die2",	.data = (const void *)&usb_clk_die2},
+	{ .compatible = "zhihe,a210-vi-clk-die2",	.data = (const void *)&vi_clk_die2},
+	{ .compatible = "zhihe,a210-vp-clk-die2",	.data = (const void *)&vp_clk_die2},
+	{ .compatible = "zhihe,a210-vo-clk-die2",	.data = (const void *)&vo_clk_die2},
+	{ .compatible = "zhihe,a210-npu-clk-die2",	.data = (const void *)&npu_clk_die2},
+	{ .compatible = "zhihe,a210-d2d-clk-die2",	.data = (const void *)&d2d_clk_die2},
+	{ .compatible = "zhihe,a210-peri-clk-die2",	.data = (const void *)&peri_clk_die2},
+	{ .compatible = "zhihe,a210-clk-die3",		.data = (const void *)&top_clk_die3},
+	{ .compatible = "zhihe,a210-gpu-clk-die3",	.data = (const void *)&gpu_clk_die3},
+	{ .compatible = "zhihe,a210-pcie-clk-die3",	.data = (const void *)&pcie_clk_die3},
+	{ .compatible = "zhihe,a210-usb-clk-die3",	.data = (const void *)&usb_clk_die3},
+	{ .compatible = "zhihe,a210-vi-clk-die3",	.data = (const void *)&vi_clk_die3},
+	{ .compatible = "zhihe,a210-vp-clk-die3",	.data = (const void *)&vp_clk_die3},
+	{ .compatible = "zhihe,a210-vo-clk-die3",	.data = (const void *)&vo_clk_die3},
+	{ .compatible = "zhihe,a210-npu-clk-die3",	.data = (const void *)&npu_clk_die3},
+	{ .compatible = "zhihe,a210-d2d-clk-die3",	.data = (const void *)&d2d_clk_die3},
+	{ .compatible = "zhihe,a210-peri-clk-die3",	.data = (const void *)&peri_clk_die3},
 	{ /* Sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, p100_clk_of_match);
+MODULE_DEVICE_TABLE(of, a210_clk_of_match);
 
-static struct platform_driver p100_clk_driver = {
-	.probe = p100_clocks_probe,
+static struct platform_driver a210_clk_driver = {
+	.probe = a210_clocks_probe,
 	.driver = {
-		.name = "p100-clk",
-		.of_match_table = of_match_ptr(p100_clk_of_match),
+		.name = "a210-clk",
+		.of_match_table = of_match_ptr(a210_clk_of_match),
 	},
 };
 
-module_platform_driver(p100_clk_driver);
-MODULE_AUTHOR("dong.yan <yand@zhcomputing.com>");
-MODULE_DESCRIPTION("Zhihe P100 clock driver");
+module_platform_driver(a210_clk_driver);
+MODULE_AUTHOR("dong.yan <yand@zhihecomputing.com>");
+MODULE_DESCRIPTION("Zhihe A210 clock driver");
 MODULE_LICENSE("GPL v2");

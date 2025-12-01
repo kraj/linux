@@ -166,7 +166,7 @@ static int th1520_audio_func_sel(struct th1520_pinctrl *thp,
 	return 0;
 }
 
-static const struct custom_operations th1520_custom_ops = {
+static struct custom_operations th1520_custom_ops = {
 	.init = th1520_audio_func_sel,
 };
 
@@ -1012,7 +1012,6 @@ static int th1520_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct th1520_pad_group *group = device_get_match_data(dev);
 	struct th1520_pinctrl *thp;
-	struct clk *clk;
 	int ret;
 
 	thp = devm_kzalloc(dev, sizeof(*thp), GFP_KERNEL);

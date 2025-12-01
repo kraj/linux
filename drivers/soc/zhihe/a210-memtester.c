@@ -68,6 +68,11 @@ struct zh_memtester_device {
 	unsigned long run_fail_timeout_count;
 	unsigned long run_fail_poll_count;
 
+	/* check_en(bit3) rd_en(bit2) wr_en(bit1) for MT_REG_CTRL */
+	unsigned int ctrl_mode;
+	/* range -> mask */
+	unsigned int range;
+
 	/* distinguish the master */
 	unsigned int pattern; 
 
@@ -152,7 +157,6 @@ void zh_memtester_writespecific(struct device *dev, u64 addr)
 	writel(0x0151000f, mt->reg + MT_REG_CTRL);
 }
 
-
 static void check_status_delay_work(struct work_struct *work)
 {
 	struct zh_memtester_device *mt  =
@@ -163,31 +167,48 @@ static void check_status_delay_work(struct work_struct *work)
 	v = readl(mt->reg + MT_REG_STATUS);
 	/* no-err */
 	if ((v & 0x1) == 0) {
-		/* 1000s / 20 -> 50 s */
-		schedule_delayed_work(&mt->check_status_work, HZ / 20);
+		schedule_delayed_work(&mt->check_status_work, HZ);
 	/* err fail */
 	} else {
 		mt->fail_status = v;
-		printk(KERN_EMERG "(%s) catch fail @ %ld", dev_name(mt->dev), mt->check_status_cnt);
-		cancel_delayed_work_sync(&mt->check_status_work);
+		printk(KERN_EMERG "(%s) catch fail @ %ld status: 0x%x", dev_name(mt->dev), mt->check_status_cnt, v);
+
+		/* stop */
+		v = readl(mt->reg + MT_REG_CTRL);
+		writel(v & 0xfffffff0, mt->reg + MT_REG_CTRL);
+
+		cancel_delayed_work(&mt->check_status_work);
 	}
 	v = readl(mt->reg + MT_REG_AXI_STATUS);
 	mt->axi_status = v;
 }
 
-/* addr must be 2M/1M align */
 void zh_memtester_writespecific2(struct device *dev, u64 addr)
 {
 	struct zh_memtester_device *mt = dev_get_drvdata(dev);
 	bool need_shift = false;
 	int v = 0;
 	int mask = 0;
+	int prbs_sel_bit = (0x5 << 20);
+	int test_en_bit = (0x1 << 0);
 	static int pattern = 0;
 
 	if (!mt || !mt->reg) {
 		dev_err(dev, "reg not initialized\n");
 		return;
 	}
+
+	/* disable firstly */
+	v = readl(mt->reg + MT_REG_CTRL);
+	writel(v & 0xfffffff0, mt->reg + MT_REG_CTRL);
+	cancel_delayed_work_sync(&mt->check_status_work);
+	writel(0xffffffff, mt->reg + MT_REG_STATUS);
+
+	mt->check_status_cnt = 0;
+	mt->axi_status = 0;
+
+	if (!addr)
+		return;
 
 	pattern++;
 	if (addr >> 32) 
@@ -202,8 +223,8 @@ void zh_memtester_writespecific2(struct device *dev, u64 addr)
 	writel(0x10110100, mt->reg + MT_REG_CFG1);
 	/* axlen: 8 transfer,  axsize: 0'b100 -> 16 Bytes */
 	writel(0x07fc07fc, mt->reg + MT_REG_AXI_ATTR);
-	/* infinite loop, 4095 xtran  */
-	writel(0xff000fff, mt->reg + MT_REG_LOOP);
+	/* infinite loop, 4096 xtran  */
+	writel(0xff001000, mt->reg + MT_REG_LOOP);
 	writel(0x12153524, mt->reg + MT_REG_PRBS_SEED);
   
 	if (need_shift) {
@@ -214,29 +235,18 @@ void zh_memtester_writespecific2(struct device *dev, u64 addr)
 
 	if (need_shift) {
 		mask = (addr >> 8);
-		/* lowest 12bit 0xfff, add 8bit shift, total 20bit 0xfffff*/
-		mask = mask | (0x1FFFF);
+		mask = mask | ((mt->range - 1) >> 8);
 	} else {
 		mask = addr;
-		/* total 20bit 0xfffff*/
-		mask = mask | (0x1FFFFFF);
+		mask = mask | (mt->range - 1);
 	}
-
 	writel(mask, mt->reg + MT_REG_ADDR_MASK);
-
-	/* bit 16 0: fix pattern: 0x01 */
-	writel(0x0050000e | (pattern << 24), mt->reg + MT_REG_CTRL);
-	writel(0x0050000f | (pattern << 24), mt->reg + MT_REG_CTRL);
+	writel((pattern << 24) | prbs_sel_bit | (mt->ctrl_mode << 1) | test_en_bit, mt->reg + MT_REG_CTRL);
 
 	mt->pattern = pattern;
-
 	mt->start_time = ktime_get_ns();
 
-	v = readl(mt->reg + MT_REG_CTRL);
-
 	schedule_delayed_work(&mt->check_status_work, 0);
-	/* wait & poll */
-	v = readl(mt->reg + MT_REG_STATUS);
 }
 
 static ssize_t readonly_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -299,17 +309,109 @@ static ssize_t writespecific_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(writespecific);
 
+static ssize_t range_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct zh_memtester_device *mt = dev_get_drvdata(dev);
+	unsigned long val;
+	char unit = '\0';
+	int ret;
+
+	ret = sscanf(buf, "%lu%c", &val, &unit);
+
+	if (ret == 1) {
+		/* no unit */
+	} else if (ret == 2) {
+		switch (unit) {
+			case 'K':
+			case 'k':
+				val <<= 10;
+				break;
+			case 'M':
+			case 'm':
+				val <<= 20;
+				break;
+			case 'G':
+			case 'g':
+				val <<= 30;
+				break;
+			default:
+				return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	mt->range = val;
+
+	return count;
+}
+
+static ssize_t range_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct zh_memtester_device *mt = dev_get_drvdata(dev);
+	unsigned long val = mt->range;
+	unsigned long display = val;
+	const char *unit = "B";
+
+	if (val >= (1UL << 30)) {
+		display = val >> 30;
+		unit = "G";
+	} else if (val >= (1UL << 20)) {
+		display = val >> 20;
+		unit = "M";
+	} else if (val >= (1UL << 10)) {
+		display = val >> 10;
+		unit = "K";
+	}
+
+	return scnprintf(buf, PAGE_SIZE, "%lu%s\n", display, unit);
+}
+static DEVICE_ATTR_RW(range);
+
+static ssize_t ctrl_mode_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct zh_memtester_device *mt = dev_get_drvdata(dev);
+	unsigned int ctrl_mode;
+
+	if (kstrtou32(buf, 0, &ctrl_mode) < 0)
+		return -EINVAL;
+
+	ctrl_mode &= 0x7;
+	mt->ctrl_mode = ctrl_mode;
+	return count;
+}
+
+static ssize_t ctrl_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct zh_memtester_device *mt = dev_get_drvdata(dev);
+	ssize_t len = 0;
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "ctrl_mode %d\n", mt->ctrl_mode);
+	len += scnprintf(buf + len, PAGE_SIZE - len, " check_en(bit2): %d\n", !!(mt->ctrl_mode & (0x1 << 2)));
+	len += scnprintf(buf + len, PAGE_SIZE - len, " rd_en(bit1): %d\n", !!(mt->ctrl_mode & (0x1 << 1)));
+	len += scnprintf(buf + len, PAGE_SIZE - len, " wr_en(bit0): %d\n", !!(mt->ctrl_mode & (0x1 << 0)));
+
+	return len;
+}
+static DEVICE_ATTR_RW(ctrl_mode);
+
 static ssize_t writespecific2_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zh_memtester_device *mt = dev_get_drvdata(dev);
 	ssize_t len = 0;
 	int v;
-	int loops;
-	u64 total_bytes = 0;
-	u64 speed_mbps = 0;
-
-	u64 now;
 	u64 delta;
+	u64 delta_ms;
+	u64 loops;
+	u64 speed;
+	u64 real_size_mb;
+	int data_width;
 
 	v = readl(mt->reg + MT_REG_STATUS);
 	if ((v & 0x1) == 0)
@@ -322,25 +424,40 @@ static ssize_t writespecific2_show(struct device *dev, struct device_attribute *
 	len += scnprintf(buf + len, PAGE_SIZE - len, "check_status_cnt %ld fail_status: 0x%x\n",
 			mt->check_status_cnt, mt->fail_status);
 
-	now = ktime_get_ns();
-	delta = now - mt->start_time;
+	data_width = (v >> 20) & 0x3;
+	if (data_width == 0)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "data_width: 64bit\n");
+	else if (data_width == 0x1)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "data_width: 128bit\n");
+	else if (data_width == 0x2)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "data_width: 256bit\n");
+	else
+		len += scnprintf(buf + len, PAGE_SIZE - len, "data_width: invalid\n");
 
+	delta = ktime_get_ns() - mt->start_time;
+
+	/*
+	 * calculate the total size simply:
+	 *  1loop: axlen * axsize * xact_num --> 8 * 16 * 4096 = 512K = 1/2M
+	 *  256loop: MT_REG_LOOP_TIME + 1
+	 *           1/2M * 256 = 128M
+	 */
 	loops = readl(mt->reg + MT_REG_LOOP_TIME);
 
-	if (!loops)
-		return len;
+	/* unit M */
+	real_size_mb = loops * 128;
+	/* scale the real_size_mb by the data_width */
+	if (data_width == 0)
+		real_size_mb >>= 1;
+	else if (data_width == 2)
+		real_size_mb <<= 1;
 
-	total_bytes = (4096 * 16 * 9) * loops;
-	if (delta == 0) {
-		len += scnprintf(buf + len, PAGE_SIZE - len, "delta is zero, cannot calculate speed\n");
-		return len;
-	}
-	/* bytes / ns = (bytes / 1000 000) M / (delta / 10^9) */
-	speed_mbps = (total_bytes * 1000) / delta;
-	len += scnprintf(buf + len, PAGE_SIZE - len, "start_time %lld now %lld delta %lld\n", 
-			mt->start_time, now, delta);
-	len += scnprintf(buf + len, PAGE_SIZE - len, "total_bytes %lld\n", total_bytes);
-	len += scnprintf(buf + len, PAGE_SIZE - len, "speed  %lld-MBps loops-%d\n", speed_mbps, loops);
+	delta_ms = delta /(1000000ul);
+	speed = (real_size_mb * 1000) / (delta_ms);
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "total %lld-MB %lld-GB\n", real_size_mb, real_size_mb >> 10);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "delta %lld-ns %lld-ms\n", delta, delta_ms);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "speed %lld-MBps %lld-GBps\n", speed, speed >> 10);
 
 	return len;
 }
@@ -363,6 +480,8 @@ static DEVICE_ATTR_RW(writespecific2);
 static struct attribute *mt_dev_attrs[] = {
 	&dev_attr_writeonly.attr,
 	&dev_attr_readonly.attr,
+	&dev_attr_ctrl_mode.attr,
+	&dev_attr_range.attr,
 	&dev_attr_writespecific.attr,
 	&dev_attr_writespecific2.attr,
 	NULL
@@ -505,6 +624,10 @@ static int zh_memtester_probe(struct platform_device *pdev)
 		mt->wr_pa = sg_phys(sg);
 		printk("mapped iova=0x%llx phy=0x%llx vir=0x%px len=%d\n", mt->wr_iova, mt->wr_pa, sg_virt(sg), sg->length);
 	}
+
+	/* default, all enable */
+	mt->ctrl_mode = 0x7;
+	mt->range = (1 << 20);
 
 	INIT_DELAYED_WORK(&mt->check_status_work, check_status_delay_work);
 

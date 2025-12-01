@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config A210_AON
-	bool "A210 Aon Protocol driver"
-	depends on A210_MBOX
+config ZHIHE_AON
+	bool "zhihe Aon Protocol driver"
+	depends on ZHIHE_MBOX
 	default y
 	help
-	  ZHIHE A210 Aon is a low-level system function which runs a dedicated
+	  ZHIHE Aon is a low-level system function which runs a dedicated
 	  ZHIHE riscv E902 core to provide power, clock and resource management.
 
 	  This driver manages the IPC interface between host cpu liks thead
 	  and the Aon firmware running on thead riscv E902 core.
 
+config ZHIHE_PROC_DEBUG
+       bool "ZHIHE debug"
+       help
+         proc_debug

@@ -62,10 +62,10 @@
 		pcie3x1 = &rp3x1;
 	};
 
-	/* The first 2M will be reserved in the Kernel, and the entire available range is set here */
+	/* The actual capacity will be adjusted through SPL */
 	memory@0 {
 		device_type = "memory";
-		reg = <0x00 0x80000000  0x01 0x00000000>; /* 4G - 64MB */
+		reg = <0x00 0x80000000  0x01 0x00000000>; /* 4G */
 		numa-node-id = <0>;
 	};
 
@@ -122,7 +122,34 @@
 		status = "okay";
 	};
 
-	codec_dummy_i2s_8ch: codec_dummy_i2s_8ch {
+	codec_dummy_i2s_8ch0: codec_dummy_i2s_8ch0 {
+		compatible = "zhihe,dummy-pcm-i2s-8ch";
+		sound-name-prefix = "DUMMY";
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#sound-dai-cells = <1>;
+		status = "okay";
+	};
+
+	codec_dummy_i2s_8ch1: codec_dummy_i2s_8ch1 {
+		compatible = "zhihe,dummy-pcm-i2s-8ch";
+		sound-name-prefix = "DUMMY";
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#sound-dai-cells = <1>;
+		status = "okay";
+	};
+
+	codec_dummy_i2s_8ch2: codec_dummy_i2s_8ch2 {
+		compatible = "zhihe,dummy-pcm-i2s-8ch";
+		sound-name-prefix = "DUMMY";
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#sound-dai-cells = <1>;
+		status = "okay";
+	};
+
+	codec_dummy_i2s_8ch3: codec_dummy_i2s_8ch3 {
 		compatible = "zhihe,dummy-pcm-i2s-8ch";
 		sound-name-prefix = "DUMMY";
 		#address-cells = <0>;
@@ -250,7 +277,7 @@
 
 	Sound_Card@2 {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "Sound-Card-I2S3";
+		simple-audio-card,name = "Sound-Card-HDMI";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "okay";
@@ -259,6 +286,19 @@
 	};
 
 	Sound_Card@3 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Sound-Card-I2S3";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		SOUND_CARD_LINK(0, left_j, i2s_8ch_sd0, 0, dummy_i2s_8ch0, 0);  /* I2S3-SD0 <-> HW-Codec */
+		SOUND_CARD_LINK(1, left_j, i2s_8ch_sd1, 0, dummy_i2s_8ch1, 0);  /* I2S3-SD1 <-> HW-Codec */
+		SOUND_CARD_LINK(2, left_j, i2s_8ch_sd2, 0, dummy_i2s_8ch2, 0);  /* I2S3-SD2 <-> HW-Codec */
+		SOUND_CARD_LINK(3, left_j, i2s_8ch_sd3, 0, dummy_i2s_8ch3, 0);  /* I2S3-SD3 <-> HW-Codec */
+	};
+
+	Sound_Card@4 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "Sound-Card-TDM";
 		#address-cells = <1>;
@@ -275,7 +315,7 @@
 		SOUND_CARD_LINK(7, dsp_b, tdm_slot7, 0, es7210_adc3, 0);  /* TDM_SLOT7 <-> es7210_adc3 */
 	};
 
-	Sound_Card@4 {
+	Sound_Card@5 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "Sound-Card-PDM";
 		#address-cells = <1>;
@@ -1047,7 +1087,7 @@
 };
 
 &spi0 {
-	cs-gpios = <&gpio0_porta 30 0>;
+	cs-gpios = <&gpio0 30 0>;
 	rx-sample-delay-ns = <4>;
 	spi-max-frequency = <55000000>;
 
@@ -1062,7 +1102,7 @@
 };
 
 &spi1 {
-	cs-gpios = <&gpio2_porta 18 0>;
+	cs-gpios = <&gpio2 18 0>;
 	rx-sample-delay-ns = <4>;
 	spi-max-frequency = <55000000>;
 	pinctrl-names = "default";
@@ -1079,7 +1119,7 @@
 };
 
 &qspi0 {
-	cs-gpios = <&gpio0_porta 19 0>;
+	cs-gpios = <&gpio0 19 0>;
 	rx-sample-dly = <2>;
 	spi-swap-data = <1>;
 	spi-max-frequency = <55000000>;
@@ -1099,7 +1139,7 @@
 };
 
 &qspi1 {
-	cs-gpios = <&gpio2_porta 29 0>;
+	cs-gpios = <&gpio2 29 0>;
 	rx-sample-dly = <2>;
 	spi-swap-data = <1>;
 	spi-max-frequency = <55000000>;
@@ -1255,7 +1295,7 @@
 	usbc: fusb302@0 {
 		compatible = "fcs,fusb302";
 		reg = <0x0>;
-		interrupt-parent = <&ao_gpio1_porta>;
+		interrupt-parent = <&ao_gpio1>;
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		status = "disabled";
@@ -1290,7 +1330,7 @@
 				remote-endpoint = <&typec_con_usb>;
 			};
 		};
-	};	
+	};
 };
 
 &i2c5 {
@@ -1375,6 +1415,7 @@
 &emmc {
 	max-frequency = <196608000>;
 	non-removable;
+	mmc-hs400-1_8v;
 	mmc-hs200-1_8v;
 	io_fixed_1v8;
 	is_emmc;
@@ -1382,6 +1423,8 @@
 	no-sd;
 	pull_up;
 	bus-width = <8>;
+	cap-mmc-highspeed;
+	clk-delay-mmc-hs200 = <60>;
 };
 
 &sdhci0 {
@@ -1480,10 +1523,10 @@
 	GPMUX_SEL_04 -> 1
 	GPMUX_SEL_11 -> 1
 */
-// &audio_i2s_8ch_sd0 {
-// 	pinctrl-names = "default";
-// 	pinctrl-0 = <&i2s3_pins>;
-// };
+&audio_i2s_8ch_sd0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s3_pins>;
+};
 
 /*
  expansion IO: audio_tdm
@@ -1678,4 +1721,61 @@
 
 &usb2_0 {
   status = "disabled";
+};
+
+&mipi0_csi0 {
+	status = "disabled";
+};
+
+&mipi0_csi1 {
+	//combination 4lane mode: host addr; aphy ctrl addr; bphy ctrl addr; mipi_ctrl addr
+	reg = < 0x00 0x06310000 0x0 0x10000
+			0x00 0x063a0020 0x0 0x4
+			0x00 0x063a0024 0x0 0x4
+			0x00 0x063a0028 0x0 0x4>;
+	phy_name = "CSI_4LANE"; //combination 4lane
+};
+
+//config dsi display: dpu_disp0->dup_enc0->dsi0->lcd_plane
+&dpu_enc0 {
+    status = "disabled";
+    ports {
+        /* output */
+        port@1 {
+            reg = <1>;
+            enc0_out: endpoint {
+                remote-endpoint = <&dsi0_in>;
+            };
+        };
+    };
+};
+
+&dhost_0 {
+	status = "disabled";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			dsi0_in: endpoint {
+				remote-endpoint = <&enc0_out>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			dsi0_out: endpoint {
+				remote-endpoint = <&panel0_in>;
+			};
+		};
+	};
+
+	panel0@0 { //virtual panel0, not yet enabled
+		compatible = "jadard,jd9365da-h3";
+		reg = <0>;
+		port {
+			panel0_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
 };

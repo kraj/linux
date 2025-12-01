@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -27,6 +28,7 @@
 #include <sound/initval.h>
 #include <linux/proc_fs.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/regmap.h>
@@ -36,6 +38,7 @@
 #define INVALID_GPIO -1
 #define GPIO_LOW  0
 #define GPIO_HIGH 1
+#define GPIO_MAX  16
 #define es8156_DEF_VOL			0xBF
 #define ES8156_VOL_MAX			0xBF
 /*
@@ -45,6 +48,12 @@
 #define MCLK 0
 
 static struct snd_soc_component *es8156_codec;
+
+static const struct es8156_gpio es8156_gpio[] = {
+	{ ES8156_GPIO_3V3_PWREN, "audio-3v3-pwren" },
+	{ ES8156_GPIO_1V8_PWREN, "audio-1v8-pwren" },
+	{ ES8156_GPIO_HP_CTL, "audio-hp-ctl"},
+};
 
 static const struct reg_default es8156_reg_defaults[] = {
 	{0x00, 0x1c}, {0x01, 0x20}, {0x02, 0x00}, {0x03, 0x01},
@@ -71,6 +80,7 @@ struct es8156_priv {
 	int debounce_time;
 	int hp_det_invert;
 	struct delayed_work work;
+	struct gpio_desc *audio_pw_desc[GPIO_MAX];
 
 	int spk_ctl_gpio;
 	int hp_det_gpio;
@@ -80,6 +90,7 @@ struct es8156_priv {
 
 	int pwr_count;
 	u32 mclk_sclk_ratio;
+	u32 mclk_src;
 
 	u32 suspend_reg_00;
 	u32 suspend_reg_01;
@@ -155,8 +166,6 @@ static const struct snd_kcontrol_new es8156_snd_controls[] = {
 	SOC_SINGLE_TLV("Master Playback Volume", ES8156_VOLUME_CONTROL_REG14, 0,
 		       ES8156_VOL_MAX, 0, dac_vol_tlv),
 	SOC_SINGLE("HP Switch",ES8156_ANALOG_SYS3_REG22,3,1,0),
-
-
 };
 
 
@@ -200,12 +209,11 @@ static const struct snd_soc_dapm_widget es8156_dapm_widgets[] = {
 
 /**************************************************/
 #define MSMode_MasterSelOn 0               // SlaveMode:0, MasterMode:1
-static unsigned int Ratio = 64;              // Ratio = MCLK/LRCK on board
+#define Ratio              64              // Ratio = MCLK/LRCK on board
 #define Format                 NORMAL_I2S
 #define Format_Len         Format_Len16    // data format
 #define SCLK_DIV           8               // SCLK_DIV = MCLK/SCLK
 #define SCLK_INV           0
-static unsigned int MCLK_SOURCE;        // select MCLK source, MCLK_PIN or SCLK_PIN
 #define EQ7bandOn          0
 #define VDDA_VOLTAGE       VDDA_3V3
 #define DAC_Volume         191             // DAC digital gain
@@ -215,114 +223,111 @@ static unsigned int MCLK_SOURCE;        // select MCLK source, MCLK_PIN or SCLK
 
 static int es8156_init_regs(struct snd_soc_component *codec)
 {
-	//struct es8156_priv *priv = snd_soc_component_get_drvdata(codec);
-   pr_debug("%s\n", __func__);
+	struct es8156_priv *priv = snd_soc_component_get_drvdata(codec);
+	unsigned int ratio = priv->mclk_sclk_ratio * Ratio;
+	unsigned int config_val = (priv->mclk_src << 7) + (SCLK_INV << 4) +
+				  (EQ7bandOn << 3) + 0x04 + MSMode_MasterSelOn;
 
-   snd_soc_component_write(codec,0x02,(MCLK_SOURCE<<7) + (SCLK_INV<<4) +  (EQ7bandOn<<3) + 0x04 + MSMode_MasterSelOn);
-   snd_soc_component_write(codec,0x19,0x20);
+	pr_debug("%s\n", __func__);
 
-   if(DACHPModeOn == 0) // output from PA
-       {
-           snd_soc_component_write(codec,0x20,0x2A);
-           snd_soc_component_write(codec,0x21,0x3C);
-           snd_soc_component_write(codec,0x22,0x02);
-           snd_soc_component_write(codec,0x24,0x07);
-           snd_soc_component_write(codec,0x23,0x40 + (0x30*VDDA_VOLTAGE));
-       }
-   if(DACHPModeOn == 1) // output from headphone
-       {
-           snd_soc_component_write(codec,0x20,0x16);
-           snd_soc_component_write(codec,0x21,0x3F);
-           snd_soc_component_write(codec,0x22,0x0A);
-           snd_soc_component_write(codec,0x24,0x01);
-           snd_soc_component_write(codec,0x23,0xCA + (0x30*VDDA_VOLTAGE));
-       }
-   snd_soc_component_write(codec,0x0A,0x01);
-   snd_soc_component_write(codec,0x0B,0x01);
-   //snd_soc_component_write(codec,0x11,NORMAL_I2S + (Format_Len<<4));
+	snd_soc_component_write(codec, 0x02, config_val);
+	snd_soc_component_write(codec, 0x19, 0x20);
 
-   if(Ratio == 1536) // Ratio=MCLK/LRCK=1536; 12M288/8K; 24M576/16K
-       {
-           snd_soc_component_write(codec,0x01,0x26 - (0x03*EQ7bandOn)); // 1536 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 1536 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x06); // LRCK H
-           snd_soc_component_write(codec,0x04,0x00); // LRCK=MCLK/1536
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 1024) // Ratio=MCLK/LRCK=1024; 12M288/12K; 24M576/24K
-       {
-           snd_soc_component_write(codec,0x01,0x24 - (0x02*EQ7bandOn)); // 256 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 256 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x04); // LRCK H
-           snd_soc_component_write(codec,0x04,0x00); // LRCK=MCLK/256
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 768) // Ratio=MCLK/LRCK=768; 12M288/16K; 24M576/32K
-       {
-           snd_soc_component_write(codec,0x01,0x23 + (0x40*EQ7bandOn)); // 768 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 768 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x03); // LRCK H
-           snd_soc_component_write(codec,0x04,0x00); // LRCK=MCLK/768
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 512) // Ratio=MCLK/LRCK=512; 12M288/24K; 24M576/48K
-       {
-           snd_soc_component_write(codec,0x01,0xC0 + 0x22 - (0x01*EQ7bandOn)); // 512 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 512 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x02); // LRCK H
-           snd_soc_component_write(codec,0x04,0x00); // LRCK=MCLK/512
-           snd_soc_component_write(codec,0x05,SCLK_DIV); //BCLK=MCLK/4
-       }
-   if(Ratio == 400) // Ratio=MCLK/LRCK=400; 19M2/48K
-       {   // DVDD must be 3.3V
-           snd_soc_component_write(codec,0x01,0x21 + (0x40*EQ7bandOn)); // 384 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 400 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x10,0x64); // 400 OSR
-           snd_soc_component_write(codec,0x03,0x01); // LRCK H
-           snd_soc_component_write(codec,0x04,0x90); // LRCK=MCLK/400
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 384) // Ratio=MCLK/LRCK=384; 12M288/32K; 6M144/16K
-       {
-           snd_soc_component_write(codec,0x01,0x63 + (0x40*EQ7bandOn)); // 384 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 384 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x01); // LRCK H
-           snd_soc_component_write(codec,0x04,0x80); // LRCK=MCLK/384
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 256) // Ratio=MCLK/LRCK=256; 12M288/48K
-       {
-           snd_soc_component_write(codec,0x01,0x21 + (0x40*EQ7bandOn)); // 256 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 256 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x01); // LRCK H
-           snd_soc_component_write(codec,0x04,0x00); // LRCK=MCLK/256
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 128) // Ratio=MCLK/LRCK=128; 6M144/48K
-       {
-           snd_soc_component_write(codec,0x01,0x61 + (0x40*EQ7bandOn)); // 128 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x00); // 128 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x00); // LRCK H
-           snd_soc_component_write(codec,0x04,0x80); // LRCK=MCLK/128
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/4
-       }
-   if(Ratio == 64) // Ratio=MCLK/LRCK=64; 3M072/48K
-       {
-           snd_soc_component_write(codec,0x01,0xE1); // 64 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x09,0x02); // 64 Ratio(MCLK/LRCK)
-           snd_soc_component_write(codec,0x03,0x00); // LRCK H
-           snd_soc_component_write(codec,0x04,0x40); // LRCK=MCLK/64
-           snd_soc_component_write(codec,0x05,SCLK_DIV); // BCLK=MCLK/2
-       }
+	if (DACHPModeOn == 0) { // output from PA
+		snd_soc_component_write(codec, 0x20, 0x2A);
+		snd_soc_component_write(codec, 0x21, 0x3C);
+		snd_soc_component_write(codec, 0x22, 0x02);
+		snd_soc_component_write(codec, 0x24, 0x07);
+		snd_soc_component_write(codec, 0x23, 0x40 + (0x30 * VDDA_VOLTAGE));
+	} else if (DACHPModeOn == 1) { // output from headphone
+		snd_soc_component_write(codec, 0x20, 0x16);
+		snd_soc_component_write(codec, 0x21, 0x3F);
+		snd_soc_component_write(codec, 0x22, 0x0A);
+		snd_soc_component_write(codec, 0x24, 0x01);
+		snd_soc_component_write(codec, 0x23, 0xCA + (0x30 * VDDA_VOLTAGE));
+	}
+	snd_soc_component_write(codec, 0x0A, 0x01);
+	snd_soc_component_write(codec, 0x0B, 0x01);
+	// snd_soc_component_write(codec, 0x11, NORMAL_I2S + (Format_Len << 4));
 
-   snd_soc_component_write(codec,0x0D,0x14);
-   snd_soc_component_write(codec,0x18,0x00);
-   snd_soc_component_write(codec,0x08,0x3F);
-   snd_soc_component_write(codec,0x00,0x02);
-   snd_soc_component_write(codec,0x00,0x03);
-   snd_soc_component_write(codec,0x25,0x20);
+	switch (ratio) {
+	case 1536: // Ratio=MCLK/LRCK=1536; 12M288/8K; 24M576/16K
+		snd_soc_component_write(codec, 0x01, 0x26 - (0x03 * EQ7bandOn)); // 1536 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 1536 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x06); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x00); // LRCK=MCLK/1536
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 1024: // Ratio=MCLK/LRCK=1024; 12M288/12K; 24M576/24K
+		snd_soc_component_write(codec, 0x01, 0x24 - (0x02 * EQ7bandOn)); // 1024 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 1024 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x04); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x00); // LRCK=MCLK/1024
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 768: // Ratio=MCLK/LRCK=768; 12M288/16K; 24M576/32K
+		snd_soc_component_write(codec, 0x01, 0x23 + (0x40 * EQ7bandOn)); // 768 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 768 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x03); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x00); // LRCK=MCLK/768
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 512: // Ratio=MCLK/LRCK=512; 12M288/24K; 24M576/48K
+		snd_soc_component_write(codec, 0x01, 0xC0 + 0x22 - (0x01 * EQ7bandOn)); // 512 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 512 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x02); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x00); // LRCK=MCLK/512
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); //BCLK=MCLK/4
+		break;
+	case 400: // Ratio=MCLK/LRCK=400; 19M2/48K
+		// DVDD must be 3.3V
+		snd_soc_component_write(codec, 0x01, 0x21 + (0x40 * EQ7bandOn)); // 384 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 400 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x10, 0x64); // 400 OSR
+		snd_soc_component_write(codec, 0x03, 0x01); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x90); // LRCK=MCLK/400
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 384: // Ratio=MCLK/LRCK=384; 12M288/32K; 6M144/16K
+		snd_soc_component_write(codec, 0x01, 0x63 + (0x40 * EQ7bandOn)); // 384 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 384 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x01); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x80); // LRCK=MCLK/384
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 256: // Ratio=MCLK/LRCK=256; 12M288/48K
+		snd_soc_component_write(codec, 0x01, 0x21 + (0x40 * EQ7bandOn)); // 256 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 256 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x01); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x00); // LRCK=MCLK/256
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 128: // Ratio=MCLK/LRCK=128; 6M144/48K
+		snd_soc_component_write(codec, 0x01, 0x61 + (0x40 * EQ7bandOn)); // 128 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x00); // 128 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x00); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x80); // LRCK=MCLK/128
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/4
+		break;
+	case 64: // Ratio=MCLK/LRCK=64; 3M072/48K
+		snd_soc_component_write(codec, 0x01, 0xE1); // 64 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x09, 0x02); // 64 Ratio(MCLK/LRCK)
+		snd_soc_component_write(codec, 0x03, 0x00); // LRCK H
+		snd_soc_component_write(codec, 0x04, 0x40); // LRCK=MCLK/64
+		snd_soc_component_write(codec, 0x05, SCLK_DIV); // BCLK=MCLK/2
+		break;
+	default:
+		break;
+	}
 
-   return 0;
+	snd_soc_component_write(codec, 0x0D, 0x14);
+	snd_soc_component_write(codec, 0x18, 0x00);
+	snd_soc_component_write(codec, 0x08, 0x3F);
+	snd_soc_component_write(codec, 0x00, 0x02);
+	snd_soc_component_write(codec, 0x00, 0x03);
+	snd_soc_component_write(codec, 0x25, 0x20);
+
+	return 0;
 }
 
 static int es8156_init_sequence(struct snd_soc_component *codec)
@@ -345,9 +350,7 @@ static const struct snd_soc_dapm_route es8156_dapm_routes[] = {
 	{"DACL",NULL,"Channel Select Mux"},
 	{"DACR",NULL,"Channel Select Mux"},
 
-
-
-	{ "LOUT", NULL, "DACL" },	
+	{ "LOUT", NULL, "DACL" },
 	{ "ROUT", NULL, "DACR" },
 };
 
@@ -770,6 +773,7 @@ static int es8156_i2c_probe(struct i2c_client *i2c)
 	struct es8156_priv *es8156;
 	int ret = -1;
 	struct device_node *np = i2c->dev.of_node;
+	int i;
 #ifdef HP_DET_FUNTION
 	int hp_irq;
 	enum of_gpio_flags flags;
@@ -814,15 +818,20 @@ static int es8156_i2c_probe(struct i2c_client *i2c)
 		es8156->mclk_sclk_ratio = 1;
 	}
 
-	Ratio *= es8156->mclk_sclk_ratio;
-
-   	if (es8156->mclk_sclk_ratio == 1) {
-		MCLK_SOURCE = SCLK_PIN;
-	} else {
-		MCLK_SOURCE = MCLK_PIN;
-	}
+	if (es8156->mclk_sclk_ratio == 1)
+		es8156->mclk_src = SCLK_PIN;
+	else
+		es8156->mclk_src = MCLK_PIN;
 
 	i2c_set_clientdata(i2c, es8156);
+
+	for (i = 0; i < ARRAY_SIZE(es8156_gpio); i++) {
+		es8156->audio_pw_desc[i] = devm_gpiod_get_optional(&i2c->dev, 
+					   es8156_gpio[i].name, GPIOD_OUT_HIGH);
+		if (es8156->audio_pw_desc[i])
+			gpiod_set_value_cansleep(es8156->audio_pw_desc[i], 1);
+	}
+
 #ifdef HP_DET_FUNTION
 	es8156->spk_ctl_gpio = of_get_named_gpio_flags(np,
 						       "spk-con-gpio",

@@ -438,6 +438,34 @@ static bool vs_dc_mode_fixup(struct device *dev,
     return true;
 }
 
+static enum drm_mode_status vs_dc_mode_valid(struct device *dev,
+                     struct drm_crtc *crtc,
+                     const struct drm_display_mode *mode)
+{
+    struct vs_dc *dc = dev_get_drvdata(dev);
+    int id = to_vs_display_id(dc, crtc);
+    long clk_rate, request_rate;
+
+    if (unlikely(id >= DC_DISPLAY_NUM))
+        return MODE_BAD;
+
+    if (!dc->pixclk[id])
+        return MODE_OK;
+
+    request_rate = mode->clock * 1000;
+    clk_rate = clk_round_rate(dc->pixclk[id], request_rate);
+
+    /*
+     * If the clock rate difference is more than 100, the mode is
+     * considered unsupported by the CRTC hardware.
+     * refer to dw_hdmi_tx_phy_gen2_configure() function
+     */
+    if (abs(clk_rate - request_rate) > 100)
+        return MODE_CLOCK_RANGE;
+
+    return MODE_OK;
+}
+
 static void vs_dc_set_gamma(struct device *dev, struct drm_crtc *crtc,
                  struct drm_color_lut *lut, unsigned int size)
 {
@@ -942,6 +970,7 @@ static const struct vs_crtc_funcs dc_crtc_funcs = {
     .enable         = vs_dc_enable,
     .disable        = vs_dc_disable,
     .mode_fixup     = vs_dc_mode_fixup,
+    .mode_valid     = vs_dc_mode_valid,
     .set_gamma      = vs_dc_set_gamma,
     .enable_gamma       = vs_dc_enable_gamma,
     .enable_vblank      = vs_dc_enable_vblank,

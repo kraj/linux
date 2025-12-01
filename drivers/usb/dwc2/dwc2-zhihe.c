@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/of.h>
 #include <linux/reset.h>
+#include <linux/gpio/consumer.h>
 
 #include "core.h"
 #include "hcd.h"
@@ -42,6 +43,8 @@ struct dwc2_zhihe {
 	void __iomem		*usb20_blk_sysreg;
 	struct reset_control	*usb0_phy_rst;
 	struct reset_control	*usb1_phy_rst;
+	struct gpio_desc 	*usb20_pwren;
+	struct gpio_desc 	*usb21_pwren;
 };
 
 static int dwc2_zhihe_probe(struct platform_device *pdev)
@@ -116,6 +119,28 @@ static int dwc2_zhihe_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to populate child nodes: %d\n", ret);
 		return ret;
 	}
+
+	zhihe->usb20_pwren = devm_gpiod_get_optional(&pdev->dev,
+						     "usb20-pwren",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(zhihe->usb20_pwren)) {
+		dev_err(&pdev->dev, "Failed to get usb20-pwren GPIO\n");
+		return PTR_ERR(zhihe->usb20_pwren);
+	}
+
+	zhihe->usb21_pwren = devm_gpiod_get_optional(&pdev->dev,
+						     "usb21-pwren",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(zhihe->usb21_pwren)) {
+		dev_err(&pdev->dev, "Failed to get usb21-pwren GPIO\n");
+		return PTR_ERR(zhihe->usb21_pwren);
+	}
+
+	if (zhihe->usb20_pwren)
+		gpiod_set_value(zhihe->usb20_pwren, 1);
+
+	if (zhihe->usb21_pwren)
+		gpiod_set_value(zhihe->usb21_pwren, 1);
 
 	dev_info(dev, "ZHIHE DWC2 glue layer initialized\n");
 	return 0;

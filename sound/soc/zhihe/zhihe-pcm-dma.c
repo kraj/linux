@@ -6,7 +6,7 @@
  * 
  * Author: Anonymous <anonymous@zhcomputing.com>
  */
- 
+
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/module.h>

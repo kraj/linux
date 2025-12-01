@@ -89,10 +89,6 @@
 	status = "disabled";
 };
 
-&uart4 {
-	current-speed = <115200>; /* OpenSBI */
-};
-
 &uart5 {
 	status = "disabled";
 };

@@ -18,6 +18,7 @@
 #include <linux/resource.h>
 #include <linux/types.h>
 #include <linux/reset.h>
+#include <linux/gpio/consumer.h>
 
 #include "pcie-designware.h"
 
@@ -70,6 +71,14 @@ struct p100_plat_pcie {
 	void __iomem			*cpr_base;
 	struct reset_control		*pcie_rst;
 	struct reset_control		*pcie_prst;
+	struct gpio_desc		*pcie_bat_en;
+	struct gpio_desc		*pcie_3v3_en;
+	struct gpio_desc		*pcie_12v_en;
+	struct gpio_desc		*pcie_clk_en;
+	struct gpio_desc		*minipcie_1v5_pwren;
+	struct gpio_desc		*minipcie_3v3_pwren;
+	struct gpio_desc		*minipcie_perst;
+	struct gpio_desc		*pcie_clk_pwren;
 };
 
 struct p100_plat_pcie_of_data {
@@ -338,11 +347,99 @@ static int p100_plat_pcie_probe(struct platform_device *pdev)
 	p100_pcie_ipctrl_init(p100_plat_pcie);
 	p100_pcie_wait_linkup(pdev, p100_plat_pcie);
 
-	p100_plat_pcie->pci->dbi_base = p100_plat_pcie->apb_base;
-
 	platform_set_drvdata(pdev, p100_plat_pcie);
 	switch (p100_plat_pcie->mode) {
 	case DW_PCIE_RC_TYPE:
+		/* Get GPIO descriptors for PCIe power control */
+		p100_plat_pcie->pcie_bat_en = devm_gpiod_get_optional(&pdev->dev,
+								      "pcie-bat-en",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->pcie_bat_en)) {
+			dev_err(&pdev->dev, "Failed to get pcie-bat-en GPIO\n");
+			return PTR_ERR(p100_plat_pcie->pcie_bat_en);
+		}
+
+		p100_plat_pcie->pcie_3v3_en = devm_gpiod_get_optional(&pdev->dev,
+								      "pcie-3v3-en",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->pcie_3v3_en)) {
+			dev_err(&pdev->dev, "Failed to get pcie-3v3-en GPIO\n");
+			return PTR_ERR(p100_plat_pcie->pcie_3v3_en);
+		}
+
+		p100_plat_pcie->pcie_12v_en = devm_gpiod_get_optional(&pdev->dev,
+								      "pcie-12v-en",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->pcie_12v_en)) {
+			dev_err(&pdev->dev, "Failed to get pcie-12v-en GPIO\n");
+			return PTR_ERR(p100_plat_pcie->pcie_12v_en);
+		}
+
+		p100_plat_pcie->pcie_clk_en = devm_gpiod_get_optional(&pdev->dev,
+								      "pcie-clk-en",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->pcie_clk_en)) {
+			dev_err(&pdev->dev, "Failed to get pcie-clk-en GPIO\n");
+			return PTR_ERR(p100_plat_pcie->pcie_clk_en);
+		}
+
+		if (p100_plat_pcie->pcie_bat_en)
+			gpiod_set_value(p100_plat_pcie->pcie_bat_en, 1);
+
+                if (p100_plat_pcie->pcie_3v3_en)
+			gpiod_set_value(p100_plat_pcie->pcie_3v3_en, 1);
+
+		if (p100_plat_pcie->pcie_12v_en)
+			gpiod_set_value(p100_plat_pcie->pcie_12v_en, 1);
+
+		if (p100_plat_pcie->pcie_clk_en)
+			gpiod_set_value(p100_plat_pcie->pcie_clk_en, 1);
+
+		p100_plat_pcie->minipcie_1v5_pwren = devm_gpiod_get_optional(&pdev->dev,
+								      "minipcie-1v5-pwren",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->minipcie_1v5_pwren)) {
+			dev_err(&pdev->dev, "Failed to get minipcie-1v5-pwren GPIO\n");
+			return PTR_ERR(p100_plat_pcie->minipcie_1v5_pwren);
+		}
+
+		if (p100_plat_pcie->minipcie_1v5_pwren)
+			gpiod_set_value(p100_plat_pcie->minipcie_1v5_pwren, 1);
+
+		p100_plat_pcie->minipcie_3v3_pwren = devm_gpiod_get_optional(&pdev->dev,
+								      "minipcie-3v3-pwren",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->minipcie_3v3_pwren)) {
+			dev_err(&pdev->dev, "Failed to get minipcie-3v3-pwren GPIO\n");
+			return PTR_ERR(p100_plat_pcie->minipcie_3v3_pwren);
+		}
+
+		if (p100_plat_pcie->minipcie_3v3_pwren)
+			gpiod_set_value(p100_plat_pcie->minipcie_3v3_pwren, 1);
+
+		p100_plat_pcie->minipcie_perst = devm_gpiod_get_optional(&pdev->dev,
+								      "minipcie-perst",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->minipcie_perst)) {
+			dev_err(&pdev->dev, "Failed to get minipcie-perst GPIO\n");
+			return PTR_ERR(p100_plat_pcie->minipcie_perst);
+		}
+
+		if (p100_plat_pcie->minipcie_perst)
+			gpiod_set_value(p100_plat_pcie->minipcie_perst, 1);
+
+		p100_plat_pcie->pcie_clk_pwren = devm_gpiod_get_optional(&pdev->dev,
+								      "pcie-clk-pwren",
+								      GPIOD_OUT_LOW);
+		if (IS_ERR(p100_plat_pcie->pcie_clk_pwren)) {
+			dev_err(&pdev->dev, "Failed to get pcie-clk-pwren GPIO\n");
+			return PTR_ERR(p100_plat_pcie->pcie_clk_pwren);
+		}
+
+		if (p100_plat_pcie->pcie_clk_pwren)
+			gpiod_set_value(p100_plat_pcie->pcie_clk_pwren, 1);
+		p100_plat_pcie->pci->dbi_base = p100_plat_pcie->apb_base;
+
 		ret = p100_plat_add_pcie_port(p100_plat_pcie, pdev);
 		if (ret < 0)
 			return ret;

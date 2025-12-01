@@ -593,6 +593,10 @@
 #define VO_HDMI_PIXCLK                                     562
 #define VO_DPTX_PIXCLK                                     563
 
-#define CLK_END                                            564
+#define TOP_CPUSYS_CFG_ACLK_DIV                            564
+#define TOP_CPUSYS_COM_APB_CLK_DIV                         565
+#define TOP_CPUSYS_APB_CLK_DIV                             566
+
+#define CLK_END                                            567
 
 #endif

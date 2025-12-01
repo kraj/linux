@@ -14,7 +14,7 @@
 #include <linux/of_gpio.h>
 #endif
 
-#define LOG(x...)   printk(KERN_INFO "[WLAN_RFKILL]: "x)
+#define LOG(fmt, ...)   printk(KERN_INFO "[WLAN_RFKILL]: "fmt, ##__VA_ARGS__)
 
 struct rfkill_wlan_data {
 	struct wifi_moudle_gpios *pdata;
@@ -28,6 +28,8 @@ struct ctrl_gpio {
 
 struct wifi_moudle_gpios {
 	bool power_remain;
+	struct ctrl_gpio   vcc1_ctrl;
+	struct ctrl_gpio   vcc2_ctrl; 
 	struct ctrl_gpio   power_n; //PMU_EN
 };
 
@@ -40,7 +42,7 @@ static const char wlan_name[] =  "wifi";
 int wifi_power(int on)
 {
 	struct rfkill_wlan_data *rfkill = g_rfkill;
-	struct ctrl_gpio *power_on;
+	struct ctrl_gpio *power_on, *vcc1_ctrl, *vcc2_ctrl;
 
 	LOG("%s: %d\n", __func__, on);
 
@@ -57,8 +59,16 @@ int wifi_power(int on)
 	}
 
 	power_on = &rfkill->pdata->power_n;
+	vcc1_ctrl = &rfkill->pdata->vcc1_ctrl;
+	vcc2_ctrl = &rfkill->pdata->vcc2_ctrl;
 
 	if (on) {
+		if (gpio_is_valid(vcc1_ctrl->io)) {
+			gpio_direction_output(vcc1_ctrl->io, vcc1_ctrl->enable);
+		}
+		if (gpio_is_valid(vcc2_ctrl->io)) {
+			gpio_direction_output(vcc2_ctrl->io, vcc2_ctrl->enable);
+		}
 		if (gpio_is_valid(power_on->io)) {
 			gpio_direction_output(power_on->io, power_on->enable);
 			msleep(20);
@@ -122,9 +132,31 @@ static int wlan_platdata_parse_dt(struct device *dev, struct wifi_moudle_gpios *
 	if (gpio_is_valid(gpio)) {
 		data->power_n.io = gpio;
 		data->power_n.enable = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
-		LOG("%s: get property: WIFI,poweren-gpios = %d, flags = %d.\n", __func__, gpio, flags);
+		LOG("%s: get property: WIFI,poweren-gpios = %d, flags = %ld.\n", __func__, gpio, flags);
 	} else {
 		data->power_n.io = -1;
+	}
+
+	gpio = -EINVAL;
+	desc = of_find_gpio(node, "WIFI,vcc1", 0, &flags);
+	if (!IS_ERR(desc))
+		gpio = desc_to_gpio(desc);
+	if (gpio_is_valid(gpio)) {
+		data->vcc1_ctrl.io = gpio;
+		data->vcc1_ctrl.enable = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
+	} else {
+		data->vcc1_ctrl.io = -1;
+	}
+
+	gpio = -EINVAL;
+	desc = of_find_gpio(node, "WIFI,vcc2", 0, &flags);
+	if (!IS_ERR(desc))
+		gpio = desc_to_gpio(desc);
+	if (gpio_is_valid(gpio)) {
+		data->vcc2_ctrl.io = gpio;
+		data->vcc2_ctrl.enable = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
+	} else {
+		data->vcc2_ctrl.io = -1;
 	}
 
 	if (of_find_property(node, "power_on_when_resume", NULL)) {

@@ -15,6 +15,7 @@
 #include <linux/tick.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/unistd.h>
 #include <asm/processor.h>
@@ -154,6 +155,9 @@ void flush_thread(void)
 	kfree(current->thread.vstate.datap);
 	memset(&current->thread.vstate, 0, sizeof(struct __riscv_v_ext_state));
 #endif
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	flush_ptrace_hw_breakpoint(current);
+#endif
 }
 
 void arch_release_task_struct(struct task_struct *tsk)
@@ -179,6 +183,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	unsigned long usp = args->stack;
 	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	clear_ptrace_hw_breakpoint(p);
+#endif
 
 	memset(&p->thread.s, 0, sizeof(p->thread.s));
 

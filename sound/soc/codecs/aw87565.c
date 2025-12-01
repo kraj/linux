@@ -31,24 +31,25 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/soc-dapm.h>
+#include <linux/of_platform.h>
+#include <linux/gpio/consumer.h>
 #include "aw87565.h"
 
 /*******************************************************************************
-* aw87565 marco
-******************************************************************************/
+ * aw87565 marco
+ ******************************************************************************/
 #define AW87565_I2C_NAME	"aw87565_pa"
 #define AW87565_DRIVER_VERSION	"v1.0.0"
 
 /*******************************************************************************
-* aw87565 variable
-******************************************************************************/
-struct aw87565 *aw87565;
+ * aw87565 variable
+ ******************************************************************************/
 struct aw87565_container *aw87565_spk_cnt;
 struct aw87565_container *aw87565_rcv_cnt;
 
-/*****************************************************************************
-* i2c write and read
-****************************************************************************/
+/*******************************************************************************
+ * i2c write and read
+ ******************************************************************************/
 static int aw87565_i2c_write(struct aw87565 *aw87565,
 		  unsigned char reg_addr, unsigned char reg_data)
 {
@@ -93,9 +94,9 @@ static int aw87565_i2c_read(struct aw87565 *aw87565,
 }
 
 /*******************************************************************************
-* aw87565 control interface
-******************************************************************************/
-unsigned char aw87565_audio_receiver(void)
+ * aw87565 control interface
+ ******************************************************************************/
+static unsigned char aw87565_audio_receiver(struct aw87565 *aw87565)
 {
 	unsigned int i;
 	unsigned int length;
@@ -121,7 +122,7 @@ unsigned char aw87565_audio_receiver(void)
 	return 0;
 }
 
-unsigned char aw87565_audio_speaker(void)
+static unsigned char aw87565_audio_speaker(struct aw87565 *aw87565)
 {
 	unsigned int i;
 	unsigned int length;
@@ -147,7 +148,7 @@ unsigned char aw87565_audio_speaker(void)
 	return 0;
 }
 
-unsigned char aw87565_audio_off(void)
+static unsigned char aw87565_audio_off(struct aw87565 *aw87565)
 {
 	if (aw87565 == NULL)
 		return 2;
@@ -163,9 +164,14 @@ unsigned char aw87565_audio_off(void)
 static ssize_t aw87565_get_reg(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	struct aw87565 *aw87565;
 	ssize_t len = 0;
 	unsigned int i = 0;
 	unsigned char reg_val = 0;
+
+	aw87565 = dev_get_drvdata(dev);
+	if (!aw87565)
+		return -EINVAL;
 
 	for (i = 0; i < AW87565_REG_MAX; i++) {
 		aw87565_i2c_read(aw87565, i, &reg_val);
@@ -178,7 +184,12 @@ static ssize_t aw87565_get_reg(struct device *dev,
 static ssize_t aw87565_set_reg(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
+	struct aw87565 *aw87565;
 	unsigned int databuf[2] = {0, 0};
+
+	aw87565 = dev_get_drvdata(dev);
+	if (!aw87565)
+		return -EINVAL;
 
 	if (sscanf(buf, "%x %x", &databuf[0], &databuf[1]) == 2)
 		aw87565_i2c_write(aw87565, databuf[0], databuf[1]);
@@ -188,7 +199,13 @@ static ssize_t aw87565_set_reg(struct device *dev,
 static ssize_t aw87565_get_hwen(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
+	struct aw87565 *aw87565;
 	ssize_t len = 0;
+
+	aw87565 = dev_get_drvdata(dev);
+	if (!aw87565)
+		return -EINVAL;
+
 	len += snprintf(buf+len, PAGE_SIZE-len, "hwen: %d\n",
 			aw87565->hwen_flag);
 	return len;
@@ -197,8 +214,13 @@ static ssize_t aw87565_get_hwen(struct device *dev,
 static ssize_t aw87565_set_hwen(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
+	struct aw87565 *aw87565;
 	ssize_t ret;
 	unsigned int state;
+
+	aw87565 = dev_get_drvdata(dev);
+	if (!aw87565)
+		return -EINVAL;
 
 	ret = kstrtouint(buf, 10, &state);
 	if (ret) {
@@ -225,21 +247,26 @@ static ssize_t aw87565_get_mode(struct device *cd,
 static ssize_t aw87565_set_mode(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
+	struct aw87565 *aw87565;
 	ssize_t ret;
 	unsigned int state;
+
+	aw87565 = dev_get_drvdata(dev);
+	if (!aw87565)
+		return -EINVAL;
 
 	ret = kstrtouint(buf, 10, &state);
 		ret = kstrtouint(buf, 10, &state);
 	if (ret)
 		goto out_strtoint;
 	if (state == 0)
-		aw87565_audio_off();
+		aw87565_audio_off(aw87565);
 	else if (state == 1)
-		aw87565_audio_speaker();
+		aw87565_audio_speaker(aw87565);
 	else if (state == 2)
-		aw87565_audio_receiver();
+		aw87565_audio_receiver(aw87565);
 	else
-		aw87565_audio_off();
+		aw87565_audio_off(aw87565);
 
 	if (ret < 0)
 		goto out;
@@ -319,8 +346,6 @@ static const struct snd_kcontrol_new aw87565_controls[] = {
 
 static int aw87565_component_probe(struct snd_soc_component* component)
 {
-	struct aw87565 *pa = snd_soc_component_get_drvdata(component);
-
 	return 0;
 }
 
@@ -333,10 +358,10 @@ static int  aw87565_power_event(struct snd_soc_dapm_widget *w,
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		aw87565_hw_reset(pa);
 		/* Before widget power up: turn chip on, sync registers */
-		aw87565_audio_speaker();
+		aw87565_audio_speaker(pa);
 	} else {
 		/* After widget power down: turn chip off */
-		aw87565_audio_off();
+		aw87565_audio_off(pa);
 	}
 
 	return 0;
@@ -395,20 +420,18 @@ static const struct snd_soc_component_driver aw87565_component_driver = {
  ******************************************************************************/
 static int aw87565_i2c_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct aw87565 *aw87565;
 	int ret = -1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "%s: i2c check failed\n", __func__);
-		ret = -ENODEV;
-		goto exit_check_functionality_failed;
+		return -ENODEV;
 	}
 
-	aw87565 =
-	devm_kzalloc(&client->dev, sizeof(struct aw87565), GFP_KERNEL);
+	aw87565 = devm_kzalloc(&client->dev, sizeof(struct aw87565), GFP_KERNEL);
 	if (aw87565 == NULL) {
-		ret = -ENOMEM;
-		goto exit_devm_kzalloc_failed;
+		dev_err(&client->dev, "Failed to alloc priv data\n");
+		return -ENOMEM;
 	}
 
 	aw87565->regmap = devm_regmap_init_i2c(client, &aw87565_regmap_config);
@@ -421,12 +444,19 @@ static int aw87565_i2c_probe(struct i2c_client *client)
 	aw87565->i2c_client = client;
 	i2c_set_clientdata(client, aw87565);
 
-	/* aw87565芯片ID检查 */
+	aw87565->audio_parst0_desc = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+	if (aw87565->audio_parst0_desc) {
+		gpiod_set_value_cansleep(aw87565->audio_parst0_desc, 1);
+		msleep(1);
+		gpiod_set_value_cansleep(aw87565->audio_parst0_desc, 0);
+		msleep(5);
+	}
+
 	ret = aw87565_read_chipid(aw87565);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: aw87565_read_chipid failed %d\n",
 			__func__, ret);
-		goto exit_i2c_check_id_failed;
+		return ret;
 	}
 
 	/* 创建sysfs属性文件 */
@@ -440,19 +470,15 @@ static int aw87565_i2c_probe(struct i2c_client *client)
 	aw87565->rcv_cfg_update_flag = 0;
 
 	return devm_snd_soc_register_component(&client->dev, &aw87565_component_driver, NULL, 0);
-
-exit_i2c_check_id_failed:
-exit_gpio_request_failed:
-exit_gpio_get_failed:
-	devm_kfree(&client->dev, aw87565);
-	aw87565 = NULL;
-exit_devm_kzalloc_failed:
-exit_check_functionality_failed:
-	return ret;
 }
 
 static void aw87565_i2c_remove(struct i2c_client *client)
 {
+	struct aw87565 *aw87565 = i2c_get_clientdata(client);
+
+	if (aw87565->audio_parst0_desc)
+		gpiod_put(aw87565->audio_parst0_desc);
+	return;
 }
 
 static const struct i2c_device_id aw87565_i2c_id[] = {

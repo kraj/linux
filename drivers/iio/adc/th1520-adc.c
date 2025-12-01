@@ -292,6 +292,9 @@ static int th1520_read_raw(struct iio_dev *indio_dev,
 				       TH1520_ADC_SAMPLE_DATA_CH1_OFF;
 		}
 
+		// Process the raw value bit mask based on selres_sel.
+		*val &= GENMASK(info->adc_feature.selres_sel - 1, 0);
+
 		mutex_unlock(&info->mlock);
 		return IIO_VAL_INT;
 

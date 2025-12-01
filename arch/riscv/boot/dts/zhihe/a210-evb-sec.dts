@@ -1,0 +1,2 @@
+#include "a210-evb.dts"
+#include "a210-sec-tee.dtsi"

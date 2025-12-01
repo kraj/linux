@@ -137,6 +137,12 @@ static void dwc2_set_zhihe_params(struct dwc2_hsotg *hsotg)
 	struct dwc2_core_params *p = &hsotg->params;
 
 	p->phy_utmi_width = 8;
+	/* Use INCR4 burst length to prevent AHB ERROR during long-term USB storage operations */
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR4 << GAHBCFG_HBSTLEN_SHIFT;
+	/* Configure FIFO sizes for stable bulk transfers */
+	p->host_rx_fifo_size = 1024;
+	p->host_nperio_tx_fifo_size = 1024;
+	p->host_perio_tx_fifo_size = 1024;
 }
 
 static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)

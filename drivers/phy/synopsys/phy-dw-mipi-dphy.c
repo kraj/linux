@@ -115,9 +115,9 @@
 /* ---------------------------------- PLL ------------------------------- */
 
 #define FCLKIN_FREQ_MIN					2000UL		/* in KHz */
-#define FCLKIN_FREQ_MAX					64000UL
+#define FCLKIN_FREQ_MAX					297000UL
 #define FOUT_FREQ_MIN					40000UL
-#define FOUT_FREQ_MAX					1250000UL
+#define FOUT_FREQ_MAX					2500000UL
 #define CFGCLK_FREQ_MIN					17000UL
 #define CFGCLK_FREQ_MAX					27000UL
 
@@ -455,12 +455,16 @@ static int dw_dphy_get_pll_cfg(struct dw_dphy *dphy,
 	const struct dw_pll_range *range;
 
 	fin = DIV_ROUND_UP_ULL(clk_get_rate(dphy->prefclk), 1000);
-	if (fin < FCLKIN_FREQ_MIN || fin > FCLKIN_FREQ_MAX)
+	if (fin < FCLKIN_FREQ_MIN || fin > FCLKIN_FREQ_MAX) {
+		dev_err(dphy->dev, "Error: fin is out of range, fin =%lu, range is %lu~%lu\n", fin, FCLKIN_FREQ_MIN, FCLKIN_FREQ_MAX);
 		return -EINVAL;
+	}
 
 	fout = DIV_ROUND_UP_ULL(opts->hs_clk_rate, 1000) >> 1;
-	if (fout < FOUT_FREQ_MIN || fout > FOUT_FREQ_MAX)
+	if (fout < FOUT_FREQ_MIN || fout > FOUT_FREQ_MAX) {
+		dev_err(dphy->dev, "Error: fout is out of range, fout =%lu, range is %lu~%lu\n", fout, FOUT_FREQ_MIN, FOUT_FREQ_MAX);
 		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(pll_range_table); i++) {
 		range = &pll_range_table[i];
@@ -709,6 +713,7 @@ static int dw_dphy_remove(struct platform_device *pdev)
 static const struct of_device_id dw_dphy_of_match[] = {
     { .compatible = "xuantie,th1520-mipi-dphy", .data = NULL, },
 	{ .compatible = "thead,light-mipi-dphy", .data = NULL, },
+	{ .compatible = "zhihe,a210-mipi-dphy", .data = NULL, },
     { /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, dw_dphy_of_match);

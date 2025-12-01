@@ -33,6 +33,7 @@
 #define CREATE_TRACE_POINTS
 #include "optee_trace.h"
 #include <linux/suspend.h>
+#include <asm/sbi.h>
 
 /*
  * This file implement the SMC ABI used when communicating with secure world
@@ -58,6 +59,9 @@
 
 /* SMC ABI considers at most a single TEE firmware */
 static unsigned int pcpu_irq_num;
+
+/* MVENDERID register value*/
+static long crs_mvendorid;
 
 static int optee_cpuhp_enable_pcpu_irq(unsigned int cpu)
 {
@@ -1434,6 +1438,7 @@ static void optee_riscv(unsigned long arg0, unsigned long arg1,
 		unsigned long arg6, unsigned long arg7,
 		struct arm_smccc_res *res)
 {
+	unsigned long ext = SBI_EXT_VENDOR_START + crs_mvendorid;
 	register uintptr_t a0 asm ("a0") = (uintptr_t)arg0;
 	register uintptr_t a1 asm ("a1") = (uintptr_t)arg1;
 	register uintptr_t a2 asm ("a2") = (uintptr_t)arg2;
@@ -1441,7 +1446,7 @@ static void optee_riscv(unsigned long arg0, unsigned long arg1,
 	register uintptr_t a4 asm ("a4") = (uintptr_t)arg4;
 	register uintptr_t a5 asm ("a5") = (uintptr_t)arg5;
 	register uintptr_t a6 asm ("a6") = (uintptr_t)arg6;
-	register uintptr_t a7 asm ("a7") = (uintptr_t)0x09000000;
+	register uintptr_t a7 asm ("a7") = (uintptr_t)ext;
 	register uintptr_t t0 asm ("t0") = (uintptr_t)arg7;
 
 	asm volatile ("ecall"
@@ -1653,6 +1658,8 @@ static int optee_probe(struct platform_device *pdev)
 	u32 arg_cache_flags;
 	u32 sec_caps;
 	int rc;
+
+	crs_mvendorid = sbi_get_mvendorid();
 
 	invoke_fn = get_invoke_func(&pdev->dev);
 	if (IS_ERR(invoke_fn))

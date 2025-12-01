@@ -43,10 +43,6 @@
 	status = "disabled";
 };
 
-&uart4 {
-	current-speed = <115200>; /* OpenSBI */
-};
-
 &uart5 {
 	status = "disabled";
 };
@@ -68,6 +64,10 @@
 };
 
 &spi0 {
+	status = "disabled";
+};
+
+&spi1 {
 	status = "disabled";
 };
 
@@ -108,18 +108,6 @@
 };
 
 &audio_i2s2 {
-	status = "disabled";
-};
-
-&audio_i2s_8ch_sd1 {
-	status = "disabled";
-};
-
-&audio_i2s_8ch_sd2 {
-	status = "disabled";
-};
-
-&audio_i2s_8ch_sd3 {
 	status = "disabled";
 };
 

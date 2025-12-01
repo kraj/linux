@@ -210,7 +210,7 @@ out:
 }
 EXPORT_SYMBOL(th1520_aon_call_rpc);
 
-int get_aon_log_mem(struct device *dev, phys_addr_t *mem, size_t *mem_size)
+static int get_aon_log_mem(struct device *dev, phys_addr_t *mem, size_t *mem_size)
 {
 	struct resource r;
 	struct device_node *node;

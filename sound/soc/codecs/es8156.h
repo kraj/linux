@@ -77,9 +77,16 @@ enum vmidlow {
     VMIDLEVEL3,
 };
 
-#define ES8156_3V3 0
-#define ES8156_1V8 1
-#define ES8156_DVDD ES8156_1V8
+enum es8156_gpio_id {
+	ES8156_GPIO_3V3_PWREN = 0,
+	ES8156_GPIO_1V8_PWREN,
+	ES8156_GPIO_HP_CTL,
+	ES8156_GPIO_BUTTON = ES8156_GPIO_HP_CTL,
+};
+
+struct es8156_gpio {
+	int id;
+	const char *name;
+};
 
 #endif
-

@@ -3296,7 +3296,8 @@ static void dw_dp_bridge_detach(struct drm_bridge *bridge)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 
-	drm_connector_cleanup(&dp->connector);
+    if (dp->connector.dev)
+        drm_connector_cleanup(&dp->connector);
 }
 
 static void dw_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,

@@ -15,6 +15,9 @@
 #define PTRACE_GETFDPIC_EXEC	0
 #define PTRACE_GETFDPIC_INTERP	1
 
+/* Maximum number of hardware breakpoints supported */
+#define HW_BP_NUM_MAX 16
+
 /*
  * User-mode register state for core dumps, ptrace, sigcontext
  *
@@ -133,6 +136,15 @@ struct __riscv_m_ext_state {
  * 2^16 = 65536bits = 8192bytes
  */
 #define RISCV_MAX_VLENB (8192)
+
+struct user_hwdebug_state {
+	__u64 dbg_slots;
+	struct {
+		__u64 addr;
+		__u64 type;
+		__u64 len;
+	} dbg_regs[HW_BP_NUM_MAX];
+};
 
 #endif /* __ASSEMBLY__ */
 

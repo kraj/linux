@@ -65,4 +65,4 @@ obj-$(CONFIG_APPLE_MAILBOX)	+= apple-mailbox.o
 
 obj-$(CONFIG_TH1520_MBOX)	+= th1520-mailbox.o
 
-obj-$(CONFIG_A210_MBOX)     += a210-mailbox.o
+obj-$(CONFIG_ZHIHE_MBOX)     += zhihe-mailbox.o

@@ -1030,13 +1030,17 @@ static int primary_bind(struct dw_mipi_dsi *dsi)
     int ret;
 
     ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &bridge);
-    if (ret)
+    if (ret) {
+        dev_err(dev, "Could not locate any output bridge or panel\n");
         return ret;
+    }
 
     if (panel) {
         bridge = drm_panel_bridge_add(panel);
-        if (IS_ERR(bridge))
+        if (IS_ERR(bridge)) {
+            dev_err(dev, "drm panel bridge add failed\n");
             return PTR_ERR(bridge);
+        }
     }
 
     primary->panel_bridge = bridge;
@@ -1138,30 +1142,42 @@ static int dsi_probe(struct platform_device *pdev)
 
     funcs = of_device_get_match_data(dev);
     dsi = funcs->get_dsi(dev);
-    if (!dsi)
+    if (!dsi) {
+        dev_err(dev, "get dsi failed\n");
         return -ENOMEM;
+    }
 
     dsi->regmap = syscon_regmap_lookup_by_phandle(np, "regmap");
-    if (IS_ERR(dsi->regmap))
-	    return PTR_ERR(dsi->regmap);
+    if (IS_ERR(dsi->regmap)) {
+        dev_err(dev, "Reg map failed\n");
+        return PTR_ERR(dsi->regmap);
+    }
 
     dsi->pclk = devm_clk_get_optional(dev, "pclk");
-    if (IS_ERR(dsi->pclk))
+    if (IS_ERR(dsi->pclk)) {
+        dev_err(dev, "Get pclk failed\n");
         return PTR_ERR(dsi->pclk);
+    }
 
     dsi->pixclk = devm_clk_get_optional(dev, "pixclk");
-    if (IS_ERR(dsi->pixclk))
-	return PTR_ERR(dsi->pixclk);
+    if (IS_ERR(dsi->pixclk)) {
+        dev_err(dev, "Get pixclk failed\n");
+        return PTR_ERR(dsi->pixclk);
+    }
 
     dsi->dphy = devm_phy_get(dev, "dphy");
-    if (IS_ERR(dsi->dphy))
+    if (IS_ERR(dsi->dphy)) {
+        dev_err(dev, "Get dphy failed\n");
         return PTR_ERR(dsi->dphy);
+    }
 
     dsi->host.ops = &dw_mipi_dsi_host_ops;
     dsi->host.dev = dev;
     ret = mipi_dsi_host_register(&dsi->host);
-    if (ret)
+    if (ret) {
+        dev_err(dev, "Host register failed\n");
         return ret;
+    }
 
     dsi->funcs = funcs;
     dev_set_drvdata(dev, dsi);
@@ -1169,8 +1185,10 @@ static int dsi_probe(struct platform_device *pdev)
     pm_runtime_enable(dev);
 
     ret = component_add(dev, &dsi_component_ops);
-    if (ret)
-       goto host_unregister;
+    if (ret) {
+        dev_err(dev, "Component add failed\n");
+        goto host_unregister;
+    }
 
     return 0;
 

@@ -11,44 +11,9 @@
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/a210-clock.h>
 
-extern spinlock_t zhihe_p100_clk_lock;
+extern spinlock_t zhihe_clk_lock;
 
-#define P100_CLK_NAME_SIZE 30
-
-/* top reg idx */
-#define PLL_WRAP		0
-#define TOP_CRG			1
-#define CPU_SS_CLK_SYSREG	2
-#define CPU_SS_CPU_PLL		3
-#define DDR0_SYSREG		4
-#define DDR1_SYSREG		5
-#define SLC_DUAL_SYSREG		6
-#define TOP_CRG_T		7
-/* gpu reg idx */
-#define GPU_SS_PWRAP_CLK_EN	0
-#define GPU_SS_TOP_CLK_EN	1
-/* pcie reg idx */
-#define PCIE_CLK_EN		0
-/* usb reg idx */
-#define USB_CLK_EN		0
-/* vi reg idx */
-#define VI_CLK			0
-/* vp reg idx */
-#define VP_CLK			0
-/* vo reg idx */
-#define VO_CLK			0
-#define VO_PATH_CTRL		1
-/* npu reg idx */
-#define NPU_CLK			0
-#define NPU_TOP_CLK		1
-/* d2d reg idx */
-#define D2D_CRG_REG		0
-/* peri reg idx */
-#define PERI0_SYSREG		0
-#define PERI1_SYSREG		1
-#define PERI2_SYSREG		2
-#define PERI3_SYSREG		3
-#define TEE_CRG			4
+#define ZHIHE_CLK_NAME_SIZE 40
 
 #define PLL_RATE(_vco, _rate, _r, _b, _f, _p, _k)       \
 	{                                               \
@@ -143,7 +108,7 @@ extern spinlock_t zhihe_p100_clk_lock;
 		.name = (_name),                                                               \
 	}
 
-#define CLK_SUBSYS(_name, _regs, _num_reg, _info, _num_info, _pll, _num_pll, _is_fpga) {  \
+#define CLK_SUBSYS(_name, _regs, _num_reg, _info, _num_info, _pll, _num_pll, _is_fpga, _die_num) {  \
 	.name = (_name),                                                                  \
 	.regs = (_regs),                                                                  \
 	.num_regs = (_num_reg),                                                           \
@@ -152,38 +117,24 @@ extern spinlock_t zhihe_p100_clk_lock;
 	.plls = (_pll),                                                                   \
 	.num_plls = (_num_pll),                                                           \
 	.is_fpga = (_is_fpga),                                                            \
+	.die_num = (_die_num),                                                            \
 }
 
-enum p100_pll_outtype {
-	P100_PLL_VCO,
-	P100_PLL_DIV,
+enum zhihe_pll_outtype {
+	ZHIHE_PLL_VCO,
+	ZHIHE_PLL_DIV,
 };
 
-enum p100_div_type {
+enum zhihe_div_type {
         MUX_TYPE_DIV,
         MUX_TYPE_CDE,
 };
 
-enum p100_div_sync_type {
+enum zhihe_div_sync_type {
     NO_DIV_EN = 255,
 };
 
-enum p100_pll_clktype {
-	AUDIO0_PLL,
-	AUDIO1_PLL,
-	VIDEO_PLL,
-	GMAC_PLL,
-	DVFS_PLL,
-	DPU0_PLL,
-	DPU1_PLL,
-	DPU2_PLL,
-	TEE_PLL,
-	DDR_PLL,
-	C920_PLL,
-	C908_PLL,
-};
-
-enum p100_clk_types {
+enum zhihe_clk_types {
 	CLK_TYPE_FIXED,
 	CLK_TYPE_PLL,
 	CLK_TYPE_FIXED_FACTOR,
@@ -194,36 +145,37 @@ enum p100_clk_types {
 	CLK_TYPE_MUX,
 };
 
-enum p100_pll_mode {
+enum zhihe_pll_mode {
 	PLL_MODE_FRAC,
 	PLL_MODE_INT,
 };
 
-struct p100_clk_reg {
+struct zhihe_clk_reg {
 	void __iomem *base;
-	char name[P100_CLK_NAME_SIZE];
+	char name[ZHIHE_CLK_NAME_SIZE];
 };
 
 /* clk summary info at subsys level */
-struct p100_clk_subsys {
-	char name[P100_CLK_NAME_SIZE];
-	struct p100_clk_reg *regs;
+struct zhihe_clk_subsys {
+	char name[ZHIHE_CLK_NAME_SIZE];
+	struct zhihe_clk_reg *regs;
 	u32 num_regs;
-	struct p100_clk_info *info;
+	struct zhihe_clk_info *info;
 	u32 num_info;
-	struct p100_clk_info_pll *plls;
+	struct zhihe_clk_info_pll *plls;
 	u32 num_plls;
 	bool is_fpga;
 	struct clk_onecell_data *clk_data;
+	char die_num;
 };
 
-struct clk_p100pll {
+struct clk_zhihepll {
 	struct clk_hw hw;
 	void __iomem *base;
-	enum p100_pll_clktype clk_type;
-	enum p100_pll_outtype out_type;
-	enum p100_pll_mode pll_mode;
-	const struct p100_pll_rate_table *rate_table;
+	unsigned int clk_type;
+	enum zhihe_pll_outtype out_type;
+	enum zhihe_pll_mode pll_mode;
+	const struct zhihe_pll_rate_table *rate_table;
 	int rate_count;
 
 	u32 cfg0_reg_off;
@@ -233,22 +185,22 @@ struct clk_p100pll {
 	int pll_bypass_bit;
 };
 
-struct clk_p100div {
+struct clk_zhihediv {
 	struct clk_divider divider;
-	enum p100_div_type div_type;
+	enum zhihe_div_type div_type;
 	u16 min_div;
 	u16 max_div;
 	u8 sync_en;
 	const struct clk_ops *ops;
 };
 
-struct clk_p100gate {
+struct clk_zhihegate {
 	struct clk_gate gate;
 	unsigned int *share_count;
 	const struct clk_ops *ops;
 };
 
-struct p100_pll_rate_table {
+struct zhihe_pll_rate_table {
 	unsigned long vco_rate;
 	unsigned long rate;
 	unsigned int refdiv;
@@ -260,132 +212,133 @@ struct p100_pll_rate_table {
 
 /* detailed clk info for each clk */
 
-struct p100_clk_info_pll {
-	enum p100_pll_outtype out_type;
-	enum p100_pll_clktype clk_type;
-	struct p100_pll_rate_table *rate_table;
+struct zhihe_clk_info_pll {
+	enum zhihe_pll_outtype out_type;
+	unsigned int clk_type;
+	struct zhihe_pll_rate_table *rate_table;
 	int rate_count;
 	int flags;
-	char name[P100_CLK_NAME_SIZE];
+	char name[ZHIHE_CLK_NAME_SIZE];
 	u32 cfg0_reg_off;
 	u32 pll_sts_off;
 	int pll_lock_bit;
 	int pll_rst_bit;
 	int pll_bypass_bit;
-	enum p100_pll_mode pll_mode;
+	enum zhihe_pll_mode pll_mode;
 };
 
-struct p100_clk_info_fixed {
+struct zhihe_clk_info_fixed {
 	unsigned int freq;
 };
 
-struct p100_clk_info_fixed_factor {
+struct zhihe_clk_info_fixed_factor {
 	unsigned int mult;
 	unsigned int div;
 };
 
-struct p100_clk_info_divider {
+struct zhihe_clk_info_divider {
 	u8 sync;
-	enum p100_div_type div_type;
+	enum zhihe_div_type div_type;
 	u16 min;
 	u16 max;
 };
 
-struct p100_clk_info_gate_shared {
+struct zhihe_clk_info_gate_shared {
 	unsigned int *share_count;
 };
 
-struct p100_clk_info_mux {
+struct zhihe_clk_info_mux {
 	const char * const *parents;
 	int num_parents;
 	unsigned long flags;
 };
 
-struct p100_clk_info {
-	enum p100_clk_types type;
+struct zhihe_clk_info {
+	enum zhihe_clk_types type;
 	u32 id;
-	char name[P100_CLK_NAME_SIZE];
-	char parent[P100_CLK_NAME_SIZE];
+	char name[ZHIHE_CLK_NAME_SIZE];
+	char parent[ZHIHE_CLK_NAME_SIZE];
 	u8 reg;
 	u32 shift;
 	u8 width;
 	u8 bit_idx;
 	union {
-		struct p100_clk_info_fixed fixed;
-		struct p100_clk_info_fixed_factor fixed_factor;
-		struct p100_clk_info_pll *pll;
-		struct p100_clk_info_divider divider;
-		struct p100_clk_info_gate_shared gate_shared;
-		struct p100_clk_info_mux mux;
+		struct zhihe_clk_info_fixed fixed;
+		struct zhihe_clk_info_fixed_factor fixed_factor;
+		struct zhihe_clk_info_pll *pll;
+		struct zhihe_clk_info_divider divider;
+		struct zhihe_clk_info_gate_shared gate_shared;
+		struct zhihe_clk_info_mux mux;
 	};
 };
 
-static inline struct clk *zhihe_p100_clk_fixed_factor(const char *name,
+static inline struct clk *zhihe_clk_fixed_factor(const char *name,
 		const char *parent, unsigned int mult, unsigned int div)
 {
 	return clk_register_fixed_factor(NULL, name, parent,
 			CLK_SET_RATE_PARENT, mult, div);
 }
 
-struct clk *zhihe_p100_pll(const char *name, const char *parent_name,
+struct clk *zhihe_pll(const char *name, const char *parent_name,
 			    void __iomem *base,
-			    const struct p100_clk_info_pll *pll_clk);
+			    const struct zhihe_clk_info_pll *pll_clk);
 
-static inline struct clk *zhihe_clk_p100_gate(const char *name, const char *parent,
+static inline struct clk *zhihe_clk_gate(const char *name, const char *parent,
 					       void __iomem *reg, u8 shift)
 {
 	return clk_register_gate(NULL, name, parent, CLK_SET_RATE_PARENT, reg,
-			shift, 0, &zhihe_p100_clk_lock);
+			shift, 0, &zhihe_clk_lock);
 }
 
-struct clk *zhihe_clk_p100_register_gate_shared(const char *name, const char *parent,
+struct clk *zhihe_clk_register_gate_shared(const char *name, const char *parent,
 						 unsigned long flags, void __iomem *reg,
 						 u8 shift, spinlock_t *lock,
 						 unsigned int *share_count);
 
-struct clk *zhihe_clk_p100_divider(const char *name, const char *parent,
+struct clk *zhihe_clk_divider(const char *name, const char *parent,
 				    void __iomem *reg, u8 shift, u8 width,
-				    u8 sync, enum p100_div_type div_type,
+				    u8 sync, enum zhihe_div_type div_type,
 				    u16 min, u16 max);
 
 /**
 * By default, the clk framework calculates frequency by rounding downwards.
 * This function is to achieve closest frequency.
 */
-struct clk *zhihe_clk_p100_divider_closest(const char *name, const char *parent,
+struct clk *zhihe_clk_divider_closest(const char *name, const char *parent,
 				    void __iomem *reg, u8 shift, u8 width,
-				    u8 sync, enum p100_div_type div_type,
+				    u8 sync, enum zhihe_div_type div_type,
 				    u16 min, u16 max);
 
-void zhihe_unregister_clocks(struct clk *clks[], unsigned int count);
 
 static inline struct clk *zhihe_clk_fixed(const char *name, const char *parent, unsigned long rate)
 {
 	return clk_register_fixed_rate(NULL, name, parent, 0, rate);
 }
 
-static inline struct clk *zhihe_clk_p100_gate_shared(const char *name, const char *parent,
+static inline struct clk *zhihe_clk_gate_shared(const char *name, const char *parent,
 					void __iomem *reg, u8 shift,
 					unsigned int *share_count)
 {
-	return zhihe_clk_p100_register_gate_shared(name, parent, CLK_SET_RATE_PARENT, reg,
-						    shift, &zhihe_p100_clk_lock, share_count);
+	return zhihe_clk_register_gate_shared(name, parent, CLK_SET_RATE_PARENT, reg,
+						    shift, &zhihe_clk_lock, share_count);
 }
 
-static inline struct clk *zhihe_p100_clk_mux_flags(const char *name,
+static inline struct clk *zhihe_clk_mux_flags(const char *name,
 			void __iomem *reg, u8 shift, u8 width,
 			const char * const *parents, int num_parents,
 			unsigned long flags)
 {
 	return clk_register_mux(NULL, name, parents, num_parents,
 			flags , reg, shift, width, 0,
-			&zhihe_p100_clk_lock);
+			&zhihe_clk_lock);
 }
 
-void zhihe_p100_clk_fake_pll_fixed_ops(void);
+void zhihe_clk_fake_pll_fixed_ops(void);
 int zhihe_clk_set_round_rate(struct device *dev, struct clk *clk, unsigned int freq);
 int zhihe_clk_of_bulk_init(struct device *dev, struct clk **clks);
-int p100_parse_regbase(struct platform_device *pdev);
-void p100_register_clock(struct platform_device *pdev);
+int add_die_suffix(struct platform_device *pdev);
+void zhihe_register_clock(struct platform_device *pdev);
+void zhihe_unregister_clocks(struct clk *clks[], unsigned int count);
+int zhihe_parse_regbase(struct platform_device *pdev);
 
 #endif

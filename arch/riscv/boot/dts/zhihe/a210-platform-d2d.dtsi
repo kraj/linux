@@ -1,0 +1,277 @@
+/* DIE0 */
+&uart0 {
+	status = "disabled";
+};
+
+&uart1 {
+	status = "disabled";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&uart3 {
+	status = "disabled";
+};
+
+&uart5 {
+	status = "disabled";
+};
+
+&uart6 {
+	status = "disabled";
+};
+
+&uart7 {
+	status = "disabled";
+};
+
+&uart8 {
+	status = "disabled";
+};
+
+&uart9 {
+	status = "disabled";
+};
+
+&spi0 {
+	status = "disabled";
+};
+
+&spi1 {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "disabled";
+};
+
+&i2c4 {
+	status = "disabled";
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&i2c6 {
+	status = "disabled";
+};
+
+&i2c7 {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&pwm1 {
+	status = "disabled";
+};
+
+&pwm2 {
+	status = "disabled";
+};
+
+&audio_i2s0 {
+	status = "disabled";
+};
+
+&audio_i2s1 {
+	status = "disabled";
+};
+
+&audio_i2s2 {
+	status = "disabled";
+};
+
+&audio_i2s_8ch_sd1 {
+	status = "disabled";
+};
+
+&audio_i2s_8ch_sd2 {
+	status = "disabled";
+};
+
+&audio_i2s_8ch_sd3 {
+	status = "disabled";
+};
+
+&audio_pdm0 {
+	status = "disabled";
+};
+
+&peri3_padctrl {
+	status = "disabled";
+};
+
+&gpio1 {
+	status = "disabled";
+};
+
+&gpio4 {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "disabled";
+};
+
+&can0 {
+	status = "disabled";
+};
+
+&can1 {
+	status = "disabled";
+};
+
+&can2 {
+	status = "disabled";
+};
+
+&dmac1 {
+	status = "disabled";
+};
+
+&timer0 {
+	status = "disabled";
+};
+
+&timer1 {
+	status = "disabled";
+};
+
+&timer3 {
+	status = "disabled";
+};
+
+&timer4 {
+	status = "disabled";
+};
+
+&timer5 {
+	status = "disabled";
+};
+
+&timer6 {
+	status = "disabled";
+};
+
+&timer7 {
+	status = "disabled";
+};
+
+&dm3x4 {
+	status = "disabled";
+};
+
+&rp3x1 {
+	status = "disabled";
+};
+
+&usb2_0 {
+  status = "disabled";
+};
+
+&usb31_zhihe {
+	status = "disabled";
+};
+
+&sata {
+	status = "disabled";
+};
+
+&dhost_0 {
+	status = "disabled";
+};
+
+&adc {
+	status = "disabled";
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&vp_dfmu_iommu {
+    status = "disabled";
+};
+
+&vp_dfmu_mt {
+    status = "disabled";
+};
+
+&npu_dfmu_iommu {
+    status = "disabled";
+};
+
+&npu_dfmu_mt {
+    status = "disabled";
+};
+
+&vi_dfmu_iommu {
+    status = "disabled";
+};
+
+&vi_dfmu_mt {
+    status = "disabled";
+};
+
+&vo_dfmu_iommu {
+    status = "disabled";
+};
+
+&vo_dfmu_mt {
+    status = "disabled";
+};
+
+&peri1_dfmu_iommu {
+    status = "disabled";
+};
+
+&peri1_dfmu_mt {
+    status = "disabled";
+};
+
+&pcie_dfmu_iommu {
+    status = "disabled";
+};
+
+&pcie_dfmu_mt {
+    status = "disabled";
+};
+
+&usb_dfmu_iommu {
+    status = "disabled";
+};
+
+&usb_dfmu_mt {
+    status = "disabled";
+};
+
+&vidmem {
+	status = "disabled";
+};
+
+/* DIE1 */
+&uart4_die1 {
+	status = "disabled";
+};

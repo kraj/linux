@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <asm/unaligned.h>
 
@@ -112,8 +113,11 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "tca9539", 16 | PCA953X_TYPE | PCA_INT, },
 	{ "tca9554", 8  | PCA953X_TYPE | PCA_INT, },
 	{ "xra1202", 8  | PCA953X_TYPE },
+
+	{ "aw9535", 16 | PCA953X_TYPE | PCA_INT, },
 	{ }
 };
+
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
 
 #ifdef CONFIG_GPIO_PCA953X_IRQ
@@ -1351,6 +1355,8 @@ static const struct of_device_id pca953x_dt_ids[] = {
 	{ .compatible = "onnn,pca9655", .data = OF_953X(16, PCA_INT), },
 
 	{ .compatible = "exar,xra1202", .data = OF_953X( 8, 0), },
+
+	{ .compatible = "awinic,aw9535", .data = OF_953X(16, PCA_INT) },
 	{ }
 };
 

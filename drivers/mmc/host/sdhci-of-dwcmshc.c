@@ -502,11 +502,13 @@ static void th1520_set_uhs_signaling(struct sdhci_host *host,
 
 		priv->delay_line = th_priv->delay_line[MMC_TIMING_MMC_HS400];
 		th1520_sdhci_set_phy(host);	/* update tx delay*/
-	} else if(timing == MMC_TIMING_UHS_SDR104){
+	} else if(timing == MMC_TIMING_MMC_HS200) {
+		priv->delay_line = th_priv->delay_line[MMC_TIMING_MMC_HS200];
+	} else if(timing == MMC_TIMING_UHS_SDR104) {
 		priv->delay_line = th_priv->delay_line[MMC_TIMING_UHS_SDR104];
 		th1520_sdhci_set_phy(host);	/* update tx delay*/
 		sdhci_writeb(host, 0, PHY_DLLDL_CNFG_R);
-	}else {
+	} else {
 		sdhci_writeb(host, 0, PHY_DLLDL_CNFG_R);
 		if(th_priv->rxclk_sw_tune_en && (timing == MMC_TIMING_SD_HS)) {
 			(void)th1520_sdhci_set_rxclk_sample_delay(host, th_priv->rxclk_delay_set, 10000);
@@ -1070,6 +1072,9 @@ static int th1520_sdhci_get_priv_props(struct device *dev, bool is_emmc,
 		if(device_property_get_clk_delay(dev, "clk-delay-mmc-hs400",
 			&(th_priv->delay_line[MMC_TIMING_MMC_HS400]) ) < 0 )
 			th_priv->delay_line[MMC_TIMING_MMC_HS400] = PHY_SDCLKDL_DC_HS400;
+		if(device_property_get_clk_delay(dev, "clk-delay-mmc-hs200",
+			&(th_priv->delay_line[MMC_TIMING_MMC_HS200]) ) < 0 )
+			th_priv->delay_line[MMC_TIMING_MMC_HS200] = PHY_SDCLKDL_DC_DEFAULT;
 	}
 	else
 	{

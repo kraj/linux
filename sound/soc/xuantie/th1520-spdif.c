@@ -328,7 +328,6 @@ static int th1520_spdif_suspend(struct device *dev)
 static int th1520_spdif_resume(struct device *dev)
 {
     struct th1520_spdif_priv *priv = dev_get_drvdata(dev);
-    int ret;
 
 	pm_runtime_get_sync(dev);
 
@@ -349,7 +348,7 @@ static int th1520_spdif_resume(struct device *dev)
 
     pm_runtime_put_sync(dev);
 
-    return ret;
+    return 0;
 }
 #endif
 

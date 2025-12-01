@@ -23,7 +23,23 @@
 
 #define DRV_NAME "zhihe-i2s"
 
+/**
+ * buffer_size default: 23 * 1024 (bit)
+ * width min: 8 (bit)
+ * sample_rate min: 8000 (hz)
+ * time: 10 (us)
+ * max poll count = 23Kbit / (8bit * 8000hz) / 10us = 36800
+ */
+#define MAX_POLL_CNT 40000
+
 static int i2s3_probe_flag = 0;
+static void __iomem *i2s3_host_regs = NULL;
+
+static atomic_t rx_device_usage = ATOMIC_INIT(0);
+
+/* 0: master-sd0 && 1: slave-sd1 && 2: slave-sd2 && 3: slave-sd3 */
+static struct dma_chan *i2s3_tx_ch[4] = { NULL, NULL, NULL, NULL };
+static struct dma_chan *i2s3_rx_ch[4] = { NULL, NULL, NULL, NULL };
 
 static unsigned int a200_special_sample_rates[] = { 11025, 22050, 44100, 88200 };
 
@@ -137,14 +153,81 @@ static int a210_i2s_set_div(struct zhihe_i2s_priv *i2s_priv, unsigned int rate,
 	return ret;
 }
 
-static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on)
+static bool tx_fifo_empty(void __iomem *addr, unsigned int channels)
+{
+	unsigned int tx_fifo_mty_msk = 0, tx_fifo_mty = 0;
+	unsigned int status = readl(addr + I2S_SR);
+
+	switch (channels) {
+	case 8:
+		tx_fifo_mty_msk |= SR_TFE3_Msk;
+		tx_fifo_mty |= SR_TFE3_TX_FIFO_EMPTY;
+		fallthrough;
+	case 6:
+		tx_fifo_mty_msk |= SR_TFE2_Msk;
+		tx_fifo_mty |= SR_TFE2_TX_FIFO_EMPTY;
+		fallthrough;
+	case 4:
+		tx_fifo_mty_msk |= SR_TFE1_Msk;
+		tx_fifo_mty |= SR_TFE1_TX_FIFO_EMPTY;
+		fallthrough;
+	case 2:
+		tx_fifo_mty_msk |= SR_TFE0_Msk;
+		tx_fifo_mty |= SR_TFE0_TX_FIFO_EMPTY;
+		break;
+	default:
+		tx_fifo_mty_msk |= SR_TFE0_Msk;
+		tx_fifo_mty |= SR_TFE0_TX_FIFO_EMPTY;
+		break;
+	}
+
+	return ((status & tx_fifo_mty_msk) == tx_fifo_mty) &&
+	       !(status & SR_TXBUSY_STATUS);
+}
+
+static int i2s_multi_channel_sync(void __iomem *addr, unsigned int channels,
+				  bool master, bool tx, bool on)
+{
+	if (on)
+		return 0;
+
+	if (!addr)
+		return -EINVAL;
+	
+	int i = MAX_POLL_CNT;
+	
+	do {
+		if (tx && tx_fifo_empty(addr, channels))
+			break;
+		else if (!tx) {
+			if (!master)
+				break;
+			else if (atomic_read(&rx_device_usage) == 0) {
+				udelay(100);
+				break;
+			}
+		}
+		udelay(10);
+	} while (i--);
+
+	return 0;
+}
+
+static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on,
+			  int (*cb)(struct dma_chan *))
 {
 	unsigned int dma_en;
 	unsigned long flags;
-	int ret = 0;
+	int i;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
-		return 0;
+	if (strstr(i2s_priv->drvdata->name, I2S3)) {
+		if (!tx && on)
+			atomic_inc(&rx_device_usage);
+		else if (!tx && !on)
+			atomic_dec(&rx_device_usage);
+		if (!i2s_priv->regmap)
+			return i2s_multi_channel_sync(i2s3_host_regs, i2s_priv->ch_cnt, false, tx, on);
+	}
 
 	spin_lock_irqsave(&i2s_priv->zhihe_i2s_lock, flags);
 
@@ -161,6 +244,7 @@ static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on)
 		regmap_write(i2s_priv->regmap, I2S_IISEN, IISEN_I2SEN);
 	} else {
 		dma_en &= tx ? ~DMACR_TDMAE_EN : ~DMACR_RDMAE_EN;
+		i2s_multi_channel_sync(i2s_priv->regs, i2s_priv->ch_cnt, true, tx, on);
 		regmap_write(i2s_priv->regmap, I2S_DMACR, dma_en);
 
 		/**
@@ -176,12 +260,20 @@ static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on)
 					   FUNCMODE_RMODE_Msk,
 					   FUNCMODE_TMODE_WEN |
 					   FUNCMODE_RMODE_WEN);
+
+			/* work around to deal with channel sync */
+			for (i = 1; i < i2s_priv->ch_cnt / 2; i++) {
+				if (i2s3_tx_ch[i])
+					cb(i2s3_tx_ch[i]);
+				if (i2s3_rx_ch[i])
+					cb(i2s3_rx_ch[i]);
+			}
 		}
 	}
 
 	spin_unlock_irqrestore(&i2s_priv->zhihe_i2s_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -195,24 +287,24 @@ static int zhihe_i2s_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct zhihe_i2s_priv *i2s_priv = snd_soc_dai_get_drvdata(dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	int (*cb)(struct dma_chan *chan);
 	int ret;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = zhihe_snd_ctrl(i2s_priv, tx, true);
+		ret = zhihe_snd_ctrl(i2s_priv, tx, true, NULL);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		/* work around for DMAC stop issue. */
-		dmaengine_terminate_async(snd_dmaengine_pcm_get_chan(substream));
-		ret = zhihe_snd_ctrl(i2s_priv, tx, false);
+		cb = dmaengine_terminate_async;
+		ret = zhihe_snd_ctrl(i2s_priv, tx, false, cb);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		/* work around for DMAC stop issue. */
 		dmaengine_pause(snd_dmaengine_pcm_get_chan(substream));
-		ret = zhihe_snd_ctrl(i2s_priv, tx, false);
+		ret = zhihe_snd_ctrl(i2s_priv, tx, false, NULL);
 		break;
 	default:
 		return -EINVAL;
@@ -308,7 +400,6 @@ static int zhihe_i2s_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ratio = IIS_MCLK_SEL_256;
 	unsigned int funcmode;
 	int ret = 0;
-	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
 		return 0;
@@ -321,7 +412,7 @@ static int zhihe_i2s_dai_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		fssta |= I2S_DATA_WIDTH_16BIT;
-		fssta |= FSSTA_SCLK_SEL_32;
+		fssta |= FSSTA_SCLK_SEL_64;	// in multi-channel mode, HW-codec require sclk at 64fs
 		fssta |= FSSTA_MCLK_SEL_256;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
@@ -345,20 +436,26 @@ static int zhihe_i2s_dai_hw_params(struct snd_pcm_substream *substream,
 
 	regmap_read(i2s_priv->regmap, I2S_FUNCMODE, &funcmode);
 
-	/**
-	 * CH_SEL: channel 0 work (default).
-	 * When enable channel 1/2/3 during tx mode, dma will fail to stop.
-	 */
-	if (strstr(i2s_priv->drvdata->name, I2S3)) {
-		if (tx) {
-			funcmode &= ~FUNCMODE_CH1_ENABLE;
-			funcmode &= ~FUNCMODE_CH2_ENABLE;
-			funcmode &= ~FUNCMODE_CH3_ENABLE;
-		} else {
-			funcmode |= FUNCMODE_CH1_ENABLE;
-			funcmode |= FUNCMODE_CH2_ENABLE;
-			funcmode |= FUNCMODE_CH3_ENABLE;
-		}
+	funcmode &= ~FUNCMODE_CH0_ENABLE;
+	funcmode &= ~FUNCMODE_CH1_ENABLE;
+	funcmode &= ~FUNCMODE_CH2_ENABLE;
+	funcmode &= ~FUNCMODE_CH3_ENABLE;
+	switch (i2s_priv->ch_cnt) {
+	case 8:
+		funcmode |= FUNCMODE_CH3_ENABLE;
+		fallthrough;
+	case 6:
+		funcmode |= FUNCMODE_CH2_ENABLE;
+		fallthrough;
+	case 4:
+		funcmode |= FUNCMODE_CH1_ENABLE;
+		fallthrough;
+	case 2:
+		funcmode |= FUNCMODE_CH0_ENABLE;
+		break;
+	default:
+		dev_err(i2s_priv->dev, "Invalid channel count: %u\n", i2s_priv->ch_cnt);
+		return -EINVAL;
 	}
 	regmap_write(i2s_priv->regmap, I2S_FUNCMODE, funcmode);
 
@@ -395,6 +492,7 @@ static int zhihe_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	unsigned int fssta = 0, iiscnf_out = 0;
 	unsigned int ratio = IIS_MCLK_SEL_256;
+	unsigned int funcmode;
 	int ret = 0;
 
 	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
@@ -420,6 +518,15 @@ static int zhihe_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(i2s_priv->regmap, I2S_FSSTA, FSSTA_DATAWTH_Msk |
 			   FSSTA_SCLK_SEL_Msk | FSSTA_MCLK_SEL_Msk, fssta);
 
+	/* HDMI audio only use channel 0. */
+	regmap_read(i2s_priv->regmap, I2S_FUNCMODE, &funcmode);
+	funcmode &= ~FUNCMODE_CH0_ENABLE;
+	funcmode &= ~FUNCMODE_CH1_ENABLE;
+	funcmode &= ~FUNCMODE_CH2_ENABLE;
+	funcmode &= ~FUNCMODE_CH3_ENABLE;
+	funcmode |= FUNCMODE_CH0_ENABLE;
+	regmap_write(i2s_priv->regmap, I2S_FUNCMODE, funcmode);
+
 	if (channels == MONO_SOURCE)
 		iiscnf_out |= CNFOUT_TX_VOICE_EN_MONO;
 	else
@@ -433,6 +540,70 @@ static int zhihe_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		ret = a200_i2s_set_div(i2s_priv, rate, ratio);
 
 	return ret;
+}
+
+static int zhihe_i2s_dai_startup(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
+{
+	struct zhihe_i2s_priv *i2s_priv = snd_soc_dai_get_drvdata(dai);
+	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+
+	if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+		if (tx)
+			i2s3_tx_ch[0] = chan;
+		else
+			i2s3_rx_ch[0] = chan;
+	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd1")) {
+		if (tx)
+			i2s3_tx_ch[1] = chan;
+		else
+			i2s3_rx_ch[1] = chan;
+	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd2")) {
+		if (tx)
+			i2s3_tx_ch[2] = chan;
+		else
+			i2s3_rx_ch[2] = chan;
+	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd3")) {
+		if (tx)
+			i2s3_tx_ch[3] = chan;
+		else
+			i2s3_rx_ch[3] = chan;
+	}
+
+	return 0;
+}
+
+static void zhihe_i2s_dai_shutdown(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *dai)
+{
+	struct zhihe_i2s_priv *i2s_priv = snd_soc_dai_get_drvdata(dai);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+
+	if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+		if (tx)
+			i2s3_tx_ch[0] = NULL;
+		else
+			i2s3_rx_ch[0] = NULL;
+	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd1")) {
+		if (tx)
+			i2s3_tx_ch[1] = NULL;
+		else
+			i2s3_rx_ch[1] = NULL;
+	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd2")) {
+		if (tx)
+			i2s3_tx_ch[2] = NULL;
+		else
+			i2s3_rx_ch[2] = NULL;
+	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd3")) {
+		if (tx)
+			i2s3_tx_ch[3] = NULL;
+		else
+			i2s3_rx_ch[3] = NULL;
+	}
+
+	if (i2s_priv->regmap)
+		regmap_write(i2s_priv->regmap, I2S_ICR, 0xffffffff);
 }
 
 static int zhihe_i2s_dai_probe(struct snd_soc_dai *dai)
@@ -471,6 +642,8 @@ static int zhihe_hdmi_dai_probe(struct snd_soc_dai *dai)
 
 static const struct snd_soc_dai_ops zhihe_i2s_dai_ops = {
 	.probe		= zhihe_i2s_dai_probe,
+	.startup	= zhihe_i2s_dai_startup,
+	.shutdown	= zhihe_i2s_dai_shutdown,
 	.trigger	= zhihe_i2s_dai_trigger,
 	.set_fmt	= zhihe_i2s_set_fmt_dai,
 	.hw_params	= zhihe_i2s_dai_hw_params,
@@ -810,7 +983,7 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 	struct snd_soc_dai_driver *dai;
 	struct resource *res;
 	struct axi_dma_peripheral_config *dma_pcfg;
-	void __iomem *regs;
+	unsigned int val;
 	int ret;
 
 	i2s_priv = devm_kzalloc(&pdev->dev, sizeof(*i2s_priv), GFP_KERNEL);
@@ -855,17 +1028,28 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "rx-ch-left"))
 		i2s_priv->rx_ch_left = true;
 
+	/* multi-channels support */
+	if (!of_property_read_u32(np, "multi-channels", &val))
+		if (val == 2 || val == 4 || val == 6 || val == 8)
+			i2s_priv->ch_cnt = val;
+		else {
+			dev_err(i2s_priv->dev, "Invalid channel count: %u\n", val);
+			return -EINVAL;
+		}
+	else
+		i2s_priv->ch_cnt = 2;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && i2s3_probe_flag) {
-		regs = NULL;
+	if (strstr(i2s_priv->drvdata->name, I2S3) && strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+		i2s_priv->regs = NULL;
 		i2s_priv->regmap = NULL;
 	} else {
-		regs = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(regs))
-			return PTR_ERR(regs);
+		i2s_priv->regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(i2s_priv->regs))
+			return PTR_ERR(i2s_priv->regs);
 
-		i2s_priv->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
+		i2s_priv->regmap = devm_regmap_init_mmio(&pdev->dev, i2s_priv->regs,
 							 &zhihe_i2s_regmap_config);
 		if (IS_ERR(i2s_priv->regmap)) {
 			dev_err(&pdev->dev,
@@ -1009,8 +1193,16 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 		goto err_suspend;
 	}
 
-	if (strstr(i2s_priv->drvdata->name, I2S3))
+	/**
+	 * Notice: In the I2S3 interface, SD0 serves as the master channel for
+	 * register control, while SD1, SD2, and SD3 operate as slave channels.
+	 */
+	if (strstr(i2s_priv->drvdata->name, I2S3)) {
+		if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0"))
+			i2s3_host_regs = i2s_priv->regs;
 		i2s3_probe_flag++;
+
+	}
 
 	return ret;
 
@@ -1034,6 +1226,8 @@ static void zhihe_i2s_remove(struct platform_device *pdev)
 		i2s3_probe_flag--;
 		if (!i2s_priv->regmap)
 			return;
+		if (i2s3_probe_flag == 0)
+			i2s3_host_regs = NULL;
 	}
 
 	pm_runtime_disable(&pdev->dev);

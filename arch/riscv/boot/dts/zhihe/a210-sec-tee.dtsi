@@ -1,0 +1,323 @@
+//sec-tee.dtsi
+
+/ {
+    //compatible = "zhihe,p100,tee";//update dst compatible value for tee
+    chosen {
+        opensbi-domains {
+            compatible = "opensbi,domain,config";
+            tmem0: tmem0 {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x20000000>;
+                order = <28>; // 256MiB tee device io
+            };
+            tmem1: tmem1 {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x30000000>;
+                order = <27>; // 128MiB tee device io
+            };
+            teeosmem: teeosmem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x88000000>;
+                order = <25>; // 32MiB, optee-os
+            };
+            teess_mem0: teess_mem0 {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x27500000>;
+                order = <19>; // 512KB, EIP+TEE_DMAC+TEE_OCRAM
+            };
+            teess_mem1: teess_mem1 {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x27410000>;
+                order = <12>; // 4KB, EFUSE
+            };
+            iopmp_vpmem: iopmp_vpmem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x27500000>;
+                order = <12>; // 4KB
+            };
+            iopmp_vimem: iopmp_vimem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x26372000>;
+                order = <12>; // 4KB
+            };
+            iopmp_npumem: iopmp_npumem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x27102000>;
+                order = <12>; // 4KB
+            };
+            iopmp_vomem: iopmp_vomem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x26712000>;
+                order = <12>; // 4KB
+            };
+            iopmp_peri1mem: iopmp_peri1mem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x22032000>;
+                order = <12>; // 4KB
+            };
+            iopmp_pciemem: iopmp_pciemem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x2A012000>;
+                order = <12>; // 4KB
+            };
+            iopmp_usbmem: iopmp_usbmem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x28022000>;
+                order = <12>; // 4KB
+            };
+            iopmp_gpumem: iopmp_gpumem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x26D12000>;
+                order = <12>; // 4KB
+            };
+            uart4mem: uart4mem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x08401000>;
+                order = <12>;
+                mmio;
+            };
+            plicmem: plicem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x18000000>;
+                order = <22>;
+                mmio;
+            };
+            reemem1: reemem1 {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x80000000>;
+                order = <27>; // 128MiB, linux-os, {0x80000000~0x87ffffff}
+            };
+            allmem: allmem {
+                compatible = "opensbi,domain,memregion";
+                base = <0x0 0x0>;
+                order = <64>;
+            };
+            tdomain: tee-domain {
+                compatible = "opensbi,domain,instance";
+                regions =<&plicmem 0x1b>, <&uart4mem 0x1b>, <&allmem 0x38>;
+                possible-harts = <&c908_0 &c908_1 &c908_2 &c908_3 &c920_4 &c920_5 &c920_6 &c920_7>;
+                next-addr = <0x0 0x88000000>; /* optee_os: CFG_TDDRAM_START */
+                next-mode = <0x1>;
+                system-reset-allowed;
+                system-suspend-allowed;
+            };
+            udomain: ree-domain {
+                compatible = "opensbi,domain,instance";
+                regions = <&teeosmem 0x0>,
+                          <&teess_mem0 0x0>,
+                          <&teess_mem1 0x0>,
+                          <&plicmem 0x1b>,
+                          <&allmem 0x38>;
+                possible-harts = <&c908_0 &c908_1 &c908_2 &c908_3 &c920_4 &c920_5 &c920_6 &c920_7>;
+                boot-hart = <&c908_0>;
+                next-addr = <0x0 0x90000000>; /* u-boot: CONFIG_TEXT_BASE */
+                next-mode = <0x1>;
+                system-reset-allowed;
+                system-suspend-allowed;
+            };
+        };
+    };
+
+    firmware {
+        optee {
+            compatible = "linaro,optee-tz";
+            method = "smc";
+        };
+    };
+
+    reserved-memory {
+        optee_mem: optee@88000000 {
+            reg = <0x0 0x88000000 0x0 0x04000000>;
+            no-map;
+        };
+    };
+};
+
+&eip_28 {
+    status = "disabled";
+};
+
+&nvmem_controller {
+    status = "disabled";
+};
+
+&c908_0 {
+    opensbi-domain = <&tdomain>;
+};
+
+&c908_1 {
+    opensbi-domain = <&udomain>;
+};
+
+&c908_2 {
+    opensbi-domain = <&udomain>;
+};
+
+&c908_3 {
+    opensbi-domain = <&udomain>;
+};
+
+&c920_4 {
+    opensbi-domain = <&udomain>;
+};
+
+&c920_5 {
+    opensbi-domain = <&udomain>;
+};
+
+&c920_6 {
+    opensbi-domain = <&udomain>;
+};
+
+&c920_7 {
+    opensbi-domain = <&udomain>;
+};
+
+/* PCIE iopmp*/
+&device_pcie_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_pcie_0_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_pcie_1_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_sata_0_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_dmac_ap_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_sd_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_emmc_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_pcie_iommu_iopmp  {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* VP iopmp*/
+&device_vp_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_venc_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_vdec_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_g2d_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_vp_iommu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* VI iopmp*/
+&device_vi_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_isp_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_vipre_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_dw200_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_vi_comp_decomp_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_vi_iommu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* NPU iopmp*/
+&device_npu_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_npu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_npu_iommu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* VO iopmp */
+&device_vo_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_display_0_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_display_1_iopmp  {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_auxdisp_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_vo_iommu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* PERI1 iopmp */
+&device_peri1_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_gmac_0_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_gmac_1_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_gmac_2_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_chip_dbg_iopmp  {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_aon_iopmp {
+    iopmp-regions = <&bypass_region>;
+};
+&device_peri1_iommu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* USB iopmp*/
+&device_usb_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_usb3_0_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_usb2_1_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_usb2_2_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_usb_iommu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* GPU iopmp*/
+&device_gpu_mt_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+&device_gpu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* D2D RX iopmp*/
+&device_d2d_rx_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};
+
+/* D2D CPU iopmp*/
+&device_d2d_cpu_iopmp {
+    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+};

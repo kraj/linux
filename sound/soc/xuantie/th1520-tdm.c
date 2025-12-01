@@ -108,6 +108,7 @@ static int th1520_tdm_dai_trigger(struct snd_pcm_substream *substream, int cmd, 
         case SNDRV_PCM_TRIGGER_STOP:
         case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
             priv->state = TDM_STATE_IDLE;
+            fallthrough;
         case SNDRV_PCM_TRIGGER_SUSPEND:
             th1520_tdm_snd_rxctrl(priv, 0);
             break;
@@ -437,7 +438,6 @@ irqreturn_t tdm_interrupt(int irq, void* dev_id)
 static int th1520_tdm_probe(struct platform_device *pdev)
 {
     struct device_node *np = pdev->dev.of_node;
-    const char *sprop;
     const uint32_t *iprop;
     struct th1520_tdm_priv *tdm_priv;
     struct resource *res;
