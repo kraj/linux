@@ -7,6 +7,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
 #include <linux/pcs-lynx.h>
+#include <linux/phy/phy.h>
 #include "enetc_ierb.h"
 #include "enetc_pf_common.h"
 
@@ -34,7 +35,17 @@ static void enetc_pf_set_primary_mac_addr(struct enetc_hw *hw, int si,
 static struct phylink_pcs *enetc_pf_create_pcs(struct enetc_pf *pf,
 					       struct mii_bus *bus)
 {
-	return lynx_pcs_create_mdiodev(bus, 0);
+	struct device *dev = &pf->si->pdev->dev;
+	struct phy *serdes;
+	size_t num_phys;
+
+	serdes = devm_of_phy_optional_get(dev, dev->of_node, NULL);
+	if (IS_ERR(serdes))
+		return ERR_CAST(serdes);
+
+	num_phys = serdes ? 1 : 0;
+
+	return lynx_pcs_create_mdiodev(bus, 0, &serdes, num_phys);
 }
 
 static void enetc_pf_destroy_pcs(struct phylink_pcs *pcs)
