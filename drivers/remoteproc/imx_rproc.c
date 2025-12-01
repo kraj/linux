@@ -400,7 +400,7 @@ static int imx_rproc_sm_cpu_start(struct rproc *rproc)
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	int ret;
 
-	ret = scmi_imx_cpu_reset_vector_set(dcfg->cpuid, 0, true, false, false);
+	ret = scmi_imx_cpu_reset_vector_set(dcfg->cpuid, rproc->bootaddr, true, false, false);
 	if (ret) {
 		dev_err(priv->dev, "Failed to set reset vector cpuid(%u): %d\n", dcfg->cpuid, ret);
 		return ret;
@@ -416,7 +416,7 @@ static int imx_rproc_sm_lmm_start(struct rproc *rproc)
 	struct device *dev = priv->dev;
 	int ret;
 
-	ret = scmi_imx_lmm_reset_vector_set(dcfg->lmid, dcfg->cpuid, 0, 0);
+	ret = scmi_imx_lmm_reset_vector_set(dcfg->lmid, dcfg->cpuid, 0, rproc->bootaddr);
 	if (ret) {
 		dev_err(dev, "Failed to set reset vector lmid(%u), cpuid(%u): %d\n",
 			dcfg->lmid, dcfg->cpuid, ret);
@@ -829,7 +829,11 @@ static u64 imx_rproc_get_boot_addr(struct rproc *rproc, const struct firmware *f
 	u16 shstrndx = elf_hdr_get_e_shstrndx(class, ehdr);
 	u64 sh_addr;
 
-	if (!of_device_is_compatible(dev->of_node, "fsl,imx93-cm33"))
+	if (!of_device_is_compatible(dev->of_node, "fsl,imx93-cm33") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx95-cm7") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx94-cm70") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx94-cm71") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx94-cm33s"))
 		return rproc_elf_get_boot_addr(rproc, fw);
 
 	/* First, get the section header according to the elf class */
