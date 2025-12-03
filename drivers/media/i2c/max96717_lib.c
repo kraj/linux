@@ -11,7 +11,7 @@
 #include "max96717_regs.h"
 #include "max96717.h"
 
-#define MAX96717_DEV_ID			0xB7
+#define MAX96717_DEV_ID			0xBF
 #define MAX96717F_DEV_ID		0xC8
 
 static bool max96717_writable_register(struct device *dev, unsigned int reg)
