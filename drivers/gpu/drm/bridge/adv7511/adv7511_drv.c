@@ -657,13 +657,20 @@ adv7511_detect(struct adv7511 *adv7511)
 }
 
 static void adv7511_mode_set(struct adv7511 *adv7511,
+			     const struct drm_display_mode *mode,
 			     const struct drm_display_mode *adj_mode)
 {
 	unsigned int low_refresh_rate;
 	unsigned int hsync_polarity = 0;
 	unsigned int vsync_polarity = 0;
 
-	if (adv7511->embedded_sync) {
+	if ((adv7511->info->type == ADV7533) ||
+	    (adv7511->info->type == ADV7535)) {
+		if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+			hsync_polarity = 1;
+		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+			vsync_polarity = 1;
+	} else if (adv7511->embedded_sync) {
 		unsigned int hsync_offset, hsync_len;
 		unsigned int vsync_offset, vsync_len;
 
@@ -809,7 +816,7 @@ static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	adv7511_set_config_csc(adv, connector, adv->rgb);
 
-	adv7511_mode_set(adv, &crtc_state->adjusted_mode);
+	adv7511_mode_set(adv, &crtc_state->mode, &crtc_state->adjusted_mode);
 
 	drm_atomic_helper_connector_hdmi_update_infoframes(connector, state);
 }
