@@ -388,6 +388,10 @@ bool max96717_is_dev_id_valid(struct max96717 *ser)
 		return false;
 	}
 
+	dev_info(ser->dev, "Detected %s serializer with device id 0x%x.\n",
+		 chip_id == MAX96717_DEV_ID ? "MAX96717" : "MAX96717F",
+		 chip_id);
+
 	return true;
 }
 EXPORT_SYMBOL(max96717_is_dev_id_valid);
