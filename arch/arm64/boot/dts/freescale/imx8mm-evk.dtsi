@@ -841,10 +841,6 @@
 	status = "disabled";
 };
 
-&imx8_gpu_ss {
-	status = "okay";
-};
-
 &iomuxc {
 	pinctrl_ir_recv: ir-recv {
 		fsl,pins = <
