@@ -874,10 +874,6 @@
 	};
 };
 
-&vpu_vc8000e {
-	status = "okay";
-};
-
 &mix_gpu_ml {
 	status = "okay";
 };

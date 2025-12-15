@@ -2377,12 +2377,10 @@
 		assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_1000M>, <&clk IMX8MP_SYS_PLL1_800M>;
 		assigned-clock-rates = <500000000>, <800000000>;
 		power-domains = <&vpumix_blk_ctrl IMX8MP_VPUBLK_PD_VC8000E>;
-		status = "disabled";
 	};
 
 	vpu_v4l2: vpu_v4l2 {
 		compatible = "nxp,imx8m-vsiv4l2";
-		status = "disabled";
 	};
 
 	mix_gpu_ml: mix_gpu_ml {
