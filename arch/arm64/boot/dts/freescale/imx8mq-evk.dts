@@ -1254,10 +1254,6 @@
 	status = "okay";
 };
 
-&imx8_gpu_ss {
-	status = "okay";
-};
-
 &irqsteer {
 	status = "okay";
 };
