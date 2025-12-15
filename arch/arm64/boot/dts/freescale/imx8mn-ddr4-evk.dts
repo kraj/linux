@@ -145,10 +145,6 @@
 			<400000000>, <400000000>;
 };
 
-&imx8_gpu_ss {
-	status = "okay";
-};
-
 &i2c3 {
 	camera@3c {
 		DOVDD-supply = <&buck5_reg>;

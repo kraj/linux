@@ -117,10 +117,6 @@
 	};
 };
 
-&imx8_gpu_ss {
-	status = "okay";
-};
-
 &iomuxc {
 	pinctrl_avdd: avddgrp {
 		fsl,pins = <
