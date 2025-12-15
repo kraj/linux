@@ -694,14 +694,6 @@
 	status = "disabled";
 };
 
-&gpu_3d1 {
-	status = "okay";
-};
-
-&imx8_gpu_ss {
-	status = "okay";
-};
-
 &pciea{
 	ext_osc = <1>;
 	pinctrl-names = "default";

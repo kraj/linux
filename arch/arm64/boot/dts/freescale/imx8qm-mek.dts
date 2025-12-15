@@ -751,10 +751,6 @@
 	status = "okay";
 };
 
-&gpu_3d1{
-	status = "okay";
-};
-
 &hsio_phy {
 	fsl,hsio-cfg = "pciea-pcieb-sata";
 	fsl,refclk-pad-mode = "input";
@@ -944,7 +940,6 @@
 
 &imx8_gpu_ss {
 	memory-region=<&gpu_reserved>;
-	status = "okay";
 };
 
 &flexcan1 {

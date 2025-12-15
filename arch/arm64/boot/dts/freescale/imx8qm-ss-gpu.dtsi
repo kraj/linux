@@ -26,6 +26,5 @@
 			/*underdrive*/ 400000  0  /*core/shader clock share the same frequency on underdrive mode*/
 		>;
 		throttle,max_state = <1>;
-		status = "disabled";
 	};
 };

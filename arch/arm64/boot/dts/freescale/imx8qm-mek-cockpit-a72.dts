@@ -1640,13 +1640,8 @@
 	status = "disabled";
 };
 
-&gpu_3d1{
-	status = "okay";
-};
-
 &imx8_gpu_ss {
 	cores = <&gpu_3d1>;
-	status = "okay";
 };
 
 / {

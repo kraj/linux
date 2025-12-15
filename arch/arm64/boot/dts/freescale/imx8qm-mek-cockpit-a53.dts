@@ -1615,7 +1615,6 @@
 
 &imx8_gpu_ss {
 	cores = <&gpu_3d0>;
-	status = "okay";
 };
 
 / {

@@ -885,13 +885,8 @@
 	};
 };
 
-&gpu_3d1{
-	status = "okay";
-};
-
 &imx8_gpu_ss {
 	memory-region=<&gpu_reserved>;
-	status = "okay";
 };
 
 
