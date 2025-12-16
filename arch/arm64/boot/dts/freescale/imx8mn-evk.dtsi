@@ -196,6 +196,7 @@
 			format = "dsp_b";
 			dai-tdm-slot-num = <8>;
 			dai-tdm-slot-width = <32>;
+			capture-only;
 			cpu {
 				sound-dai = <&sai5>;
 			};
