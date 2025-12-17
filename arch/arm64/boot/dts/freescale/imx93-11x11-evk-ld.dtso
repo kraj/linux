@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright 2023 NXP
+ * Copyright 2025 NXP
  */
 
-#include "imx93-11x11-evk.dts"
+#include <dt-bindings/clock/imx93-clock.h>
+
+/dts-v1/;
+/plugin/;
 
 &flexspi1 {
 	assigned-clocks = <&clk IMX93_CLK_FLEXSPI1>;
