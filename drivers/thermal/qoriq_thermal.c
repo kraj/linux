@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 //
 // Copyright 2016 Freescale Semiconductor, Inc.
+// Copyright 2022 NXP
 
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -24,9 +25,11 @@
 #define TMTMIR_DEFAULT	0x0000000f
 #define TIER_DISABLE	0x0
 #define TEUMR0_V2		0x51009c00
+#define TEUMR0_V21		0x55010c00
 #define TMSARA_V2		0xe
 #define TMU_VER1		0x1
 #define TMU_VER2		0x2
+#define TMU_VER93		0x3
 
 #define REGS_TMR	0x000	/* Mode Register */
 #define TMR_DISABLE	0x0
@@ -43,6 +46,13 @@
 #define REGS_TIER	0x020	/* Interrupt Enable Register */
 #define TIER_DISABLE	0x0
 
+#define REGS_TIDR	0x24
+#define TMRTRCTR	0x70
+#define TMRTRCTR_EN	BIT(31)
+#define TMRTRCTR_TEMP(x)	((x) & 0xFF)
+#define TMFTRCTR	0x74
+#define TMFTRCTR_EN	BIT(31)
+#define TMFTRCTR_TEMP(x)	((x) & 0xFF)
 
 #define REGS_TTCFGR	0x080	/* Temperature Configuration Register */
 #define REGS_TSCFGR	0x084	/* Sensor Configuration Register */
@@ -90,7 +100,7 @@ static int tmu_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct qoriq_sensor *qsensor = thermal_zone_device_priv(tz);
 	struct qoriq_tmu_data *qdata = qoriq_sensor_to_data(qsensor);
-	u32 val;
+	u32 val, tidr;
 	/*
 	 * REGS_TRITSR(id) has the following layout:
 	 *
@@ -115,6 +125,15 @@ static int tmu_get_temp(struct thermal_zone_device *tz, int *temp)
 	if (!(val & TMR_ME))
 		return -EAGAIN;
 
+	/* ERR052243: If there raising or falling edge happens, try later */
+	if (qdata->ver == TMU_VER93) {
+		regmap_read(qdata->regmap, REGS_TIDR, &tidr);
+		if (tidr & GENMASK(25, 24)) {
+			regmap_write(qdata->regmap, REGS_TIDR, GENMASK(25, 24));
+			return -EAGAIN;
+		}
+	}
+
 	if (regmap_read_poll_timeout(qdata->regmap,
 				     REGS_TRITSR(qsensor->id),
 				     val,
@@ -122,6 +141,15 @@ static int tmu_get_temp(struct thermal_zone_device *tz, int *temp)
 				     USEC_PER_MSEC,
 				     10 * USEC_PER_MSEC))
 		return -ENODATA;
+
+	/*ERR052243: If there raising or falling edge happens, try later */
+	if (qdata->ver == TMU_VER93) {
+		regmap_read(qdata->regmap, REGS_TIDR, &tidr);
+		if (tidr & GENMASK(25, 24)) {
+			regmap_write(qdata->regmap, REGS_TIDR, GENMASK(25, 24));
+			return -EAGAIN;
+		}
+	}
 
 	if (qdata->ver == TMU_VER1) {
 		*temp = (val & GENMASK(7, 0)) * MILLIDEGREE_PER_DEGREE;
@@ -229,9 +257,14 @@ static void qoriq_tmu_init_device(struct qoriq_tmu_data *data)
 	regmap_write(data->regmap, REGS_TIER, TIER_DISABLE);
 
 	/* Set update_interval */
-
 	if (data->ver == TMU_VER1) {
 		regmap_write(data->regmap, REGS_TMTMIR, TMTMIR_DEFAULT);
+	} else if (data->ver == TMU_VER93) {
+		regmap_write(data->regmap, REGS_V2_TMTMIR, TMTMIR_DEFAULT);
+		regmap_write(data->regmap, REGS_V2_TEUMR(0), TEUMR0_V21);
+		/* ERR052243: Set the raising & falling edge monitor */
+		regmap_write(data->regmap, TMRTRCTR, TMRTRCTR_EN | TMRTRCTR_TEMP(0x7));
+		regmap_write(data->regmap, TMFTRCTR, TMFTRCTR_EN | TMFTRCTR_TEMP(0x7));
 	} else {
 		regmap_write(data->regmap, REGS_V2_TMTMIR, TMTMIR_DEFAULT);
 		regmap_write(data->regmap, REGS_V2_TEUMR(0), TEUMR0_V2);
@@ -319,6 +352,9 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	data->ver = (ver >> 8) & 0xff;
 
+	if (of_find_compatible_node(NULL, NULL, "fsl,imx93-tmu"))
+		data->ver = TMU_VER93;
+
 	qoriq_tmu_init_device(data);	/* TMU initialization */
 
 	ret = qoriq_tmu_calibration(dev, data);	/* TMU calibration */
@@ -343,8 +379,8 @@ static int qoriq_tmu_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (data->ver > TMU_VER1) {
-		ret = regmap_set_bits(data->regmap, REGS_TMR, TMR_CMD);
+	if (data->ver == TMU_VER93) {
+		ret = regmap_update_bits(data->regmap, REGS_TMR, TMR_CMD, TMR_CMD);
 		if (ret)
 			return ret;
 	}
@@ -363,8 +399,8 @@ static int qoriq_tmu_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (data->ver > TMU_VER1) {
-		ret = regmap_clear_bits(data->regmap, REGS_TMR, TMR_CMD);
+	if (data->ver == TMU_VER93) {
+		ret = regmap_update_bits(data->regmap, REGS_TMR, TMR_CMD, 0);
 		if (ret)
 			return ret;
 	}
@@ -379,6 +415,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(qoriq_tmu_pm_ops,
 static const struct of_device_id qoriq_tmu_match[] = {
 	{ .compatible = "fsl,qoriq-tmu", },
 	{ .compatible = "fsl,imx8mq-tmu", },
+	{ .compatible = "fsl,imx93-tmu", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, qoriq_tmu_match);
