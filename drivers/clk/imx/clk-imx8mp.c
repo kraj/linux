@@ -4,7 +4,9 @@
  */
 
 #include <dt-bindings/clock/imx8mp-clock.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -13,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <soc/imx/soc.h>
 
 #include "clk.h"
 
@@ -546,6 +549,34 @@ static void imx8mp_clocks_apply_constraints(const struct imx8mp_clock_constraint
 		clk_hw_set_rate_range(hws[constr->clkid], 0, constr->maxrate);
 }
 
+static int imx_clk_init_on(struct device_node *np,
+				  struct clk_hw * const clks[])
+{
+	u32 *array;
+	int i, ret, elems;
+
+	elems = of_property_count_u32_elems(np, "init-on-array");
+	if (elems < 0)
+		return elems;
+	array = kcalloc(elems, sizeof(elems), GFP_KERNEL);
+	if (!array)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, "init-on-array", array, elems);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < elems; i++) {
+		ret = clk_prepare_enable(clks[array[i]]->clk);
+		if (ret)
+			pr_err("clk_prepare_enable failed %d\n", array[i]);
+	}
+
+	kfree(array);
+
+	return 0;
+}
+
 static int imx8mp_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -553,6 +584,8 @@ static int imx8mp_clocks_probe(struct platform_device *pdev)
 	void __iomem *anatop_base, *ccm_base;
 	const char *opmode;
 	int err;
+
+	check_m4_enabled();
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mp-anatop");
 	anatop_base = devm_of_iomap(dev, np, 0, NULL);
@@ -689,7 +722,7 @@ static int imx8mp_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MP_CLK_AHB] = imx8m_clk_hw_composite_bus_critical("ahb_root", imx8mp_ahb_sels, ccm_base + 0x9000);
 	hws[IMX8MP_CLK_AUDIO_AHB] = imx8m_clk_hw_composite_bus("audio_ahb", imx8mp_audio_ahb_sels, ccm_base + 0x9100);
 	hws[IMX8MP_CLK_MIPI_DSI_ESC_RX] = imx8m_clk_hw_composite_bus("mipi_dsi_esc_rx", imx8mp_mipi_dsi_esc_rx_sels, ccm_base + 0x9200);
-	hws[IMX8MP_CLK_MEDIA_DISP2_PIX] = imx8m_clk_hw_composite_bus_flags("media_disp2_pix", imx8mp_media_disp_pix_sels, ccm_base + 0x9300, CLK_SET_RATE_PARENT);
+	hws[IMX8MP_CLK_MEDIA_DISP2_PIX] = imx8m_clk_hw_composite_bus("media_disp2_pix", imx8mp_media_disp_pix_sels, ccm_base + 0x9300);
 
 	hws[IMX8MP_CLK_IPG_ROOT] = imx_clk_hw_divider2("ipg_root", "ahb_root", ccm_base + 0x9080, 0, 1);
 
@@ -751,7 +784,7 @@ static int imx8mp_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MP_CLK_USDHC3] = imx8m_clk_hw_composite("usdhc3", imx8mp_usdhc3_sels, ccm_base + 0xbc80);
 	hws[IMX8MP_CLK_MEDIA_CAM1_PIX] = imx8m_clk_hw_composite("media_cam1_pix", imx8mp_media_cam1_pix_sels, ccm_base + 0xbd00);
 	hws[IMX8MP_CLK_MEDIA_MIPI_PHY1_REF] = imx8m_clk_hw_composite("media_mipi_phy1_ref", imx8mp_media_mipi_phy1_ref_sels, ccm_base + 0xbd80);
-	hws[IMX8MP_CLK_MEDIA_DISP1_PIX] = imx8m_clk_hw_composite_bus_flags("media_disp1_pix", imx8mp_media_disp_pix_sels, ccm_base + 0xbe00, CLK_SET_RATE_PARENT);
+	hws[IMX8MP_CLK_MEDIA_DISP1_PIX] = imx8m_clk_hw_composite("media_disp1_pix", imx8mp_media_disp_pix_sels, ccm_base + 0xbe00);
 	hws[IMX8MP_CLK_MEDIA_CAM2_PIX] = imx8m_clk_hw_composite("media_cam2_pix", imx8mp_media_cam2_pix_sels, ccm_base + 0xbe80);
 	hws[IMX8MP_CLK_MEDIA_LDB] = imx8m_clk_hw_composite("media_ldb", imx8mp_media_ldb_sels, ccm_base + 0xbf00);
 	hws[IMX8MP_CLK_MEMREPAIR] = imx8m_clk_hw_composite_critical("mem_repair", imx8mp_memrepair_sels, ccm_base + 0xbf80);
@@ -873,6 +906,8 @@ static int imx8mp_clocks_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	imx_clk_init_on(np, hws);
+
 	imx_register_uart_clocks();
 
 	return 0;
@@ -903,3 +938,80 @@ MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or not");
 MODULE_AUTHOR("Anson Huang <Anson.Huang@nxp.com>");
 MODULE_DESCRIPTION("NXP i.MX8MP clock driver");
 MODULE_LICENSE("GPL v2");
+
+#ifndef MODULE
+/*
+ * Debugfs interface for audio PLL K divider change dynamically.
+ * Monitor control for the Audio PLL K-Divider
+ */
+#ifdef CONFIG_DEBUG_FS
+
+#define KDIV_MASK	GENMASK(15, 0)
+#define MDIV_SHIFT	12
+#define MDIV_MASK	GENMASK(21, 12)
+#define PDIV_SHIFT	4
+#define PDIV_MASK	GENMASK(9, 4)
+#define SDIV_SHIFT	0
+#define SDIV_MASK	GENMASK(2, 0)
+
+static int pll_delta_k_set(void *data, u64 val)
+{
+	struct clk_hw *hw;
+	short int delta_k;
+
+	hw = data;
+	delta_k = (short int) (val & KDIV_MASK);
+
+	clk_set_delta_k(hw, val);
+
+	pr_debug("the delta k is %d\n", delta_k);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE_SIGNED(delta_k_fops, NULL, pll_delta_k_set, "%lld\n");
+
+static int pll_setting_show(struct seq_file *s, void *data)
+{
+	struct clk_hw *hw;
+	u32 pll_div_ctrl0, pll_div_ctrl1;
+	u32 mdiv, pdiv, sdiv, kdiv;
+
+	hw = s->private;
+
+	clk_get_pll_setting(hw, &pll_div_ctrl0, &pll_div_ctrl1);
+	mdiv = (pll_div_ctrl0 & MDIV_MASK) >> MDIV_SHIFT;
+	pdiv = (pll_div_ctrl0 & PDIV_MASK) >> PDIV_SHIFT;
+	sdiv = (pll_div_ctrl0 & SDIV_MASK) >> SDIV_SHIFT;
+	kdiv = (pll_div_ctrl1 & KDIV_MASK);
+
+	seq_printf(s, "Mdiv: 0x%x; Pdiv: 0x%x; Sdiv: 0x%x; Kdiv: 0x%x\n",
+		mdiv, pdiv, sdiv, kdiv);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pll_setting);
+
+static int __init pll_debug_init(void)
+{
+	struct dentry *root, *audio_pll1, *audio_pll2;
+
+	if (of_machine_is_compatible("fsl,imx8mp") && hws) {
+		/* create a root dir for audio pll monitor */
+		root = debugfs_create_dir("audio_pll_monitor", NULL);
+		audio_pll1 = debugfs_create_dir("audio_pll1", root);
+		audio_pll2 = debugfs_create_dir("audio_pll2", root);
+
+		debugfs_create_file_unsafe("delta_k", 0444, audio_pll1,
+			hws[IMX8MP_AUDIO_PLL1], &delta_k_fops);
+		debugfs_create_file("pll_parameter", 0x444, audio_pll1,
+			hws[IMX8MP_AUDIO_PLL1], &pll_setting_fops);
+		debugfs_create_file_unsafe("delta_k", 0444, audio_pll2,
+			hws[IMX8MP_AUDIO_PLL2], &delta_k_fops);
+		debugfs_create_file("pll_parameter", 0x444, audio_pll2,
+			hws[IMX8MP_AUDIO_PLL2], &pll_setting_fops);
+	}
+
+	return 0;
+}
+late_initcall(pll_debug_init);
+#endif /* CONFIG_DEBUG_FS */
+#endif /* MODULE */
