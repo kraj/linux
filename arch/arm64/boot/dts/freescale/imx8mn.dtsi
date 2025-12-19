@@ -171,6 +171,21 @@
 		};
 	};
 
+	resmem: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x28000000>;
+			alloc-ranges = <0 0x40000000 0 0x40000000>;
+			linux,cma-default;
+		};
+	};
+
 	osc_32k: clock-osc-32k {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -213,6 +228,22 @@
 		clock-output-names = "clk_ext4";
 	};
 
+	busfreq { /* BUSFREQ */
+		compatible = "fsl,imx_busfreq";
+		clocks = <&clk IMX8MN_DRAM_PLL_OUT>, <&clk IMX8MN_CLK_DRAM_ALT>,
+			 <&clk IMX8MN_CLK_DRAM_APB>, <&clk IMX8MN_CLK_DRAM_APB>,
+			 <&clk IMX8MN_CLK_DRAM_CORE>, <&clk IMX8MN_CLK_DRAM_ALT_ROOT>,
+			 <&clk IMX8MN_SYS_PLL1_40M>, <&clk IMX8MN_SYS_PLL1_100M>,
+			 <&clk IMX8MN_SYS_PLL2_333M>, <&clk IMX8MN_CLK_NOC>,
+			 <&clk IMX8MN_CLK_AHB>, <&clk IMX8MN_CLK_MAIN_AXI>,
+			 <&clk IMX8MN_CLK_24M>, <&clk IMX8MN_SYS_PLL1_800M>,
+			 <&clk IMX8MN_DRAM_PLL>;
+		clock-names = "dram_pll", "dram_alt_src", "dram_apb_src", "dram_apb_pre_div",
+			      "dram_core", "dram_alt_root", "sys_pll1_40m", "sys_pll1_100m",
+			      "sys_pll2_333m", "noc_div", "ahb_div", "main_axi_src", "osc_24m",
+			      "sys_pll1_800m", "dram_pll_div";
+	};
+
 	pmu {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_PPI 7
@@ -250,7 +281,8 @@
 						<&A53_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&A53_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&A53_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&imx8_gpu_ss 0 1>;
 				};
 			};
 		};
@@ -267,13 +299,18 @@
 	};
 
 	soc: soc@0 {
-		compatible = "fsl,imx8mn-soc", "simple-bus";
+		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x3e000000>;
 		dma-ranges = <0x40000000 0x0 0x40000000 0xc0000000>;
 		nvmem-cells = <&imx8mn_uid>;
 		nvmem-cell-names = "soc_unique_id";
+
+		caam_sm: caam-sm@00100000 {
+			compatible = "fsl,imx6q-caam-sm";
+			reg = <0x100000 0x8000>;
+		};
 
 		aips1: bus@30000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
@@ -372,7 +409,7 @@
 				};
 
 				spdif1: spdif@30090000 {
-					compatible = "fsl,imx35-spdif";
+					compatible = "fsl,imx8mm-spdif";
 					reg = <0x30090000 0x10000>;
 					interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clk IMX8MN_CLK_AUDIO_AHB>, /* core */
@@ -530,7 +567,7 @@
 			};
 
 			sdma3: dma-controller@302b0000 {
-				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma";
+				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma", "fsl,imx7d-sdma";
 				reg = <0x302b0000 0x10000>;
 				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MN_CLK_SDMA3_ROOT>,
@@ -541,7 +578,7 @@
 			};
 
 			sdma2: dma-controller@302c0000 {
-				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma";
+				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma", "fsl,imx7d-sdma";
 				reg = <0x302c0000 0x10000>;
 				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MN_CLK_SDMA2_ROOT>,
@@ -562,7 +599,7 @@
 			};
 
 			ocotp: efuse@30350000 {
-				compatible = "fsl,imx8mn-ocotp", "fsl,imx8mm-ocotp", "syscon";
+				compatible = "fsl,imx8mn-ocotp", "fsl,imx8mm-ocotp", "syscon", "simple-mfd";
 				reg = <0x30350000 0x10000>;
 				clocks = <&clk IMX8MN_CLK_OCOTP_ROOT>;
 				#address-cells = <1>;
@@ -596,12 +633,34 @@
 				fec_mac_address: mac-address@90 { /* 0x640 */
 					reg = <0x90 6>;
 				};
+
+				imx8mn_soc: imx8mn-soc {
+					compatible = "fsl,imx8mn-soc";
+					nvmem-cells = <&imx8mn_uid>;
+					nvmem-cell-names = "soc_unique_id";
+				};
 			};
 
 			anatop: clock-controller@30360000 {
 				compatible = "fsl,imx8mn-anatop", "fsl,imx8mm-anatop";
 				reg = <0x30360000 0x10000>;
 				#clock-cells = <1>;
+			};
+
+			irq_sec_vio: caam_secvio {
+				compatible = "fsl,imx6q-caam-secvio";
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				jtag-tamper = "disabled";
+				watchdog-tamper = "enabled";
+				internal-boot-tamper = "enabled";
+				external-pin-tamper = "disabled";
+			};
+
+			caam_snvs: caam-snvs@30370000 {
+				compatible = "fsl,imx6q-caam-snvs";
+				reg = <0x30370000 0x10000>;
+				clocks = <&clk IMX8MN_CLK_SNVS_ROOT>;
+				clock-names = "ipg";
 			};
 
 			snvs: snvs@30370000 {
@@ -1013,7 +1072,7 @@
 			};
 
 			sdma1: dma-controller@30bd0000 {
-				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma";
+				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma", "fsl,imx7d-sdma";
 				reg = <0x30bd0000 0x10000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MN_CLK_SDMA1_ROOT>,
@@ -1280,8 +1339,8 @@
 						  <&clk IMX8MN_GPU_PLL_OUT>,
 						  <&clk IMX8MN_SYS_PLL1_800M>,
 						  <&clk IMX8MN_SYS_PLL1_800M>;
-			assigned-clock-rates = <400000000>,
-					       <400000000>,
+			assigned-clock-rates = <600000000>,
+					       <600000000>,
 					       <800000000>,
 					       <400000000>,
 					       <1200000000>;
@@ -1314,6 +1373,16 @@
 		};
 	};
 
+	imx8_gpu_ss: imx8_gpu_ss {
+		compatible = "fsl,imx8mn-gpu", "fsl,imx8-gpu-ss";
+		cores = <&gpu>;
+		reg = <0x0 0x40000000 0x0 0x80000000>, <0x0 0x0 0x0 0x8000000>;
+		reg-names = "phys_baseaddr", "contiguous_mem";
+
+		throttle,max_state = <1>;
+		#cooling-cells = <2>;
+	};
+
 	usbphynop1: usbphynop1 {
 		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
@@ -1322,5 +1391,6 @@
 		assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_100M>;
 		clock-names = "main_clk";
 		power-domains = <&pgc_otg1>;
+		wakeup-source;
 	};
 };
