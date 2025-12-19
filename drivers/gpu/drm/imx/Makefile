@@ -7,6 +7,12 @@ obj-$(CONFIG_DRM_IMX) += imxdrm.o
 obj-$(CONFIG_DRM_IMX_PARALLEL_DISPLAY) += parallel-display.o
 obj-$(CONFIG_DRM_IMX_TVE) += imx-tve.o
 obj-$(CONFIG_DRM_IMX_LDB) += imx-ldb.o
+imx8qm-ldb-nxp-objs := imx8qm-ldb.o
+obj-$(CONFIG_DRM_IMX8QM_LDB_NXP) += imx8qm-ldb-nxp.o
+imx8qxp-ldb-nxp-objs := imx8qxp-ldb.o
+obj-$(CONFIG_DRM_IMX8QXP_LDB_NXP) += imx8qxp-ldb-nxp.o
+obj-$(CONFIG_DRM_IMX8MP_LDB) += imx8mp-ldb.o
+obj-$(CONFIG_DRM_IMX93_LDB) += imx93-ldb.o
 obj-$(CONFIG_DRM_IMX93_PARALLEL_DISPLAY_FORMAT) += imx93-parallel-disp-fmt.o
 
 obj-$(CONFIG_DRM_IMX_DCNANO) += dcnano/
