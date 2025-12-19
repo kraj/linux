@@ -186,9 +186,6 @@ static int tcpci_start_toggling(struct tcpc_dev *tcpc,
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg = TCPC_ROLE_CTRL_DRP;
 
-	if (port_type != TYPEC_PORT_DRP)
-		return -EOPNOTSUPP;
-
 	/* Handle vendor drp toggling */
 	if (tcpci->data->start_drp_toggling) {
 		ret = tcpci->data->start_drp_toggling(tcpci, tcpci->data, cc);
@@ -518,6 +515,32 @@ static bool tcpci_is_vbus_vsafe0v(struct tcpc_dev *tcpc)
 	return !!(reg & TCPC_EXTENDED_STATUS_VSAFE0V);
 }
 
+static int tcpci_vbus_force_discharge(struct tcpc_dev *tcpc, bool enable)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
+	unsigned int reg;
+	int ret;
+
+	if (enable)
+		regmap_write(tcpci->regmap,
+			TCPC_VBUS_VOLTAGE_ALARM_LO_CFG, 0x1c);
+	else
+		regmap_write(tcpci->regmap,
+			TCPC_VBUS_VOLTAGE_ALARM_LO_CFG, 0);
+
+	regmap_read(tcpci->regmap, TCPC_POWER_CTRL, &reg);
+
+	if (enable)
+		reg |= TCPC_POWER_CTRL_FORCEDISCH;
+	else
+		reg &= ~TCPC_POWER_CTRL_FORCEDISCH;
+	ret = regmap_write(tcpci->regmap, TCPC_POWER_CTRL, reg);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int tcpci_set_vbus(struct tcpc_dev *tcpc, bool source, bool sink)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
@@ -545,6 +568,9 @@ static int tcpci_set_vbus(struct tcpc_dev *tcpc, bool source, bool sink)
 		if (ret < 0)
 			return ret;
 	}
+
+	if (!source && !sink)
+		tcpci_vbus_force_discharge(tcpc, true);
 
 	if (source) {
 		ret = regmap_write(tcpci->regmap, TCPC_COMMAND,
@@ -676,6 +702,9 @@ static int tcpci_init(struct tcpc_dev *tcpc)
 	if (ret < 0)
 		return ret;
 
+	/* Clear fault condition */
+	regmap_write(tcpci->regmap, TCPC_FAULT_STATUS, 0x80);
+
 	if (tcpci->controls_vbus)
 		reg = TCPC_POWER_STATUS_VBUS_PRES;
 	else
@@ -692,7 +721,8 @@ static int tcpci_init(struct tcpc_dev *tcpc)
 
 	reg = TCPC_ALERT_TX_SUCCESS | TCPC_ALERT_TX_FAILED |
 		TCPC_ALERT_TX_DISCARDED | TCPC_ALERT_RX_STATUS |
-		TCPC_ALERT_RX_HARD_RST | TCPC_ALERT_CC_STATUS;
+		TCPC_ALERT_RX_HARD_RST | TCPC_ALERT_CC_STATUS |
+		TCPC_ALERT_V_ALARM_LO | TCPC_ALERT_FAULT;
 	if (tcpci->controls_vbus)
 		reg |= TCPC_ALERT_POWER_STATUS;
 	/* Enable VSAFE0V status interrupt when detecting VSAFE0V is supported */
@@ -732,7 +762,10 @@ process_status:
 		tcpm_cc_change(tcpci->port);
 
 	if (status & TCPC_ALERT_POWER_STATUS) {
+		/* Read power status to clear the event */
+		regmap_read(tcpci->regmap, TCPC_POWER_STATUS, &raw);
 		regmap_read(tcpci->regmap, TCPC_POWER_STATUS_MASK, &raw);
+
 		/*
 		 * If power status mask has been reset, then the TCPC
 		 * has reset.
@@ -742,6 +775,9 @@ process_status:
 		else
 			tcpm_vbus_change(tcpci->port);
 	}
+
+	if (status & TCPC_ALERT_V_ALARM_LO)
+		tcpci_vbus_force_discharge(&tcpci->tcpc, false);
 
 	if (status & TCPC_ALERT_RX_STATUS) {
 		struct pd_message msg;
@@ -780,6 +816,13 @@ process_status:
 		ret = regmap_read(tcpci->regmap, TCPC_EXTENDED_STATUS, &raw);
 		if (!ret && (raw & TCPC_EXTENDED_STATUS_VSAFE0V))
 			tcpm_vbus_change(tcpci->port);
+	}
+
+	/* Clear the fault status anyway */
+	if (status & TCPC_ALERT_FAULT) {
+		regmap_read(tcpci->regmap, TCPC_FAULT_STATUS, &raw);
+		regmap_write(tcpci->regmap, TCPC_FAULT_STATUS,
+				raw | TCPC_FAULT_STATUS_CLEAR);
 	}
 
 	if (status & TCPC_ALERT_RX_HARD_RST)
