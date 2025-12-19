@@ -51,11 +51,13 @@
  *
  */
 
+#include <linux/arm-smccc.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <linux/console.h>
 #include <linux/firmware/imx/sci.h>
 #include <linux/firmware/imx/svc/rm.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -64,6 +66,13 @@
 #include <linux/pm.h>
 #include <linux/pm_domain.h>
 #include <linux/slab.h>
+#include <linux/syscore_ops.h>
+
+#define IMX_WU_MAX_IRQS	(((IMX_SC_R_LAST + 31) / 32 ) * 32 )
+
+#define IMX_SIP_WAKEUP_SRC              0xc2000009
+#define IMX_SIP_WAKEUP_SRC_SCU          0x1
+#define IMX_SIP_WAKEUP_SRC_IRQSTEER     0x2
 
 /* SCU Power Mode Protocol definition */
 struct imx_sc_msg_req_set_resource_power_mode {
@@ -310,6 +319,21 @@ to_imx_sc_pd(struct generic_pm_domain *genpd)
 	return container_of(genpd, struct imx_sc_pm_domain, pd);
 }
 
+static int imx_pm_domains_suspend(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_WAKEUP_SRC,
+			  IMX_SIP_WAKEUP_SRC_IRQSTEER,
+			  0, 0, 0, 0, 0, 0, &res);
+
+	return 0;
+}
+
+struct syscore_ops imx_pm_domains_syscore_ops = {
+	.suspend = imx_pm_domains_suspend,
+};
+
 static void imx_sc_pd_get_console_rsrc(void)
 {
 	struct of_phandle_args specs;
@@ -363,7 +387,8 @@ static int imx_sc_pd_power(struct generic_pm_domain *domain, bool power_on)
 	hdr->size = 2;
 
 	msg.resource = pd->rsrc;
-	msg.mode = power_on ? IMX_SC_PM_PW_MODE_ON : IMX_SC_PM_PW_MODE_LP;
+	msg.mode = power_on ? IMX_SC_PM_PW_MODE_ON : pd->pd.state_idx ?
+		   IMX_SC_PM_PW_MODE_OFF : IMX_SC_PM_PW_MODE_LP;
 
 	/* keep uart console power on for no_console_suspend */
 	if (imx_con_rsrc == pd->rsrc && !console_suspend_enabled && !power_on)
@@ -418,6 +443,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 		      const struct imx_sc_pd_range *pd_ranges)
 {
 	struct imx_sc_pm_domain *sc_pd;
+	struct genpd_power_state *states;
 	bool is_off;
 	int mode, ret;
 
@@ -428,9 +454,23 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 	if (!sc_pd)
 		return ERR_PTR(-ENOMEM);
 
+	states = devm_kcalloc(dev, 2, sizeof(*states), GFP_KERNEL);
+	if (!states) {
+		devm_kfree(dev, sc_pd);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	sc_pd->rsrc = pd_ranges->rsrc + idx;
 	sc_pd->pd.power_off = imx_sc_pd_power_off;
 	sc_pd->pd.power_on = imx_sc_pd_power_on;
+	sc_pd->pd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
+	states[0].power_off_latency_ns = 25000;
+	states[0].power_on_latency_ns =  25000;
+	states[1].power_off_latency_ns = 2500000;
+	states[1].power_on_latency_ns =  2500000;
+
+	sc_pd->pd.states = states;
+	sc_pd->pd.state_count = 2;
 
 	if (pd_ranges->postfix)
 		snprintf(sc_pd->name, sizeof(sc_pd->name),
@@ -441,7 +481,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 
 	sc_pd->pd.name = sc_pd->name;
 	if (imx_con_rsrc == sc_pd->rsrc)
-		sc_pd->pd.flags = GENPD_FLAG_RPM_ALWAYS_ON;
+		sc_pd->pd.flags |= GENPD_FLAG_RPM_ALWAYS_ON;
 
 	mode = imx_sc_get_pd_power(dev, pd_ranges->rsrc + idx);
 	if (mode == IMX_SC_PM_PW_MODE_ON)
@@ -456,6 +496,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 			 sc_pd->name, sc_pd->rsrc);
 
 		devm_kfree(dev, sc_pd);
+		devm_kfree(dev, states);
 		return NULL;
 	}
 
@@ -464,6 +505,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 		dev_warn(dev, "failed to init pd %s rsrc id %d",
 			 sc_pd->name, sc_pd->rsrc);
 		devm_kfree(dev, sc_pd);
+		devm_kfree(dev, states);
 		return NULL;
 	}
 
@@ -526,6 +568,7 @@ static int imx_sc_pd_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	imx_sc_pd_get_console_rsrc();
+	register_syscore_ops(&imx_pm_domains_syscore_ops);
 
 	return imx_scu_init_pm_domains(&pdev->dev, pd_soc);
 }
@@ -544,7 +587,12 @@ static struct platform_driver imx_sc_pd_driver = {
 	},
 	.probe = imx_sc_pd_probe,
 };
-builtin_platform_driver(imx_sc_pd_driver);
+
+static int __init imx_sc_pd_driver_init(void)
+{
+	return platform_driver_register(&imx_sc_pd_driver);
+}
+subsys_initcall(imx_sc_pd_driver_init);
 
 MODULE_AUTHOR("Dong Aisheng <aisheng.dong@nxp.com>");
 MODULE_DESCRIPTION("IMX SCU Power Domain driver");
