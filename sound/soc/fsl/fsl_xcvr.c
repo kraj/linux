@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright 2019 NXP
 
+#include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_edid.h>
 #include <linux/bitrev.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
@@ -60,6 +63,8 @@ struct fsl_xcvr {
 	spinlock_t lock; /* Protect hw_reset and trigger */
 	struct snd_pcm_hw_constraint_list spdif_constr_rates;
 	u32 spdif_constr_rates_list[SPDIF_NUM_RATES];
+	struct work_struct work;
+	struct drm_bridge *bridge;
 };
 
 static const struct fsl_xcvr_pll_conf {
@@ -1382,6 +1387,19 @@ static void reset_rx_work(struct work_struct *work)
 	spin_unlock_irqrestore(&xcvr->lock, lock_flags);
 }
 
+static void edid_work(struct work_struct *work)
+{
+	struct fsl_xcvr *xcvr = container_of(work, struct fsl_xcvr, work);
+	struct device *dev = &xcvr->pdev->dev;
+	const struct drm_edid *edid;
+
+	dev_dbg(dev, "trigger edid read\n");
+	if (xcvr->bridge) {
+		edid = drm_bridge_edid_read(xcvr->bridge, NULL);
+		drm_edid_free(edid);
+	}
+}
+
 static irqreturn_t irq0_isr(int irq, void *devid)
 {
 	struct fsl_xcvr *xcvr = (struct fsl_xcvr *)devid;
@@ -1421,7 +1439,7 @@ static irqreturn_t irq0_isr(int irq, void *devid)
 						bitrev32(val);
 				}
 				/* clear CS control register */
-				memset_io(reg_ctrl, 0, sizeof(val));
+				writel_relaxed(0, reg_ctrl);
 			}
 		} else {
 			regmap_read(xcvr->regmap, FSL_XCVR_RX_CS_DATA_0,
@@ -1471,6 +1489,7 @@ static irqreturn_t irq0_isr(int irq, void *devid)
 	}
 	if (isr & FSL_XCVR_IRQ_CMDC_STATUS_UPD) {
 		dev_dbg(dev, "CMDC status update\n");
+		schedule_work(&xcvr->work);
 		isr_clr |= FSL_XCVR_IRQ_CMDC_STATUS_UPD;
 	}
 	if (isr & FSL_XCVR_IRQ_PREAMBLE_MISMATCH) {
@@ -1532,12 +1551,15 @@ static const struct of_device_id fsl_xcvr_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_xcvr_dt_ids);
 
+#include "fsl_xcvr_sysfs.c"
+
 static int fsl_xcvr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fsl_xcvr *xcvr;
 	struct resource *rx_res, *tx_res;
 	void __iomem *regs;
+	struct device_node *hdmi_np;
 	int ret, irq;
 
 	xcvr = devm_kzalloc(dev, sizeof(*xcvr), GFP_KERNEL);
@@ -1688,10 +1710,23 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 		pm_runtime_disable(dev);
 		dev_err(dev, "failed to register component %s\n",
 			fsl_xcvr_comp.name);
+		return ret;
 	}
 
 	INIT_WORK(&xcvr->work_rst, reset_rx_work);
 	spin_lock_init(&xcvr->lock);
+	INIT_WORK(&xcvr->work, edid_work);
+
+	hdmi_np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
+	if (hdmi_np)
+		xcvr->bridge = of_drm_find_bridge(hdmi_np);
+
+	ret = sysfs_create_group(&pdev->dev.kobj, fsl_xcvr_get_attr_grp());
+	if (ret) {
+		pm_runtime_disable(dev);
+		dev_err(&pdev->dev, "fail to create sys group\n");
+	}
+
 	return ret;
 }
 
@@ -1700,6 +1735,8 @@ static void fsl_xcvr_remove(struct platform_device *pdev)
 	struct fsl_xcvr *xcvr = dev_get_drvdata(&pdev->dev);
 
 	cancel_work_sync(&xcvr->work_rst);
+	cancel_work_sync(&xcvr->work);
+	sysfs_remove_group(&pdev->dev.kobj, fsl_xcvr_get_attr_grp());
 	pm_runtime_disable(&pdev->dev);
 }
 
