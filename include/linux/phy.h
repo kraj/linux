@@ -107,6 +107,9 @@ extern const int phy_basic_ports_array[3];
  * @PHY_INTERFACE_MODE_LAUI: 50 Gigabit Attachment Unit Interface
  * @PHY_INTERFACE_MODE_100GBASEP: 100GBase-P - with Clause 134 FEC
  * @PHY_INTERFACE_MODE_MIILITE: MII-Lite - MII without RXER TXER CRS COL
+ * @PHY_INTERFACE_MODE_25GKR: 25GBASE-KR - with Clause 73 AN
+ * @PHY_INTERFACE_MODE_40GKR4: 40GBASE-KR4 - with Clause 73 AN
+ * @PHY_INTERFACE_MODE_40GBASER: clause 82 40GBASE-R (PCS over 4 lanes)
  * @PHY_INTERFACE_MODE_MAX: Book keeping
  *
  * Describes the interface between the MAC and PHY.
@@ -136,6 +139,7 @@ typedef enum {
 	PHY_INTERFACE_MODE_100BASEX,
 	PHY_INTERFACE_MODE_1000BASEX,
 	PHY_INTERFACE_MODE_2500BASEX,
+	PHY_INTERFACE_MODE_2500SGMII,
 	PHY_INTERFACE_MODE_5GBASER,
 	PHY_INTERFACE_MODE_RXAUI,
 	PHY_INTERFACE_MODE_XAUI,
@@ -152,6 +156,9 @@ typedef enum {
 	PHY_INTERFACE_MODE_LAUI,
 	PHY_INTERFACE_MODE_100GBASEP,
 	PHY_INTERFACE_MODE_MIILITE,
+	PHY_INTERFACE_MODE_25GKR,
+	PHY_INTERFACE_MODE_40GKR4,
+	PHY_INTERFACE_MODE_40GBASER,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -220,6 +227,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "gmii";
 	case PHY_INTERFACE_MODE_SGMII:
 		return "sgmii";
+	case PHY_INTERFACE_MODE_2500SGMII:
+		return "sgmii-2500";
 	case PHY_INTERFACE_MODE_TBI:
 		return "tbi";
 	case PHY_INTERFACE_MODE_REVMII:
@@ -286,6 +295,12 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "100gbase-p";
 	case PHY_INTERFACE_MODE_MIILITE:
 		return "mii-lite";
+	case PHY_INTERFACE_MODE_25GKR:
+		return "25gbase-kr";
+	case PHY_INTERFACE_MODE_40GKR4:
+		return "40gbase-kr4";
+	case PHY_INTERFACE_MODE_40GBASER:
+		return "40gbase-r";
 	default:
 		return "unknown";
 	}

@@ -322,10 +322,12 @@ static int tja11xx_config_init(struct phy_device *phydev)
 		if (ret < 0)
 			return ret;
 
+		phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
 		reg_val |= (ret & 0xffff);
 		ret = phy_modify(phydev, MII_CFG1, reg_mask, reg_val);
 		if (ret)
 			return ret;
+		phy_clear_bits(phydev, MII_BMCR, BMCR_PDOWN);
 		break;
 	case PHY_ID_TJA1102S:
 	case PHY_ID_TJA1101:

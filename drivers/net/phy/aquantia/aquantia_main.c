@@ -35,6 +35,21 @@
 #define PHY_ID_AQR115C	0x31c31c33
 #define PHY_ID_AQR813	0x31c31cb2
 
+#define MDIO_GLOBAL_LED_PROVIS_1		0xC430
+#define MDIO_GLOBAL_LED_PROVIS_1_LED0_5G	BIT(15)
+#define MDIO_GLOBAL_LED_PROVIS_1_LED0_10G	BIT(7)
+#define MDIO_GLOBAL_LED_PROVIS_1_REV_ACT	BIT(3)
+#define MDIO_GLOBAL_LED_PROVIS_1_SEN_ACT	BIT(2)
+#define MDIO_GLOBAL_LED_PROVIS_1_STR_MASK	GENMASK(1, 0)
+#define MDIO_GLOBAL_LED_PROVIS_1_STR(x)		((x) & GENMASK(1, 0))
+#define MDIO_GLOBAL_LED_PROVIS_2		0xC431
+#define MDIO_GLOBAL_LED_PROVIS_2_LED0_2_5G	BIT(14)
+#define MDIO_GLOBAL_LED_PROVIS_2_LED0_1G	BIT(6)
+#define MDIO_GLOBAL_LED_PROVIS_2_REV_ACT	BIT(3)
+#define MDIO_GLOBAL_LED_PROVIS_2_SEN_ACT	BIT(2)
+#define MDIO_GLOBAL_LED_PROVIS_2_STR_MASK	GENMASK(1, 0)
+#define MDIO_GLOBAL_LED_PROVIS_2_STR(x)		((x) & GENMASK(1, 0))
+
 #define MDIO_PHYXS_VEND_PROV2			0xc441
 #define MDIO_PHYXS_VEND_PROV2_USX_AN		BIT(3)
 
@@ -598,6 +613,57 @@ static int aqr_gen1_read_status(struct phy_device *phydev)
 	return aqr_gen1_read_rate(phydev);
 }
 
+static int aqr_gen2_update_leds(struct phy_device *phydev)
+{
+	u16 led1 = 0, led2 = 0;
+	int ret;
+
+	switch (phydev->speed) {
+	case SPEED_1000:
+		led2 = MDIO_GLOBAL_LED_PROVIS_2_LED0_1G |
+		       MDIO_GLOBAL_LED_PROVIS_2_REV_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_2_SEN_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_2_STR(0x1);
+		break;
+	case SPEED_2500:
+		led1 = MDIO_GLOBAL_LED_PROVIS_1_REV_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_1_SEN_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_1_STR(0x1);
+		led2 = MDIO_GLOBAL_LED_PROVIS_2_LED0_2_5G;
+		break;
+	case SPEED_5000:
+		led1 = MDIO_GLOBAL_LED_PROVIS_1_LED0_5G |
+		       MDIO_GLOBAL_LED_PROVIS_1_REV_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_1_SEN_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_1_STR(0x1);
+		break;
+	case SPEED_10000:
+		led1 = MDIO_GLOBAL_LED_PROVIS_1_LED0_10G;
+		led2 = MDIO_GLOBAL_LED_PROVIS_2_REV_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_2_SEN_ACT |
+		       MDIO_GLOBAL_LED_PROVIS_2_STR(0x1);
+		break;
+	default:
+		break;
+	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, MDIO_GLOBAL_LED_PROVIS_1,
+			     MDIO_GLOBAL_LED_PROVIS_1_LED0_5G |
+			     MDIO_GLOBAL_LED_PROVIS_1_LED0_10G |
+			     MDIO_GLOBAL_LED_PROVIS_1_REV_ACT |
+			     MDIO_GLOBAL_LED_PROVIS_1_SEN_ACT |
+			     MDIO_GLOBAL_LED_PROVIS_1_STR_MASK, led1);
+	if (ret)
+		return ret;
+
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND1, MDIO_GLOBAL_LED_PROVIS_2,
+			      MDIO_GLOBAL_LED_PROVIS_2_LED0_2_5G |
+			      MDIO_GLOBAL_LED_PROVIS_2_LED0_1G |
+			      MDIO_GLOBAL_LED_PROVIS_2_REV_ACT |
+			      MDIO_GLOBAL_LED_PROVIS_2_SEN_ACT |
+			      MDIO_GLOBAL_LED_PROVIS_2_STR_MASK, led2);
+}
+
 static int aqr_gen2_read_status(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
@@ -620,7 +686,7 @@ static int aqr_gen2_read_status(struct phy_device *phydev)
 		break;
 	}
 
-	return 0;
+	return aqr_gen2_update_leds(phydev);
 }
 
 static int aqr107_get_downshift(struct phy_device *phydev, u8 *data)

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2019 NXP */
 
-#include "enetc.h"
-
-#include <net/pkt_sched.h>
 #include <linux/math64.h>
 #include <linux/refcount.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gate.h>
+
+#include "enetc_pf_common.h"
 
 static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
 {
@@ -127,14 +126,6 @@ static int enetc_setup_taprio(struct enetc_ndev_priv *priv,
 	return 0;
 }
 
-static void enetc_reset_taprio_stats(struct enetc_ndev_priv *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_tx_rings; i++)
-		priv->tx_ring[i]->stats.win_drop = 0;
-}
-
 static void enetc_reset_taprio(struct enetc_ndev_priv *priv)
 {
 	struct enetc_hw *hw = &priv->si->hw;
@@ -154,29 +145,6 @@ static void enetc_taprio_destroy(struct net_device *ndev)
 	enetc_reset_taprio(priv);
 	enetc_reset_tc_mqprio(ndev);
 	enetc_reset_taprio_stats(priv);
-}
-
-static void enetc_taprio_stats(struct net_device *ndev,
-			       struct tc_taprio_qopt_stats *stats)
-{
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	u64 window_drops = 0;
-	int i;
-
-	for (i = 0; i < priv->num_tx_rings; i++)
-		window_drops += priv->tx_ring[i]->stats.win_drop;
-
-	stats->window_drops = window_drops;
-}
-
-static void enetc_taprio_queue_stats(struct net_device *ndev,
-				     struct tc_taprio_qopt_queue_stats *queue_stats)
-{
-	struct tc_taprio_qopt_stats *stats = &queue_stats->stats;
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	int queue = queue_stats->queue;
-
-	stats->window_drops = priv->tx_ring[queue]->stats.win_drop;
 }
 
 static int enetc_taprio_replace(struct net_device *ndev,
@@ -684,25 +652,28 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	if (err)
 		goto exit;
 
-	cnt->matching_frames_count = ((u64)data_buf->matchh << 32) +
-				     data_buf->matchl;
+	cnt->matching_frames_count =
+		((u64)le32_to_cpu(data_buf->matchh) << 32) +
+		le32_to_cpu(data_buf->matchl);
 
-	cnt->not_passing_sdu_count = ((u64)data_buf->msdu_droph << 32) +
-				     data_buf->msdu_dropl;
+	cnt->not_passing_sdu_count =
+		((u64)le32_to_cpu(data_buf->msdu_droph) << 32) +
+		le32_to_cpu(data_buf->msdu_dropl);
 
-	cnt->passing_sdu_count = cnt->matching_frames_count
-				- cnt->not_passing_sdu_count;
+	cnt->passing_sdu_count =
+		cnt->matching_frames_count - cnt->not_passing_sdu_count;
 
 	cnt->not_passing_frames_count =
-				((u64)data_buf->stream_gate_droph << 32) +
-				data_buf->stream_gate_dropl;
+		((u64)le32_to_cpu(data_buf->stream_gate_droph) << 32) +
+		le32_to_cpu(data_buf->stream_gate_dropl);
 
 	cnt->passing_frames_count = cnt->matching_frames_count -
 				    cnt->not_passing_sdu_count -
 				    cnt->not_passing_frames_count;
 
-	cnt->red_frames_count =	((u64)data_buf->flow_meter_droph << 32)	+
-				data_buf->flow_meter_dropl;
+	cnt->red_frames_count =
+		((u64)le32_to_cpu(data_buf->flow_meter_droph) << 32) +
+		le32_to_cpu(data_buf->flow_meter_dropl);
 
 exit:
 	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
@@ -804,8 +775,8 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 
 	sgcl_config->agtst = 0x80;
 
-	sgcl_data->ct = sgi->cycletime;
-	sgcl_data->cte = sgi->cycletimext;
+	sgcl_data->ct = cpu_to_le32(sgi->cycletime);
+	sgcl_data->cte = cpu_to_le32(sgi->cycletimext);
 
 	if (sgi->init_ipv >= 0)
 		sgcl_config->aipv = (sgi->init_ipv & 0x7) | 0x8;
@@ -827,7 +798,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 			to->msdu[2] = (from->maxoctets >> 16) & 0xFF;
 		}
 
-		to->interval = from->interval;
+		to->interval = cpu_to_le32(from->interval);
 	}
 
 	/* If basetime is less than now, calculate start time */
@@ -839,15 +810,15 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 		err = get_start_ns(now, sgi->cycletime, &start);
 		if (err)
 			goto exit;
-		sgcl_data->btl = lower_32_bits(start);
-		sgcl_data->bth = upper_32_bits(start);
+		sgcl_data->btl = cpu_to_le32(lower_32_bits(start));
+		sgcl_data->bth = cpu_to_le32(upper_32_bits(start));
 	} else {
 		u32 hi, lo;
 
 		hi = upper_32_bits(sgi->basetime);
 		lo = lower_32_bits(sgi->basetime);
-		sgcl_data->bth = hi;
-		sgcl_data->btl = lo;
+		sgcl_data->bth = cpu_to_le32(hi);
+		sgcl_data->btl = cpu_to_le32(lo);
 	}
 
 	err = enetc_send_cmd(priv->si, &cbd);
@@ -1659,31 +1630,4 @@ int enetc_setup_tc_psfp(struct net_device *ndev, void *type_data)
 	}
 
 	return 0;
-}
-
-int enetc_qos_query_caps(struct net_device *ndev, void *type_data)
-{
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct tc_query_caps_base *base = type_data;
-	struct enetc_si *si = priv->si;
-
-	switch (base->type) {
-	case TC_SETUP_QDISC_MQPRIO: {
-		struct tc_mqprio_caps *caps = base->caps;
-
-		caps->validate_queue_counts = true;
-
-		return 0;
-	}
-	case TC_SETUP_QDISC_TAPRIO: {
-		struct tc_taprio_caps *caps = base->caps;
-
-		if (si->hw_features & ENETC_SI_F_QBV)
-			caps->supports_queue_max_sdu = true;
-
-		return 0;
-	}
-	default:
-		return -EOPNOTSUPP;
-	}
 }

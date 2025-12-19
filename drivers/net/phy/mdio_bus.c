@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -958,6 +959,9 @@ static int mdio_bus_match(struct device *dev, const struct device_driver *drv)
 		return 0;
 
 	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	if (mdio->bus_match)
