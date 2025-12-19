@@ -394,6 +394,7 @@ struct nxp_fspi {
 	u32 memmap_phy_size;
 	u32 memmap_start;
 	u32 memmap_len;
+	bool individual_mode;
 	struct clk *clk, *clk_en;
 	struct device *dev;
 	struct completion c;
@@ -1171,9 +1172,16 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	nxp_fspi_dll_override(f);
 
 	/* enable module */
-	fspi_writel(f, FSPI_MCR0_AHB_TIMEOUT(0xFF) |
-		    FSPI_MCR0_IP_TIMEOUT(0xFF) | (u32) FSPI_MCR0_OCTCOMB_EN,
-		    base + FSPI_MCR0);
+	reg = FSPI_MCR0_AHB_TIMEOUT(0xFF) | FSPI_MCR0_IP_TIMEOUT(0xFF);
+
+	/*
+	 * if there are individual devices connected to each fspi port,
+	 * please enable individual mode in DT.
+	 */
+	if (!f->individual_mode)
+		reg |= FSPI_MCR0_OCTCOMB_EN;
+
+	fspi_writel(f, reg, base + FSPI_MCR0);
 
 	/*
 	 * Disable same device enable bit and configure all target devices
@@ -1369,6 +1377,10 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 			nxp_fspi_irq_handler, 0, pdev->name, f);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to request irq\n");
+
+	/* check if the controller work in combination or individual mode */
+	f->individual_mode = fwnode_property_read_bool(fwnode,
+						   "nxp,fspi-individual-mode");
 
 	ret = devm_mutex_init(dev, &f->lock);
 	if (ret)
