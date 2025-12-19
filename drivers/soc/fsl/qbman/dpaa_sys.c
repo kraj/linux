@@ -1,4 +1,5 @@
 /* Copyright 2017 NXP Semiconductor, Inc.
+ * Copyright 2020 Puresoftware Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,19 +29,82 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/acpi.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dma-mapping.h>
 #include "dpaa_sys.h"
+
+/* Currently, the Linux kernel port for arm64 performs the memory
+ * reservations using memblock (the memory allocator for early boot) only for
+ * device tree (arm64_memblock_init() -> early_init_fdt_scan_reserved_mem().
+ * Since we cannot use that same mechanism on ACPI, we will perform CMA for the
+ * BMan FBPR, QMan FQD and PFDR.
+ */
+static int qbman_init_private_mem_acpi(struct device *dev, int idx, dma_addr_t *addr,
+				       size_t *size, int dev_id)
+{
+	unsigned long pool_size_order = 0;
+	phys_addr_t mem_addr, mem_size;
+	struct page *page = NULL;
+	size_t page_sz_count = 0;
+	int val_cnt;
+	u32 val[2];
+	int err;
+
+	switch (dev_id) {
+	case DPAA_BMAN_DEV:
+		val_cnt = 1;
+		break;
+	case DPAA_QMAN_DEV:
+		val_cnt = 2;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	err = device_property_read_u32_array(dev, "size", val, val_cnt);
+	if (err < 0)
+		return err;
+
+	mem_size = 2 * val[idx];
+	page_sz_count = DIV_ROUND_UP(mem_size, PAGE_SIZE);
+	pool_size_order = get_order(mem_size);
+
+	page = dma_alloc_from_contiguous(dev, page_sz_count,
+					 pool_size_order,
+					 false);
+	if (!page) {
+		pr_info("dma_alloc_from_contiguous failed.\n");
+		return -ENOMEM;
+	}
+	mem_addr = page_to_phys(page);
+	mem_addr = ALIGN(mem_addr, mem_size);
+
+	dev_dbg(dev, "%s %s base [%llx] size [%llx]\n",
+		dev_id == DPAA_BMAN_DEV ? "BMan" : "QMan",
+		dev_id == DPAA_BMAN_DEV ? (idx == 0 ? "FBPR" : "(unknown)") :
+		idx == 0 ? "FQD" : idx == 1 ? "PFDR" : "(unknown)", mem_addr,
+		mem_size);
+
+	*addr = mem_addr;
+	*size = val[idx];
+
+	return 0;
+}
 
 /*
  * Initialize a devices private memory region
  */
 int qbman_init_private_mem(struct device *dev, int idx, const char *compat,
-			   dma_addr_t *addr, size_t *size)
+			   dma_addr_t *addr, size_t *size, int dev_id)
 {
 	struct device_node *mem_node;
 	struct reserved_mem *rmem;
-	int err;
 	__be32 *res_array;
+	int err;
+
+	if (is_acpi_node(dev->fwnode))
+		return qbman_init_private_mem_acpi(dev, idx, addr, size, dev_id);
 
 	mem_node = of_parse_phandle(dev->of_node, "memory-region", idx);
 	if (!mem_node) {
