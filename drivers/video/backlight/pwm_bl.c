@@ -127,8 +127,21 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	return 0;
 }
 
+static bool pwm_backlight_controls_device(struct backlight_device *bd,
+					  struct device *display_dev)
+{
+	struct backlight_device *bd_display;
+
+	bd_display = devm_of_find_backlight(display_dev);
+	if (IS_ERR(bd_display))
+		return false;
+
+	return !bd_display || bd_display == bd;
+}
+
 static const struct backlight_ops pwm_backlight_ops = {
 	.update_status	= pwm_backlight_update_status,
+	.controls_device = pwm_backlight_controls_device,
 };
 
 #ifdef CONFIG_OF
