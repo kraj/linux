@@ -33,6 +33,7 @@
 #include <drm/drm_print.h>
 
 #define HWVER_131			0x31333100	/* IP version 1.31 */
+#define HWVER_151			0x30313531	/* IP version 1.51 */
 
 #define DSI_VERSION			0x00
 #define VERSION				GENMASK(31, 8)
@@ -87,7 +88,12 @@
 #define ENABLE_CMD_MODE			BIT(0)
 
 #define DSI_VID_MODE_CFG		0x38
-#define ENABLE_LOW_POWER		(0x3f << 8)
+#define ENABLE_LOW_POWER_HFP		(0x20 << 8)
+#define ENABLE_LOW_POWER_HBP		(0x10 << 8)
+#define ENABLE_LOW_POWER_VACT		(0x8 << 8)
+#define ENABLE_LOW_POWER_VFP		(0x4 << 8)
+#define ENABLE_LOW_POWER_VBP		(0x2 << 8)
+#define ENABLE_LOW_POWER_VSA		(0x1 << 8)
 #define ENABLE_LOW_POWER_MASK		(0x3f << 8)
 #define VID_MODE_TYPE_NON_BURST_SYNC_PULSES	0x0
 #define VID_MODE_TYPE_NON_BURST_SYNC_EVENTS	0x1
@@ -250,6 +256,7 @@ struct dw_mipi_dsi {
 
 	struct clk *pclk;
 
+	bool device_found;
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
 	u32 lanes;
@@ -269,7 +276,6 @@ struct dw_mipi_dsi {
 	struct dw_mipi_dsi *master; /* dual-dsi master ptr */
 	struct dw_mipi_dsi *slave; /* dual-dsi slave ptr */
 
-	struct drm_display_mode mode;
 	const struct dw_mipi_dsi_plat_data *plat_data;
 };
 
@@ -314,12 +320,37 @@ static inline u32 dsi_read(struct dw_mipi_dsi *dsi, u32 reg)
 	return readl(dsi->base + reg);
 }
 
+static int dw_mipi_dsi_panel_or_bridge(struct dw_mipi_dsi *dsi,
+				       struct device_node *node)
+{
+	struct drm_bridge *bridge;
+	struct drm_panel *panel;
+	int ret;
+
+	ret = drm_of_find_panel_or_bridge(node, 1, 0, &panel, &bridge);
+	if (ret)
+		return ret;
+
+	if (panel) {
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(bridge))
+			return PTR_ERR(bridge);
+	}
+
+	dsi->panel_bridge = bridge;
+
+	if (!dsi->panel_bridge)
+		return -EPROBE_DEFER;
+
+	return 0;
+}
+
 static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
-	struct drm_bridge *bridge;
 	int ret;
 
 	if (device->lanes > dsi->plat_data->max_data_lanes) {
@@ -333,14 +364,13 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 
-	bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_node, 1, 0);
-	if (IS_ERR(bridge))
-		return PTR_ERR(bridge);
+	if (!dsi->device_found) {
+		ret = dw_mipi_dsi_panel_or_bridge(dsi, host->dev->of_node);
+		if (ret)
+			return ret;
 
-	bridge->pre_enable_prev_first = true;
-	dsi->panel_bridge = bridge;
-
-	drm_bridge_add(&dsi->bridge);
+		dsi->device_found = true;
+	}
 
 	if (pdata->host_ops && pdata->host_ops->attach) {
 		ret = pdata->host_ops->attach(pdata->priv_data, device);
@@ -365,8 +395,6 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	}
 
 	drm_of_panel_bridge_remove(host->dev->of_node, 1, 0);
-
-	drm_bridge_remove(&dsi->bridge);
 
 	return 0;
 }
@@ -604,14 +632,21 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 	 * enabling low power is panel-dependent, we should use the
 	 * panel configuration here...
 	 */
-	val = ENABLE_LOW_POWER;
+	val = ENABLE_LOW_POWER_VACT | ENABLE_LOW_POWER_VFP | ENABLE_LOW_POWER_VSA |
+	      ENABLE_LOW_POWER_VBP;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
-		val |= VID_MODE_TYPE_BURST;
-	else if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
-		val |= VID_MODE_TYPE_NON_BURST_SYNC_PULSES;
-	else
+		val |= VID_MODE_TYPE_BURST | ENABLE_LOW_POWER_HFP | ENABLE_LOW_POWER_HBP;
+	else if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
+		val |= VID_MODE_TYPE_NON_BURST_SYNC_PULSES | ENABLE_LOW_POWER_HFP |
+		       ENABLE_LOW_POWER_HBP;
+	} else {
 		val |= VID_MODE_TYPE_NON_BURST_SYNC_EVENTS;
+		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HFP)
+			val |= ENABLE_LOW_POWER_HFP;
+		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HBP)
+			val |= ENABLE_LOW_POWER_HBP;
+	}
 
 #ifdef CONFIG_DEBUG_FS
 	if (dsi->vpg_defs.vpg) {
@@ -826,6 +861,24 @@ static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi,
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, hsa);
 	dsi_write(dsi, DSI_VID_HSA_TIME, lbcc);
 
+	/*
+	 * This timing fixup allows the HFP to go into low power mode for
+	 * 720p60. There is a line size mismatch between DPI and MIPI
+	 * domain for four lanes using 24 bits per pixel. Forcing the HFP
+	 * into low power mode allows the line timer to be reset, thus
+	 * preserving the DPI timing. Without this adjustment, the MIPI
+	 * domain timing drifts from the DPI domain corrupting the video.
+	 * Most other MIPI controllers have workarounds for this mode's
+	 * behavior.
+	 */
+	if (mode->htotal == 1650 && mode->vtotal == 750 &&
+	    dsi->lanes == 4 && dsi->format == MIPI_DSI_FMT_RGB888 &&
+	    (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HFP) &&
+	    !(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HBP) &&
+	    !(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) &&
+	    !(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST))
+		hbp = hbp - min(32, hbp);
+
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, hbp);
 	dsi_write(dsi, DSI_VID_HBP_TIME, lbcc);
 }
@@ -850,6 +903,7 @@ static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 {
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 	struct dw_mipi_dsi_dphy_timing timing;
+	bool hwver_is_151 = false;
 	u32 hw_version;
 	int ret;
 
@@ -866,9 +920,13 @@ static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 	 * DSI_CMD_MODE_CFG.MAX_RD_PKT_SIZE_LP (see CMD_MODE_ALL_LP)
 	 */
 
-	hw_version = dsi_read(dsi, DSI_VERSION) & VERSION;
+	hw_version = dsi_read(dsi, DSI_VERSION);
+	if (hw_version == HWVER_151)
+		hwver_is_151 = true;
+	else
+		hw_version &= VERSION;
 
-	if (hw_version >= HWVER_131) {
+	if (hw_version >= HWVER_131 || hwver_is_151) {
 		dsi_write(dsi, DSI_PHY_TMR_CFG,
 			  PHY_HS2LP_TIME_V131(timing.data_hs2lp) |
 			  PHY_LP2HS_TIME_V131(timing.data_lp2hs));
@@ -948,6 +1006,15 @@ static void dw_mipi_dsi_bridge_post_atomic_disable(struct drm_bridge *bridge,
 	 */
 	dw_mipi_dsi_set_mode(dsi, 0);
 
+	/*
+	 * TODO Only way found to call panel-bridge post_disable &
+	 * panel unprepare before the dsi "final" disable...
+	 * This needs to be fixed in the drm_bridge framework and the API
+	 * needs to be updated to manage our own call chains...
+	 */
+	if (dsi->panel_bridge->funcs->post_disable)
+		dsi->panel_bridge->funcs->post_disable(dsi->panel_bridge);
+
 	if (phy_ops->power_off)
 		phy_ops->power_off(dsi->plat_data->priv_data);
 
@@ -1022,25 +1089,15 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 		phy_ops->power_on(dsi->plat_data->priv_data);
 }
 
-static void dw_mipi_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-						 struct drm_atomic_state *state)
-{
-	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
-
-	/* Power up the dsi ctl into a command mode */
-	dw_mipi_dsi_mode_set(dsi, &dsi->mode);
-	if (dsi->slave)
-		dw_mipi_dsi_mode_set(dsi->slave, &dsi->mode);
-}
-
 static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 					const struct drm_display_mode *mode,
 					const struct drm_display_mode *adjusted_mode)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
-	/* Store the display mode for later use in pre_enable callback */
-	drm_mode_copy(&dsi->mode, adjusted_mode);
+	dw_mipi_dsi_mode_set(dsi, adjusted_mode);
+	if (dsi->slave)
+		dw_mipi_dsi_mode_set(dsi->slave, adjusted_mode);
 }
 
 static void dw_mipi_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
@@ -1081,6 +1138,16 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge,
 	/* Set the encoder type as caller does not know it */
 	encoder->encoder_type = DRM_MODE_ENCODER_DSI;
 
+	if (!dsi->device_found) {
+		int ret;
+
+		ret = dw_mipi_dsi_panel_or_bridge(dsi, dsi->dev->of_node);
+		if (ret)
+			return ret;
+
+		dsi->device_found = true;
+	}
+
 	/* Attach the panel-bridge to the dsi bridge */
 	return drm_bridge_attach(encoder, dsi->panel_bridge, bridge,
 				 flags);
@@ -1092,7 +1159,6 @@ static const struct drm_bridge_funcs dw_mipi_dsi_bridge_funcs = {
 	.atomic_get_input_bus_fmts = dw_mipi_dsi_bridge_atomic_get_input_bus_fmts,
 	.atomic_check		= dw_mipi_dsi_bridge_atomic_check,
 	.atomic_reset		= drm_atomic_helper_bridge_reset,
-	.atomic_pre_enable	= dw_mipi_dsi_bridge_atomic_pre_enable,
 	.atomic_enable		= dw_mipi_dsi_bridge_atomic_enable,
 	.atomic_post_disable	= dw_mipi_dsi_bridge_post_atomic_disable,
 	.mode_set		= dw_mipi_dsi_bridge_mode_set,
@@ -1268,12 +1334,15 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 
 	dsi->bridge.driver_private = dsi;
 	dsi->bridge.of_node = pdev->dev.of_node;
+	drm_bridge_add(&dsi->bridge);
 
 	return dsi;
 }
 
 static void __dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi)
 {
+	drm_bridge_remove(&dsi->bridge);
+
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 
 	pm_runtime_disable(dsi->dev);

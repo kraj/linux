@@ -5,7 +5,9 @@
  * Copyright (C) 2013-2015 Mentor Graphics Inc.
  * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+ * Copyright 2025 NXP
  */
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -115,6 +117,7 @@ struct dw_hdmi_i2c {
 	u8			stat;
 
 	u8			slave_reg;
+	u8			segment_ptr;
 	bool			is_regaddr;
 	bool			is_segment;
 };
@@ -196,6 +199,9 @@ struct dw_hdmi {
 	hdmi_codec_plugged_cb plugged_cb;
 	struct device *codec_dev;
 	enum drm_connector_status last_connector_result;
+
+	struct delayed_work work;
+	bool hpd_work_active;
 };
 
 #define HDMI_IH_PHY_STAT0_RX_SENSE \
@@ -368,13 +374,18 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 	while (length--) {
 		reinit_completion(&i2c->cmp);
 
-		hdmi_writeb(hdmi, i2c->slave_reg++, HDMI_I2CM_ADDRESS);
-		if (i2c->is_segment)
+		if (i2c->is_segment)	{
+			hdmi_writeb(hdmi, 0x50, HDMI_I2CM_SLAVE);
+			hdmi_writeb(hdmi, i2c->slave_reg++, HDMI_I2CM_ADDRESS);
+			hdmi_writeb(hdmi, 0x30, HDMI_I2CM_SEGADDR);
+			hdmi_writeb(hdmi, i2c->segment_ptr, HDMI_I2CM_SEGPTR);
 			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ_EXT,
 				    HDMI_I2CM_OPERATION);
-		else
+		} else {
+			hdmi_writeb(hdmi, i2c->slave_reg++, HDMI_I2CM_ADDRESS);
 			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
 				    HDMI_I2CM_OPERATION);
+		}
 
 		ret = dw_hdmi_i2c_wait(hdmi);
 		if (ret)
@@ -458,19 +469,26 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 
 	/* Set segment pointer for I2C extended read mode operation */
 	i2c->is_segment = false;
+	i2c->segment_ptr = 0;
 
 	for (i = 0; i < num; i++) {
 		dev_dbg(hdmi->dev, "xfer: num: %d/%d, len: %d, flags: %#x\n",
 			i + 1, num, msgs[i].len, msgs[i].flags);
 		if (msgs[i].addr == DDC_SEGMENT_ADDR && msgs[i].len == 1) {
 			i2c->is_segment = true;
-			hdmi_writeb(hdmi, DDC_SEGMENT_ADDR, HDMI_I2CM_SEGADDR);
-			hdmi_writeb(hdmi, *msgs[i].buf, HDMI_I2CM_SEGPTR);
+			i2c->is_regaddr = true;
+			i2c->slave_reg = *msgs[1].buf;
+			i2c->segment_ptr =  *msgs[i].buf;
+			dev_dbg(hdmi->dev, "segment: addr 0x%02x seg 0x%02x len: %d\n",
+				msgs[i].addr, *msgs[i].buf, msgs[i].len);
 		} else {
 			if (msgs[i].flags & I2C_M_RD)
 				ret = dw_hdmi_i2c_read(hdmi, msgs[i].buf,
 						       msgs[i].len);
-			else
+			else if (!i2c->is_segment)
+				/* skip the segment write as the extended read
+				 * transaction handles this step
+				 */
 				ret = dw_hdmi_i2c_write(hdmi, msgs[i].buf,
 							msgs[i].len);
 		}
@@ -2991,6 +3009,9 @@ static const struct drm_edid *dw_hdmi_bridge_edid_read(struct drm_bridge *bridge
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
+	if (!connector)
+		return dw_hdmi_edid_read(hdmi, &hdmi->connector);
+
 	return dw_hdmi_edid_read(hdmi, connector);
 }
 
@@ -3079,6 +3100,24 @@ void dw_hdmi_setup_rx_sense(struct dw_hdmi *hdmi, bool hpd, bool rx_sense)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_setup_rx_sense);
 
+static void dw_hdmi_work(struct work_struct *work)
+{
+	struct dw_hdmi *hdmi = container_of(work, struct dw_hdmi, work.work);
+	const struct drm_edid *drm_edid;
+	u8 phy_stat;
+
+	drm_edid = dw_hdmi_edid_read(hdmi, &hdmi->connector);
+	if (!drm_edid) {
+		mutex_lock(&hdmi->cec_notifier_mutex);
+		cec_notifier_phys_addr_invalidate(hdmi->cec_notifier);
+		mutex_unlock(&hdmi->cec_notifier_mutex);
+	} else {
+		phy_stat = hdmi_readb(hdmi, HDMI_PHY_STAT0);
+		if (!(phy_stat & HDMI_PHY_HPD) && hdmi->hpd_work_active)
+			schedule_delayed_work(&hdmi->work, msecs_to_jiffies(500));
+	}
+}
+
 static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 {
 	struct dw_hdmi *hdmi = dev_id;
@@ -3118,9 +3157,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 				       phy_stat & HDMI_PHY_RX_SENSE);
 
 		if ((phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)) == 0) {
-			mutex_lock(&hdmi->cec_notifier_mutex);
-			cec_notifier_phys_addr_invalidate(hdmi->cec_notifier);
-			mutex_unlock(&hdmi->cec_notifier_mutex);
+			schedule_delayed_work(&hdmi->work, 0);
 		}
 
 		if (phy_stat & HDMI_PHY_HPD)
@@ -3580,6 +3617,9 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 
 	drm_bridge_add(&hdmi->bridge);
 
+	INIT_DELAYED_WORK(&hdmi->work, dw_hdmi_work);
+	hdmi->hpd_work_active = true;
+
 	return hdmi;
 
 err_res:
@@ -3592,6 +3632,8 @@ EXPORT_SYMBOL_GPL(dw_hdmi_probe);
 void dw_hdmi_remove(struct dw_hdmi *hdmi)
 {
 	drm_bridge_remove(&hdmi->bridge);
+	hdmi->hpd_work_active = false;
+	cancel_delayed_work_sync(&hdmi->work);
 
 	if (hdmi->audio && !IS_ERR(hdmi->audio))
 		platform_device_unregister(hdmi->audio);
@@ -3638,9 +3680,17 @@ void dw_hdmi_unbind(struct dw_hdmi *hdmi)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
 
+void dw_hdmi_suspend(struct dw_hdmi *hdmi)
+{
+	hdmi->hpd_work_active = false;
+	cancel_delayed_work_sync(&hdmi->work);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
+
 void dw_hdmi_resume(struct dw_hdmi *hdmi)
 {
 	dw_hdmi_init_hw(hdmi);
+	hdmi->hpd_work_active = true;
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_resume);
 

@@ -10,6 +10,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/slab.h>
 
 #include <sound/pcm.h>
@@ -306,6 +307,7 @@ static void __adv7511_power_on(struct adv7511 *adv7511)
 {
 	adv7511->current_edid_segment = -1;
 
+	/* 01-02 Power */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 			   ADV7511_POWER_POWER_DOWN, 0);
 	if (adv7511->i2c_main->irq) {
@@ -323,6 +325,7 @@ static void __adv7511_power_on(struct adv7511 *adv7511)
 	}
 
 	/*
+	 * 01-01 HPD Manual Override
 	 * Per spec it is allowed to pulse the HPD signal to indicate that the
 	 * EDID information has changed. Some monitors do this when they wakeup
 	 * from standby or are enabled. When the HPD goes low the adv7511 is
@@ -864,6 +867,9 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 			return ret;
 	}
 
+	if (adv->info->has_dsi)
+		ret = adv7533_attach_dsi(adv);
+
 	if (adv->i2c_main->irq)
 		regmap_write(adv->regmap, ADV7511_REG_INT_ENABLE(0),
 			     ADV7511_INT0_HPD);
@@ -973,9 +979,23 @@ static int adv7511_bridge_hdmi_write_infoframe(struct drm_bridge *bridge,
 	return 0;
 }
 
+static void adv7511_bridge_detach(struct drm_bridge *bridge)
+{
+	struct adv7511 *adv = bridge_to_adv7511(bridge);
+
+	if (adv->i2c_main->irq)
+		regmap_write(adv->regmap, ADV7511_REG_INT_ENABLE(0), 0);
+
+	if (adv->info->has_dsi) {
+		mipi_dsi_detach(adv->dsi);
+		mipi_dsi_device_unregister(adv->dsi);
+	}
+}
+
 static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.mode_valid = adv7511_bridge_mode_valid,
 	.attach = adv7511_bridge_attach,
+	.detach = adv7511_bridge_detach,
 	.detect = adv7511_bridge_detect,
 	.edid_read = adv7511_bridge_edid_read,
 
@@ -1088,7 +1108,7 @@ static int adv7511_init_cec_regmap(struct adv7511 *adv)
 	int ret;
 
 	adv->i2c_cec = i2c_new_ancillary_device(adv->i2c_main, "cec",
-						ADV7511_CEC_I2C_ADDR_DEFAULT);
+						adv->addr_cec);
 	if (IS_ERR(adv->i2c_cec))
 		return PTR_ERR(adv->i2c_cec);
 
@@ -1204,6 +1224,14 @@ static int adv7511_probe(struct i2c_client *i2c)
 	struct adv7511_link_config link_config;
 	struct adv7511 *adv7511;
 	struct device *dev = &i2c->dev;
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+	struct device_node *remote_node = NULL, *endpoint = NULL;
+	struct of_changeset ocs;
+#endif
+	unsigned int main_i2c_addr = i2c->addr << 1;
+	unsigned int edid_i2c_addr = main_i2c_addr + 4;
+	unsigned int cec_i2c_addr = main_i2c_addr - 2;
+	unsigned int pkt_i2c_addr = main_i2c_addr - 0xa;
 	unsigned int val;
 	int ret;
 
@@ -1239,6 +1267,21 @@ static int adv7511_probe(struct i2c_client *i2c)
 		dev_err_probe(dev, ret, "failed to init regulators\n");
 		goto err_of_node_put;
 	}
+
+	if (adv7511->addr_cec != 0)
+		cec_i2c_addr = adv7511->addr_cec << 1;
+	else
+		adv7511->addr_cec = cec_i2c_addr >> 1;
+
+	if (adv7511->addr_edid != 0)
+		edid_i2c_addr = adv7511->addr_edid << 1;
+	else
+		adv7511->addr_edid = edid_i2c_addr >> 1;
+
+	if (adv7511->addr_pkt != 0)
+		pkt_i2c_addr = adv7511->addr_pkt << 1;
+	else
+		adv7511->addr_pkt = pkt_i2c_addr >> 1;
 
 	/*
 	 * The power down GPIO is optional. If present, toggle it from active to
@@ -1277,18 +1320,21 @@ static int adv7511_probe(struct i2c_client *i2c)
 
 	adv7511_packet_disable(adv7511, 0xffff);
 
+	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
+			edid_i2c_addr);
+
 	adv7511->i2c_edid = i2c_new_ancillary_device(i2c, "edid",
-					ADV7511_EDID_I2C_ADDR_DEFAULT);
+					adv7511->addr_edid);
 	if (IS_ERR(adv7511->i2c_edid)) {
 		ret = PTR_ERR(adv7511->i2c_edid);
 		goto uninit_regulators;
 	}
 
-	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
-		     adv7511->i2c_edid->addr << 1);
+	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
+			pkt_i2c_addr);
 
 	adv7511->i2c_packet = i2c_new_ancillary_device(i2c, "packet",
-					ADV7511_PACKET_I2C_ADDR_DEFAULT);
+					adv7511->addr_pkt);
 	if (IS_ERR(adv7511->i2c_packet)) {
 		ret = PTR_ERR(adv7511->i2c_packet);
 		goto err_i2c_unregister_edid;
@@ -1301,8 +1347,8 @@ static int adv7511_probe(struct i2c_client *i2c)
 		goto err_i2c_unregister_packet;
 	}
 
-	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
-		     adv7511->i2c_packet->addr << 1);
+	regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR,
+			cec_i2c_addr);
 
 	ret = adv7511_init_cec_regmap(adv7511);
 	if (ret)
@@ -1363,19 +1409,12 @@ static int adv7511_probe(struct i2c_client *i2c)
 						dev_name(dev),
 						adv7511);
 		if (ret)
-			goto err_unregister_audio;
-	}
-
-	if (adv7511->info->has_dsi) {
-		ret = adv7533_attach_dsi(adv7511);
-		if (ret)
-			goto err_unregister_audio;
+			goto err_unregister_cec;
 	}
 
 	return 0;
 
-err_unregister_audio:
-	drm_bridge_remove(&adv7511->bridge);
+err_unregister_cec:
 	i2c_unregister_device(adv7511->i2c_cec);
 	clk_disable_unprepare(adv7511->cec_clk);
 err_i2c_unregister_packet:
@@ -1386,6 +1425,42 @@ uninit_regulators:
 	adv7511_uninit_regulators(adv7511);
 err_of_node_put:
 	of_node_put(adv7511->host_node);
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	if (endpoint) {
+		remote_node = of_graph_get_remote_port_parent(endpoint);
+		of_node_put(endpoint);
+	}
+
+	if (!remote_node)
+		return ret;
+
+	/* Find remote's endpoint connected to us and detach it */
+	endpoint = NULL;
+	while ((endpoint = of_graph_get_next_endpoint(remote_node,
+						      endpoint))) {
+		struct device_node *us;
+
+		us = of_graph_get_remote_port_parent(endpoint);
+		if (us == dev->of_node)
+			break;
+	}
+	of_node_put(remote_node);
+
+	if (!endpoint)
+		return ret;
+
+	of_changeset_init(&ocs);
+	of_changeset_detach_node(&ocs, endpoint);
+	ret = of_changeset_apply(&ocs);
+	if (!ret)
+		dev_warn(dev,
+			 "Probe failed. Remote port '%s' disabled\n",
+			 remote_node->full_name);
+#endif
 
 	return ret;
 }
