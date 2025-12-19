@@ -402,6 +402,12 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
+config GPIO_IMX_RPMSG
+	tristate "NXP i.MX7ULP RPMSG GPIO support"
+	depends on ARCH_MXC && RPMSG && GPIOLIB
+	help
+	  This driver support i.MX7ULP RPMSG virtual GPIOs.
+
 config GPIO_IMX_SCU
        def_bool y
        depends on IMX_SCU
@@ -1564,6 +1570,15 @@ config GPIO_PMIC_EIC_SPRD
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support Spreadtrum PMIC EIC device.
+
+config GPIO_QIXIS_FPGA
+	tristate "NXP QIXIS FPGA GPIO support"
+	depends on MFD_SIMPLE_MFD_I2C || COMPILE_TEST
+	select GPIO_REGMAP
+	help
+	  This enables support for the GPIOs found in the QIXIS FPGA which is
+	  integrated on some NXP Layerscape boards such as LX2160ARDB and
+	  LS1046AQDS.
 
 config GPIO_RC5T583
 	bool "RICOH RC5T583 GPIO"
