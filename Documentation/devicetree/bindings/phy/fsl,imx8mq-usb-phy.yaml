@@ -27,11 +27,16 @@ properties:
     const: 0
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: PHY configuration clock
+      - description: Alternate PHY reference clock
 
   clock-names:
+    minItems: 1
     items:
       - const: phy
+      - const: alt
 
   power-domains:
     maxItems: 1
@@ -84,6 +89,11 @@ properties:
       Scaling of the voltage defined by fsl,phy-tx-vboost-level-microvolt
     minimum: 0
     maximum: 100
+
+  vbus-power-supply:
+    description:
+      A phandle to the vbus power supply provider, used to to detect the
+      possible BC charger type of it.
 
 required:
   - compatible
