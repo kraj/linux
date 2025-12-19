@@ -890,7 +890,7 @@ static bool check_ext_ctrls(struct v4l2_ext_controls *c, unsigned long ioctl)
 		 * is it allowed for backwards compatibility.
 		 */
 		if (ioctl == VIDIOC_G_CTRL || ioctl == VIDIOC_S_CTRL)
-			return false;
+			return true;
 		break;
 	case V4L2_CTRL_WHICH_DEF_VAL:
 	case V4L2_CTRL_WHICH_MIN_VAL:
@@ -1469,6 +1469,10 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_META_FMT_RK_ISP1_EXT_PARAMS:	descr = "Rockchip ISP1 Ext 3A Params"; break;
 	case V4L2_META_FMT_C3ISP_PARAMS:	descr = "Amlogic C3 ISP Parameters"; break;
 	case V4L2_META_FMT_C3ISP_STATS:		descr = "Amlogic C3 ISP Statistics"; break;
+	case V4L2_META_FMT_NEO_ISP_PARAMS:	descr = "NXP Neo ISP 3A Parameters"; break;
+	case V4L2_META_FMT_NEO_ISP_EXT_PARAMS:	descr = "NXP Neo ISP ext 3A Parameters"; break;
+	case V4L2_META_FMT_NEO_ISP_STATS:	descr = "NXP Neo ISP 3A Statistics"; break;
+	case V4L2_META_FMT_NEO_ISP_EXT_STATS:	descr = "NXP Neo ISP ext 3A Statistics"; break;
 	case V4L2_PIX_FMT_NV12_8L128:	descr = "NV12 (8x128 Linear)"; break;
 	case V4L2_PIX_FMT_NV12M_8L128:	descr = "NV12M (8x128 Linear)"; break;
 	case V4L2_PIX_FMT_NV12_10BE_8L128:	descr = "10-bit NV12 (8x128 Linear, BE)"; break;
@@ -2271,22 +2275,7 @@ static int v4l_s_parm(const struct v4l2_ioctl_ops *ops, struct file *file,
 	struct v4l2_streamparm *p = arg;
 	int ret = check_fmt(file, p->type);
 
-	if (ret)
-		return ret;
-
-	/* Note: extendedmode is never used in drivers */
-	if (V4L2_TYPE_IS_OUTPUT(p->type)) {
-		memset(p->parm.output.reserved, 0,
-		       sizeof(p->parm.output.reserved));
-		p->parm.output.extendedmode = 0;
-		p->parm.output.outputmode &= V4L2_MODE_HIGHQUALITY;
-	} else {
-		memset(p->parm.capture.reserved, 0,
-		       sizeof(p->parm.capture.reserved));
-		p->parm.capture.extendedmode = 0;
-		p->parm.capture.capturemode &= V4L2_MODE_HIGHQUALITY;
-	}
-	return ops->vidioc_s_parm(file, NULL, p);
+	return ret ? ret : ops->vidioc_s_parm(file, NULL, p);
 }
 
 static int v4l_queryctrl(const struct v4l2_ioctl_ops *ops, struct file *file,
@@ -3521,6 +3510,7 @@ out:
 	kfree(mbuf);
 	return err;
 }
+EXPORT_SYMBOL(video_usercopy);
 
 long video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
