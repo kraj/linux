@@ -43,6 +43,9 @@
 #define EDMA_TCD_CSR_ACTIVE		BIT(6)
 #define EDMA_TCD_CSR_DONE		BIT(7)
 
+#define EDMA_CH_MATTR_RCACHE		GENMASK(3, 0)
+#define EDMA_CH_MATTR_WCACHE		GENMASK(7, 4)
+
 #define EDMA_V3_TCD_NBYTES_MLOFF_NBYTES(x) ((x) & GENMASK(9, 0))
 #define EDMA_V3_TCD_NBYTES_MLOFF(x)        (x << 10)
 #define EDMA_V3_TCD_NBYTES_DMLOE           (1 << 30)
@@ -178,7 +181,6 @@ struct fsl_edma_chan {
 	void __iomem			*tcd;
 	void __iomem			*mux_addr;
 	u32				real_count;
-	struct work_struct		issue_worker;
 	struct platform_device		*pdev;
 	struct device			*pd_dev;
 	struct device_link		*pd_dev_link;
@@ -193,6 +195,7 @@ struct fsl_edma_chan {
 	bool				is_rxchan;
 	bool				is_remote;
 	bool				is_multi_fifo;
+	u32				chn_real_count;
 };
 
 struct fsl_edma_desc {
@@ -202,6 +205,11 @@ struct fsl_edma_desc {
 	enum dma_transfer_direction	dirn;
 	unsigned int			n_tcds;
 	struct fsl_edma_sw_tcd		tcd[];
+};
+
+struct fsl_edma3_reg_save {
+	u32 csr;
+	u32 sbr;
 };
 
 #define FSL_EDMA_DRV_HAS_DMACLK		BIT(0)
@@ -225,7 +233,6 @@ struct fsl_edma_desc {
 #define FSL_EDMA_DRV_TCD64		BIT(15)
 /* All channel ERR IRQ share one IRQ line */
 #define FSL_EDMA_DRV_ERRIRQ_SHARE       BIT(16)
-
 
 #define FSL_EDMA_DRV_EDMA3	(FSL_EDMA_DRV_SPLIT_REG |	\
 				 FSL_EDMA_DRV_BUS_8BYTE |	\
@@ -263,8 +270,12 @@ struct fsl_edma_engine {
 	int			txirq;
 	int			txirq_16_31;
 	int			errirq;
+	int                     txirq_count;
+	#define MAX_CHAN_NUM    64
 	bool			big_endian;
+	bool			dma_coherent;
 	struct edma_regs	regs;
+	struct fsl_edma3_reg_save edma_save_regs[MAX_CHAN_NUM];
 	u64			chan_masked;
 	struct fsl_edma_chan	chans[] __counted_by(n_chans);
 };
@@ -490,6 +501,7 @@ int fsl_edma_pause(struct dma_chan *chan);
 int fsl_edma_resume(struct dma_chan *chan);
 int fsl_edma_slave_config(struct dma_chan *chan,
 				 struct dma_slave_config *cfg);
+void fsl_edma_get_realcnt(struct fsl_edma_chan *fsl_chan);
 enum dma_status fsl_edma_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie, struct dma_tx_state *txstate);
 struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
@@ -505,9 +517,11 @@ struct dma_async_tx_descriptor *fsl_edma_prep_memcpy(
 		size_t len, unsigned long flags);
 void fsl_edma_xfer_desc(struct fsl_edma_chan *fsl_chan);
 void fsl_edma_issue_pending(struct dma_chan *chan);
+void fsl_edma_issue_work(struct work_struct *work);
 int fsl_edma_alloc_chan_resources(struct dma_chan *chan);
 void fsl_edma_free_chan_resources(struct dma_chan *chan);
 void fsl_edma_cleanup_vchan(struct dma_device *dmadev);
 void fsl_edma_setup_regs(struct fsl_edma_engine *edma);
+void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan, void *tcd);
 
 #endif /* _FSL_EDMA_COMMON_H_ */

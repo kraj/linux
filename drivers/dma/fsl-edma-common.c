@@ -48,6 +48,12 @@ void fsl_edma_tx_chan_handler(struct fsl_edma_chan *fsl_chan)
 {
 	spin_lock(&fsl_chan->vchan.lock);
 
+	/* Ignore this interrupt since channel has been freeed with power off */
+	if (!fsl_chan->edesc && !fsl_chan->tcd_pool) {
+		spin_unlock(&fsl_chan->vchan.lock);
+		return;
+	}
+
 	if (!fsl_chan->edesc) {
 		/* terminate_all called before */
 		spin_unlock(&fsl_chan->vchan.lock);
@@ -55,6 +61,7 @@ void fsl_edma_tx_chan_handler(struct fsl_edma_chan *fsl_chan)
 	}
 
 	if (!fsl_chan->edesc->iscyclic) {
+		fsl_edma_get_realcnt(fsl_chan);
 		list_del(&fsl_chan->edesc->vdesc.node);
 		vchan_cookie_complete(&fsl_chan->edesc->vdesc);
 		fsl_chan->edesc = NULL;
@@ -126,7 +133,7 @@ static void fsl_edma3_disable_request(struct fsl_edma_chan *fsl_chan)
 
 	flags = fsl_edma_drvflags(fsl_chan);
 
-	if (flags & FSL_EDMA_DRV_HAS_CHMUX)
+	if (fsl_chan->srcid && (flags & FSL_EDMA_DRV_HAS_CHMUX))
 		edma_writel(fsl_chan->edma, 0, fsl_chan->mux_addr);
 
 	val &= ~EDMA_V3_CH_CSR_ERQ;
@@ -141,7 +148,7 @@ void fsl_edma_disable_request(struct fsl_edma_chan *fsl_chan)
 	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_SPLIT_REG)
 		return fsl_edma3_disable_request(fsl_chan);
 
-	if (fsl_chan->edma->drvdata->flags & FSL_EDMA_DRV_WRAP_IO) {
+	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_WRAP_IO) {
 		edma_writeb(fsl_chan->edma, ch, regs->cerq);
 		edma_writeb(fsl_chan->edma, EDMA_CEEI_CEEI(ch), regs->ceei);
 	} else {
@@ -219,6 +226,7 @@ static unsigned int fsl_edma_get_tcd_attr(enum dma_slave_buswidth addr_width)
 
 void fsl_edma_free_desc(struct virt_dma_desc *vdesc)
 {
+	struct virt_dma_chan *vc = to_virt_chan(vdesc->tx.chan);
 	struct fsl_edma_desc *fsl_desc;
 	int i;
 
@@ -226,6 +234,8 @@ void fsl_edma_free_desc(struct virt_dma_desc *vdesc)
 	for (i = 0; i < fsl_desc->n_tcds; i++)
 		dma_pool_free(fsl_desc->echan->tcd_pool, fsl_desc->tcd[i].vtcd,
 			      fsl_desc->tcd[i].ptcd);
+	if (vc->cyclic == vdesc)
+		vc->cyclic = NULL;
 	kfree(fsl_desc);
 }
 
@@ -242,9 +252,6 @@ int fsl_edma_terminate_all(struct dma_chan *chan)
 	vchan_get_all_descriptors(&fsl_chan->vchan, &head);
 	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 	vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
-
-	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_PD)
-		pm_runtime_allow(fsl_chan->pd_dev);
 
 	return 0;
 }
@@ -392,6 +399,11 @@ static size_t fsl_edma_desc_residue(struct fsl_edma_chan *fsl_chan,
 	return len;
 }
 
+void fsl_edma_get_realcnt(struct fsl_edma_chan *fsl_chan)
+{
+	fsl_chan->chn_real_count = fsl_edma_desc_residue(fsl_chan, NULL, true);
+}
+
 enum dma_status fsl_edma_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
@@ -401,8 +413,12 @@ enum dma_status fsl_edma_tx_status(struct dma_chan *chan,
 	unsigned long flags;
 
 	status = dma_cookie_status(chan, cookie, txstate);
-	if (status == DMA_COMPLETE)
+	if (status == DMA_COMPLETE) {
+		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+		txstate->residue = fsl_chan->chn_real_count;
+		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 		return status;
+	}
 
 	if (!txstate)
 		return fsl_chan->status;
@@ -423,7 +439,7 @@ enum dma_status fsl_edma_tx_status(struct dma_chan *chan,
 	return fsl_chan->status;
 }
 
-static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan, void *tcd)
+void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan, void *tcd)
 {
 	u16 csr = 0;
 
@@ -766,6 +782,8 @@ struct dma_async_tx_descriptor *fsl_edma_prep_memcpy(struct dma_chan *chan,
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
 	struct fsl_edma_desc *fsl_desc;
+	u32 bus_width = fsl_chan->edma->dma_coherent ?
+			DMA_SLAVE_BUSWIDTH_64_BYTES : DMA_SLAVE_BUSWIDTH_32_BYTES;
 
 	fsl_desc = fsl_edma_alloc_desc(fsl_chan, 1);
 	if (!fsl_desc)
@@ -778,8 +796,8 @@ struct dma_async_tx_descriptor *fsl_edma_prep_memcpy(struct dma_chan *chan,
 
 	/* To match with copy_align and max_seg_size so 1 tcd is enough */
 	fsl_edma_fill_tcd(fsl_chan, fsl_desc->tcd[0].vtcd, dma_src, dma_dst,
-			fsl_edma_get_tcd_attr(DMA_SLAVE_BUSWIDTH_32_BYTES),
-			32, len, 0, 1, 1, 32, 0, true, true, false);
+			  fsl_edma_get_tcd_attr(bus_width), bus_width, len,
+			  0, 1, 1, bus_width, 0, true, true, false);
 
 	return vchan_tx_prep(&fsl_chan->vchan, &fsl_desc->vdesc, flags);
 }
@@ -816,6 +834,7 @@ void fsl_edma_issue_pending(struct dma_chan *chan)
 		fsl_edma_xfer_desc(fsl_chan);
 
 	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+
 }
 
 int fsl_edma_alloc_chan_resources(struct dma_chan *chan)
@@ -825,6 +844,15 @@ int fsl_edma_alloc_chan_resources(struct dma_chan *chan)
 
 	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_CHCLK)
 		clk_prepare_enable(fsl_chan->clk);
+
+	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_PD)
+		pm_runtime_get_sync(fsl_chan->pd_dev);
+
+	/* Configuring the write-allocate, read-allocate, cacheable and bufferable
+	 * can improve data transmission performance.
+	 */
+	if (fsl_chan->edma->dma_coherent)
+		edma_writel_chreg(fsl_chan, EDMA_CH_MATTR_RCACHE | EDMA_CH_MATTR_WCACHE, ch_mattr);
 
 	fsl_chan->tcd_pool = dma_pool_create("tcd_pool", chan->device->dev,
 				fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_TCD64 ?
@@ -852,6 +880,8 @@ err_errirq:
 		free_irq(fsl_chan->txirq, fsl_chan);
 err_txirq:
 	dma_pool_destroy(fsl_chan->tcd_pool);
+	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_PD)
+		pm_runtime_put_sync_suspend(fsl_chan->pd_dev);
 
 	return ret;
 }
@@ -885,6 +915,9 @@ void fsl_edma_free_chan_resources(struct dma_chan *chan)
 	fsl_chan->is_remote = false;
 	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_CHCLK)
 		clk_disable_unprepare(fsl_chan->clk);
+
+	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_PD)
+		pm_runtime_put_sync_suspend(fsl_chan->pd_dev);
 }
 
 void fsl_edma_cleanup_vchan(struct dma_device *dmadev)
