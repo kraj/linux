@@ -244,7 +244,20 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-dhcom-pdk2.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-dhcom-pdk3.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-dhcom-picoitx.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-edm-g-wb.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk.dtb imx8mp-evk-rm67191.dtb imx8mp-evk-it6263-lvds-dual-channel.dtb \
+			  imx8mp-evk-rpmsg.dtb imx8mp-evk-ecspi-slave.dtb \
+			  imx8mp-evk-jdi-wuxga-lvds-panel.dtb imx8mp-evk-flexcan2.dtb \
+			  imx8mp-evk-root.dtb imx8mp-evk-inmate.dtb imx8mp-evk-ov2775.dtb \
+			  imx8mp-evk-ov2775-ov5640.dtb imx8mp-evk-basler-ov5640.dtb imx8mp-evk-basler.dtb \
+			  imx8mp-evk-basler-ov2775.dtb imx8mp-evk-dual-basler.dtb \
+			  imx8mp-evk-dual-ov2775.dtb imx8mp-evk-spdif-lb.dtb imx8mp-evk-dsp.dtb \
+			  imx8mp-evk-sof-wm8960.dtb imx8mp-evk-sof-pdm.dtb \
+			  imx8mp-evk-os08a20-ov5640.dtb imx8mp-evk-os08a20.dtb \
+			  imx8mp-evk-dual-os08a20.dtb \
+			  imx8mp-evk-iqaudio-dacplus.dtb imx8mp-evk-iqaudio-dacpro.dtb imx8mp-evk-hifiberry-dacplus.dtb \
+			  imx8mp-evk-hifiberry-dac2.dtb imx8mp-evk-hifiberry-dacplusadc.dtb \
+			  imx8mp-evk-pciewifi.dtb imx8mp-evk-rm67199.dtb  imx8mp-evk-rm692c9.dtb \
+			  imx8mp-evk-dpdk.dtb imx8mp-evk-8mic-swpdm.dtb imx8mp-evk-revA3-8mic-revE.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-hummingboard-mate.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-hummingboard-pro.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-hummingboard-pulse.dtb
@@ -286,6 +299,10 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-tx8p-ml81-moduline-display-106-av123z7m-n17.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-ultra-mach-sbc.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-var-som-symphony.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-ab2.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-navq.dtb imx8mp-navq-ov5640-ov5645.dtb imx8mp-navq-ov5647-ov5640.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-ddr4-evk.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-ndm.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-venice-gw71xx-2x.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-venice-gw72xx-2x.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-venice-gw73xx-2x.dtb
@@ -303,17 +320,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-verdin-wifi-ivy.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-verdin-wifi-mallow.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-verdin-wifi-yavia.dtb
 
-imx8mp-evk-lvds0-imx-dlvds-hdmi-channel0-dtbs += imx8mp-evk.dtb imx8mp-evk-lvds0-imx-dlvds-hdmi-channel0.dtbo
-imx8mp-evk-lvds0-imx-lvds-hdmi-dtbs += imx8mp-evk.dtb imx8mp-evk-lvds0-imx-lvds-hdmi.dtbo
-imx8mp-evk-lvds1-imx-dlvds-hdmi-channel0-dtbs += imx8mp-evk.dtb imx8mp-evk-lvds1-imx-dlvds-hdmi-channel0.dtbo
-imx8mp-evk-lvds1-imx-lvds-hdmi-dtbs += imx8mp-evk.dtb imx8mp-evk-lvds1-imx-lvds-hdmi.dtbo
-imx8mp-evk-mx8-dlvds-lcd1-dtbs += imx8mp-evk.dtb imx8mp-evk-mx8-dlvds-lcd1.dtbo
 imx8mp-evk-pcie-ep-dtbs += imx8mp-evk.dtb imx-pcie0-ep.dtbo
-dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-lvds0-imx-dlvds-hdmi-channel0.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-lvds0-imx-lvds-hdmi.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-lvds1-imx-dlvds-hdmi-channel0.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-lvds1-imx-lvds-hdmi.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-mx8-dlvds-lcd1.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-pcie-ep.dtb
 
 imx8mp-tqma8mpql-mba8mpxl-lvds-tm070jvhg33-dtbs += imx8mp-tqma8mpql-mba8mpxl.dtb imx8mp-tqma8mpql-mba8mpxl-lvds-tm070jvhg33.dtbo
@@ -326,6 +333,84 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-tqma8mpql-mba8mpxl-lvds-tm070jvhg33.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-tqma8mpql-mba8mp-ras314-imx219.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-tqma8mpql-mba8mp-ras314-lvds-tm070jvhg33.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-tqma8mpql-mba8mp-ras314-lvds-tm070jvhg33-imx219.dtb
+
+imx8mp-evk-revb4-dtbs := imx8mp-evk.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-rm67191-dtbs := imx8mp-evk-rm67191.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-it6263-lvds-dual-channel-dtbs := imx8mp-evk-it6263-lvds-dual-channel.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-pcie-ep-dtbs := imx8mp-evk-pcie-ep.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-ecspi-slave-dtbs := imx8mp-evk-ecspi-slave.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-jdi-wuxga-lvds-panel-dtbs := imx8mp-evk-jdi-wuxga-lvds-panel.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-flexcan2-dtbs := imx8mp-evk-flexcan2.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-root-dtbs := imx8mp-evk-root.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-ov2775-dtbs := imx8mp-evk-ov2775.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-ov2775-ov5640-dtbs := imx8mp-evk-ov2775-ov5640.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-basler-ov5640-dtbs := imx8mp-evk-basler-ov5640.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-basler-dtbs := imx8mp-evk-basler.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-basler-ov2775-dtbs := imx8mp-evk-basler-ov2775.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-dual-basler-dtbs := imx8mp-evk-dual-basler.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-dual-ov2775-dtbs := imx8mp-evk-dual-ov2775.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-spdif-lb-dtbs := imx8mp-evk-spdif-lb.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-os08a20-ov5640-dtbs := imx8mp-evk-os08a20-ov5640.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-os08a20-dtbs := imx8mp-evk-os08a20.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-dual-os08a20-dtbs := imx8mp-evk-dual-os08a20.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-iqaudio-dacplus-dtbs := imx8mp-evk-iqaudio-dacplus.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-iqaudio-dacpro-dtbs := imx8mp-evk-iqaudio-dacpro.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-hifiberry-dacplus-dtbs := imx8mp-evk-hifiberry-dacplus.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-hifiberry-dac2-dtbs := imx8mp-evk-hifiberry-dac2.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-hifiberry-dacplusadc-dtbs := imx8mp-evk-hifiberry-dacplusadc.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-pciewifi-dtbs := imx8mp-evk-pciewifi.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-rm67199-dtbs := imx8mp-evk-rm67199.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-dpdk-dtbs := imx8mp-evk-dpdk.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-8mic-swpdm-dtbs := imx8mp-evk-8mic-swpdm.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-8mic-revE-dtbs := imx8mp-evk-revA3-8mic-revE.dtb imx8mp-evk-revb4.dtbo
+imx8mp-ddr4-evk-revb4-dtbs := imx8mp-ddr4-evk.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-ndm-dtbs := imx8mp-evk-ndm.dtb imx8mp-evk-revb4.dtbo
+imx8mp-evk-revb4-rm692c9-dtbs := imx8mp-evk-rm692c9.dtb imx8mp-evk-revb4.dtbo
+
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rm67191.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-it6263-lvds-dual-channel.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-pcie-ep.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-ecspi-slave.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-jdi-wuxga-lvds-panel.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-flexcan2.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-root.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-ov2775.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-ov2775-ov5640.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-basler-ov5640.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-basler.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-basler-ov2775.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-dual-basler.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-dual-ov2775.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-spdif-lb.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-os08a20-ov5640.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-os08a20.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-dual-os08a20.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-iqaudio-dacplus.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-iqaudio-dacpro.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-hifiberry-dacplus.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-hifiberry-dac2.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-hifiberry-dacplusadc.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-pciewifi.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rm67199.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-dpdk.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-8mic-swpdm.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-8mic-revE.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-ddr4-evk-revb4.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-ndm.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-sof-wm8962.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rpmsg.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk-revb4-rm692c9.dtb
+
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-ap1302-dual.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-boe-wuxga-lvds0-panel.dtb imx8mp-frdm-boe-wuxga-lvds1-panel.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-os08a20.dtb imx8mp-frdm-os08a20-dual.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-rpmsg.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-8mic-revE.dtb
+
+imx8mp-frdm-waveshare-7inch-c-panel-dtbs := imx8mp-frdm.dtb imx8mp-frdm-waveshare-7inch-c-panel.dtbo
+dtb-${CONFIG_ARCH_MXC} += imx8mp-frdm-waveshare-7inch-c-panel.dtb
 
 imx8mq-evk-pcie1-ep-dtbs += imx8mq-evk.dtb imx-pcie1-ep.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx8mq-evk-pcie1-ep.dtb
