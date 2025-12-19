@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
-/* Copyright 2019 NXP */
+/* Copyright 2019, 2024 NXP */
 #ifndef DPAA2_MAC_H
 #define DPAA2_MAC_H
 
@@ -7,9 +7,14 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/phylink.h>
-
 #include "dpmac.h"
 #include "dpmac-cmd.h"
+
+struct dpaa2_mac_stats {
+	u32 *idx_dma_mem;
+	u64 *values_dma_mem;
+	dma_addr_t idx_iova, values_iova;
+};
 
 struct dpaa2_mac {
 	struct fsl_mc_device *mc_dev;
@@ -22,6 +27,7 @@ struct dpaa2_mac {
 
 	struct phylink_config phylink_config;
 	struct phylink *phylink;
+	struct ethtool_link_ksettings kset;
 	phy_interface_t if_mode;
 	enum dpmac_link_type if_link_type;
 	struct phylink_pcs *pcs;
@@ -30,6 +36,11 @@ struct dpaa2_mac {
 	struct phy **phys;
 	size_t num_phys;
 	size_t num_lanes;
+
+	int phy_req_state;
+
+	struct dpaa2_mac_stats ethtool_stats;
+	struct dpaa2_mac_stats rmon_stats;
 };
 
 static inline bool dpaa2_mac_is_type_phy(struct dpaa2_mac *mac)
@@ -55,8 +66,15 @@ void dpaa2_mac_get_strings(u8 **data);
 
 void dpaa2_mac_get_ethtool_stats(struct dpaa2_mac *mac, u64 *data);
 
+void dpaa2_mac_get_rmon_stats(struct dpaa2_mac *mac, struct ethtool_rmon_stats *s,
+			      const struct ethtool_rmon_hist_range **ranges);
+
 void dpaa2_mac_start(struct dpaa2_mac *mac);
 
 void dpaa2_mac_stop(struct dpaa2_mac *mac);
+
+void dpaa2_mac_driver_attach(struct fsl_mc_device *dpmac_dev);
+
+void dpaa2_mac_driver_detach(struct fsl_mc_device *dpmac_dev);
 
 #endif /* DPAA2_MAC_H */
