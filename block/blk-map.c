@@ -651,6 +651,12 @@ int blk_rq_unmap_user(struct bio *bio)
 }
 EXPORT_SYMBOL(blk_rq_unmap_user);
 
+#ifdef CONFIG_AHCI_IMX
+extern void *sg_io_buffer_hack;
+#else
+#define sg_io_buffer_hack NULL
+#endif
+
 /**
  * blk_rq_map_kern - map kernel data to a request, for passthrough requests
  * @rq:		request to fill
@@ -675,7 +681,11 @@ int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 	if (!len || !kbuf)
 		return -EINVAL;
 
+#ifdef CONFIG_AHCI_IMX
+	if ((kbuf != sg_io_buffer_hack) && (!blk_rq_aligned(rq->q, addr, len) || object_is_on_stack(kbuf)))
+#else
 	if (!blk_rq_aligned(rq->q, addr, len) || object_is_on_stack(kbuf))
+#endif
 		bio = bio_copy_kern(kbuf, len, req_op(rq), gfp_mask);
 	else
 		bio = bio_map_kern(kbuf, len, req_op(rq), gfp_mask);
