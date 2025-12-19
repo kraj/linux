@@ -24,7 +24,7 @@
 		stdout-path = &lpuart0;
 	};
 
-	imx8dxl-cm4 {
+	imx8dxl_cm4: imx8dxl-cm4 {
 		compatible = "fsl,imx8qxp-cm4";
 		clocks = <&clk_dummy>;
 		mbox-names = "tx", "rx", "rxdb";
@@ -56,6 +56,14 @@
 		 * };
 		 */
 
+/*
+ *		Memory reserved for optee usage. Please do not use.
+ *		This will be automaticky added to dtb if OP-TEE is installed.
+ *		optee@96000000 {
+ *   			reg = <0 0x96000000 0 0x2000000>;
+ *			no-map;
+ *		};
+ */
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -65,27 +73,27 @@
 			linux,cma-default;
 		};
 
-		vdev0vring0: memory0@90000000 {
+		vdev0vring0: vdev0vring00@90000000 {
 			reg = <0 0x90000000 0 0x8000>;
 			no-map;
 		};
 
-		vdev0vring1: memory@90008000 {
+		vdev0vring1: vdev0vring1@90008000 {
 			reg = <0 0x90008000 0 0x8000>;
 			no-map;
 		};
 
-		vdev1vring0: memory@90010000 {
+		vdev1vring0: vdev1vring0@90010000 {
 			reg = <0 0x90010000 0 0x8000>;
 			no-map;
 		};
 
-		vdev1vring1: memory@90018000 {
+		vdev1vring1: vdev1vring1@90018000 {
 			reg = <0 0x90018000 0 0x8000>;
 			no-map;
 		};
 
-		rsc_table: memory-rsc-table@900ff000 {
+		rsc_table: rsc-table@900ff000 {
 			reg = <0 0x900ff000 0 0x1000>;
 			no-map;
 		};
@@ -97,12 +105,29 @@
 		};
 	};
 
+	enet0_reset: enet0-reset {
+		compatible = "gpio-reset";
+		reset-gpios = <&pca6416_1 0 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <10000>;
+		#reset-cells = <0>;
+	};
+
 	m2_uart1_sel: regulator-m2uart1sel {
 		compatible = "regulator-fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "m2_uart1_sel";
 		gpio = <&pca6416_1 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	m2_spi0_sel: fixedregulator-102 {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "m2_spi0_sel";
+		gpio = <&pca6416_1 8 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
 	};
@@ -116,12 +141,23 @@
 		regulator-always-on;
 	};
 
+	pcie_clk_sel_ext: clk-sel-regulator {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "clk_ext_sel";
+		gpio = <&pca6416_1 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
 	reg_fec1_sel: regulator-1 {
 		compatible = "regulator-fixed";
 		regulator-name = "fec1_supply";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&pca6416_1 11 GPIO_ACTIVE_LOW>;
+		gpio = <&pca6416_1 11 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 		regulator-always-on;
 		status = "disabled";
 	};
@@ -271,6 +307,7 @@
 				"Ext Spk", "SPK_RN",
 				"LINPUT1", "Mic Jack",
 				"Mic Jack", "MICB";
+		capture-only;
 	};
 
 	sound-wm8960-3 {
@@ -286,6 +323,7 @@
 				"Ext Spk", "SPK_RN",
 				"LINPUT1", "Mic Jack",
 				"Mic Jack", "MICB";
+		capture-only;
 	};
 };
 
@@ -316,7 +354,6 @@
 		ethphy0: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
-			eee-broken-1000t;
 			qca,disable-smarteee;
 			qca,disable-hibernation-mode;
 			reset-gpios = <&pca6416_1 2 GPIO_ACTIVE_LOW>;
@@ -355,8 +392,6 @@
 		ethphy1: ethernet-phy@1 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <1>;
-			reset-gpios = <&pca6416_1 0 GPIO_ACTIVE_LOW>;
-			reset-assert-us = <10000>;
 			qca,disable-smarteee;
 			vddio-supply = <&vddio1>;
 
@@ -422,6 +457,7 @@
 				reg = <0x68>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				resets = <&enet0_reset>;
 				status = "disabled";
 			};
 		};
@@ -444,6 +480,7 @@
 						       <49152000>,
 						       <12288000>,
 						       <12288000>;
+				pinctrl-assert-gpios = <&pca6416_1 4 GPIO_ACTIVE_HIGH>;
 				wlf,shared-lrclk;
 				wlf,hp-cfg = <2 2 3>;
 				wlf,gpio-cfg = <1 3>;
@@ -473,6 +510,7 @@
 						       <49152000>,
 						       <12288000>,
 						       <12288000>;
+				pinctrl-assert-gpios = <&pca6416_1 4 GPIO_ACTIVE_HIGH>;
 				wlf,shared-lrclk;
 				wlf,hp-cfg = <2 2 3>;
 				wlf,gpio-cfg = <1 3>;
@@ -502,6 +540,7 @@
 						       <49152000>,
 						       <12288000>,
 						       <12288000>;
+				pinctrl-assert-gpios = <&pca6416_1 4 GPIO_ACTIVE_HIGH>;
 				wlf,shared-lrclk;
 				wlf,hp-cfg = <2 2 3>;
 				wlf,gpio-cfg = <1 3>;
@@ -598,6 +637,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart1>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+	};
 };
 
 &lsio_mu5 {
@@ -643,12 +686,14 @@
 };
 
 &pcie0 {
+	clkreq-gpio = <&lsio_gpio4 1 GPIO_ACTIVE_LOW>;
 	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
 	phy-names = "pcie-phy";
 	pinctrl-0 = <&pinctrl_pcieb>;
 	pinctrl-names = "default";
 	reset-gpio = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_pcieb>;
+	vpcie3v3aux-supply = <&reg_pcieb>;
 	status = "okay";
 };
 
@@ -775,8 +820,10 @@
 };
 
 &usdhc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1>;
+	pinctrl-2 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
 	no-sd;
 	no-sdio;
@@ -785,12 +832,15 @@
 };
 
 &usdhc2 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
+	pinctrl-1 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
+	pinctrl-2 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
 	bus-width = <4>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	cd-gpios = <&lsio_gpio5 1 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&lsio_gpio5 0 GPIO_ACTIVE_HIGH>;
+	max-frequency = <100000000>;
 	status = "okay";
 };
 
@@ -799,6 +849,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpspi3>;
 	status = "okay";
+
+	spidev0: spi@0 {
+		reg = <0>;
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <30000000>;
+	};
 };
 
 &iomuxc {

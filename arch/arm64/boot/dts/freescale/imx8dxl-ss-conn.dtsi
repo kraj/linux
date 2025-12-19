@@ -7,6 +7,7 @@
 /delete-node/ &fec2;
 /delete-node/ &usbotg3;
 /delete-node/ &usb3_phy;
+/delete-node/ &usb3_lpcg;
 
 / {
 	conn_enet0_root_clk: clock-conn-enet0-root {
@@ -41,6 +42,7 @@
 		assigned-clocks = <&clk IMX_SC_R_ENET_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <125000000>;
 		power-domains = <&pd IMX_SC_R_ENET_1>;
+		snps,clk-csr = <0>;
 		status = "disabled";
 	};
 
