@@ -8,6 +8,10 @@
 #include <dt-bindings/usb/pd.h>
 #include "imx93.dtsi"
 
+&ele_fw2 {
+	memory-region = <&ele_reserved>;
+};
+
 / {
 	model = "NXP i.MX93 11X11 EVK board";
 	compatible = "fsl,imx93-11x11-evk", "fsl,imx93";
@@ -18,21 +22,45 @@
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
+		gpio3 = &gpio4;
 		i2c0 = &lpi2c1;
 		i2c1 = &lpi2c2;
 		i2c2 = &lpi2c3;
+		i2c3 = &lpi2c4;
+		i2c4 = &lpi2c5;
+		i2c5 = &lpi2c6;
+		i2c6 = &lpi2c7;
+		i2c7 = &lpi2c8;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
+		mmc2 = &usdhc3;
 		rtc0 = &bbnsm_rtc;
 		serial0 = &lpuart1;
 		serial1 = &lpuart2;
 		serial2 = &lpuart3;
 		serial3 = &lpuart4;
 		serial4 = &lpuart5;
+		serial5 = &lpuart6;
+		serial6 = &lpuart7;
+		serial7 = &lpuart8;
+		spi0 = &lpspi1;
+		spi1 = &lpspi2;
+		spi2 = &lpspi3;
+		spi3 = &lpspi4;
+		spi4 = &lpspi5;
+		spi5 = &lpspi6;
+		spi6 = &lpspi7;
+		spi7 = &lpspi8;
 	};
 
 	chosen {
 		stdout-path = &lpuart1;
+	};
+
+	dmic: dmic {
+		compatible = "dmic-codec";
+		#sound-dai-cells = <0>;
+		num-channels = <4>;
 	};
 
 	reserved-memory {
@@ -46,6 +74,12 @@
 			alloc-ranges = <0 0x80000000 0 0x40000000>;
 			size = <0 0x10000000>;
 			linux,cma-default;
+		};
+
+		ethosu_mem: ethosu_region@C0000000 {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 0xC0000000 0x0 0x10000000>;
 		};
 
 		vdev0vring0: vdev0vring0@a4000000 {
@@ -79,6 +113,18 @@
 			no-map;
 		};
 
+		ele_reserved: ele-reserved@a4120000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa4120000 0 0x100000>;
+			no-map;
+		};
+	};
+
+	ethosu {
+		compatible = "arm,ethosu";
+		fsl,cm33-proc = <&cm33>;
+		memory-region = <&ethosu_mem>;
+		power-domains = <&mlmix>;
 	};
 
 	reg_vdd_12v: regulator-vdd-12v {
@@ -120,6 +166,42 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&pcal6524 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_dvdd_1v2: regulator-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "DVDD_1V2";
+		gpio = <&adp5585_isp 7 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		enable-active-high;
+	};
+
+	reg_vddio_1v8: regulator-vddo {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_1V8";
+		gpio = <&adp5585_isp 6 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+	};
+
+	reg_avdd_2v8: regulator-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD_2V8";
+		gpio = <&adp5585_isp 8 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+	};
+
+	reg_hmisc_vddio: regulator-hmisc-vddio {
+		compatible = "regulator-fixed";
+		regulator-name = "HMISC_VDDIO_1V8";
+		gpio = <&adp5585_isp 10 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 		enable-active-high;
 	};
 
@@ -203,6 +285,10 @@
 			cpu {
 				sound-dai = <&micfil>;
 			};
+
+			codec {
+				sound-dai = <&dmic>;
+			};
 		};
 	};
 
@@ -248,7 +334,26 @@
 		 <&mu1 3 1>;
 	memory-region = <&vdevbuffer>, <&vdev0vring0>, <&vdev0vring1>,
 			<&vdev1vring0>, <&vdev1vring1>, <&rsc_table>;
+	fsl,startup-delay-ms = <500>;
 	status = "okay";
+};
+
+&dphy {
+	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dsi_to_adv7535: endpoint {
+				remote-endpoint = <&adv7535_to_dsi>;
+			};
+		};
+	};
 };
 
 &eqos {
@@ -300,12 +405,27 @@
 };
 
 &flexcan2 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_flexcan2>;
+	pinctrl-1 = <&pinctrl_flexcan2_sleep>;
 	xceiver-supply = <&reg_can2_standby>;
 	status = "okay";
 };
 
+&lcdif {
+	status = "okay";
+	assigned-clock-rates = <445333333>, <148444444>, <400000000>, <133333333>;
+};
+
+&lpm {
+	soc-supply = <&buck1>;
+	status = "okay";
+};
+
+/*
+ * When add, delete or change any target device setting in &lpi2c1,
+ * please synchronize the changes to the &i3c1 bus in imx93-11x11-evk-i3c.dts.
+ */
 &lpi2c1 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
@@ -334,6 +454,20 @@
 		>;
 	};
 
+	adv7535: hdmi@3d {
+		compatible = "adi,adv7535";
+		reg = <0x3d>;
+		adi,addr-cec = <0x3b>;
+		adi,dsi-lanes = <4>;
+		status = "okay";
+
+		port {
+			adv7535_to_dsi: endpoint {
+				remote-endpoint = <&dsi_to_adv7535>;
+			};
+		};
+	};
+
 	inertial-meter@6a {
 		compatible = "st,lsm6dso";
 		reg = <0x6a>;
@@ -357,6 +491,12 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+
+		m2-pcm-level-shifter-hog {
+			gpio-hog;
+			gpios = <19 GPIO_ACTIVE_HIGH>;
+			output-high;
+		};
 	};
 
 	pmic@25 {
@@ -459,6 +599,57 @@
 		#pwm-cells = <3>;
 	};
 
+	ap1302: ap1302_mipi@3c {
+		compatible = "onnn,ap1302";
+		reg = <0x3c>;
+		clocks = <&clk IMX93_CLK_24M>;
+		reset-gpios   = <&adp5585 0 GPIO_ACTIVE_LOW>;
+		isp_en-gpios  = <&adp5585_isp 2 GPIO_ACTIVE_HIGH>;
+		orientation = <2>;
+		rotation = <0>;
+		DVDD-supply   = <&reg_dvdd_1v2>;
+		VDDIO_HMISC-supply  = <&reg_hmisc_vddio>;
+		VDDIO_SMISC-supply   = <&reg_hmisc_vddio>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+			};
+
+			port@1 {
+				reg = <1>;
+			};
+
+			port@2 {
+				reg = <2>;
+
+				isp_out: endpoint {
+					remote-endpoint = <&mipi_csi_in>;
+					data-lanes = <1 2>;
+				};
+			};
+		};
+
+		sensors {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			onnn,model = "onnn,ar0144";
+
+			sensor@0 {
+				reg = <0>;
+
+				vdd-supply = <&reg_dvdd_1v2>;
+				vddio-supply = <&reg_vddio_1v8>;
+				vaa-supply = <&reg_avdd_2v8>;
+			};
+		};
+	};
+
 	ptn5110: tcpc@50 {
 		compatible = "nxp,ptn5110", "tcpci";
 		reg = <0x50>;
@@ -549,6 +740,10 @@
 	};
 };
 
+&media_blk_ctrl {
+	status = "okay";
+};
+
 &micfil {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_pdm>;
@@ -631,6 +826,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
+	fsl,tuning-step = <1>;
 	non-removable;
 	status = "okay";
 };
@@ -642,8 +838,10 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_gpio_sleep>;
 	cd-gpios = <&gpio3 00 GPIO_ACTIVE_LOW>;
+	fsl,cd-gpio-wakeup-disable;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	bus-width = <4>;
+	fsl,tuning-step = <1>;
 	status = "okay";
 	no-mmc;
 };
@@ -661,6 +859,13 @@
 	non-removable;
 	wakeup-source;
 	status = "okay";
+
+	wifi_wake_host {
+		compatible = "nxp,wifi-wake-host";
+		interrupt-parent = <&gpio3>;
+		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "host-wake";
+	};
 };
 
 &wdog3 {
@@ -763,6 +968,13 @@
 		fsl,pins = <
 			MX93_PAD_GPIO_IO25__CAN2_TX	0x139e
 			MX93_PAD_GPIO_IO27__CAN2_RX	0x139e
+		>;
+	};
+
+	pinctrl_flexcan2_sleep: flexcan2sleepgrp {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO25__GPIO2_IO25  0x31e
+			MX93_PAD_GPIO_IO27__GPIO2_IO27	0x31e
 		>;
 	};
 
@@ -922,8 +1134,8 @@
 
 	pinctrl_spdif: spdifgrp {
 		fsl,pins = <
-			MX93_PAD_GPIO_IO22__SPDIF_IN		0x31e
-			MX93_PAD_GPIO_IO23__SPDIF_OUT		0x31e
+			MX93_PAD_GPIO_IO22__SPDIF_IN		0x3fe
+			MX93_PAD_GPIO_IO23__SPDIF_OUT		0x3fe
 		>;
 	};
 
@@ -1012,12 +1224,12 @@
 	/* need to config the SION for data and cmd pad, refer to ERR052021 */
 	pinctrl_usdhc3_100mhz: usdhc3-100mhzgrp {
 		fsl,pins = <
-			MX93_PAD_SD3_CLK__USDHC3_CLK		0x158e
-			MX93_PAD_SD3_CMD__USDHC3_CMD		0x4000138e
-			MX93_PAD_SD3_DATA0__USDHC3_DATA0	0x4000138e
-			MX93_PAD_SD3_DATA1__USDHC3_DATA1	0x4000138e
-			MX93_PAD_SD3_DATA2__USDHC3_DATA2	0x4000138e
-			MX93_PAD_SD3_DATA3__USDHC3_DATA3	0x4000138e
+			MX93_PAD_SD3_CLK__USDHC3_CLK		0x15be
+			MX93_PAD_SD3_CMD__USDHC3_CMD		0x400013be
+			MX93_PAD_SD3_DATA0__USDHC3_DATA0	0x400013be
+			MX93_PAD_SD3_DATA1__USDHC3_DATA1	0x400013be
+			MX93_PAD_SD3_DATA2__USDHC3_DATA2	0x400013be
+			MX93_PAD_SD3_DATA3__USDHC3_DATA3	0x400013be
 		>;
 	};
 
@@ -1055,4 +1267,49 @@
 			MX93_PAD_WDOG_ANY__WDOG1_WDOG_ANY	0x31e
 		>;
 	};
+};
+
+&epxp {
+	status = "okay";
+};
+
+&isi {
+	status = "okay";
+
+	port {
+		isi_in: endpoint {
+			remote-endpoint = <&mipi_csi_out>;
+		};
+	};
+};
+
+&mipi_csi {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			mipi_csi_in: endpoint {
+				remote-endpoint = <&isp_out>;
+				data-lanes = <1 2>;
+				clock-lanes = <0>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			mipi_csi_out: endpoint {
+				remote-endpoint = <&isi_in>;
+			};
+		};
+	};
+};
+
+&dphy_rx {
+	status = "okay";
 };

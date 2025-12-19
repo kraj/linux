@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR MIT)
 /*
- * Copyright 2024 NXP
+ * Copyright 2024-2025 NXP
  */
 
 #include <dt-bindings/clock/nxp,imx95-clock.h>
@@ -18,6 +18,33 @@
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+
+	aliases {
+		gpio0 = &gpio1;
+		gpio1 = &gpio2;
+		gpio2 = &gpio3;
+		gpio3 = &gpio4;
+		gpio4 = &gpio5;
+		i2c0 = &lpi2c1;
+		i2c1 = &lpi2c2;
+		i2c2 = &lpi2c3;
+		i2c3 = &lpi2c4;
+		i2c4 = &lpi2c5;
+		i2c5 = &lpi2c6;
+		i2c6 = &lpi2c7;
+		i2c7 = &lpi2c8;
+		mmc0 = &usdhc1;
+		mmc1 = &usdhc2;
+		mmc2 = &usdhc3;
+		serial0 = &lpuart1;
+		serial1 = &lpuart2;
+		serial2 = &lpuart3;
+		serial3 = &lpuart4;
+		serial4 = &lpuart5;
+		serial5 = &lpuart6;
+		serial6 = &lpuart7;
+		serial7 = &lpuart8;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -243,6 +270,11 @@
 		};
 	};
 
+	reg_dummy: reg_dummy {
+		compatible = "regulator-fixed";
+		regulator-name = "reg_dummy";
+	};
+
 	dummy: clock-dummy {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -306,6 +338,25 @@
 		clock-output-names = "osc_24m";
 	};
 
+	ldb_pll_pixel: ldb_pll_div7 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&scmi_clk IMX95_CLK_LDBPLL>;
+		clock-div = <7>;
+		clock-mult = <1>;
+		clock-output-names = "ldb_pll_div7";
+	};
+
+	mqs1: mqs1 {
+		compatible = "fsl,imx95-aonmix-mqs";
+		status = "disabled";
+	};
+
+	mqs2: mqs2 {
+		compatible = "fsl,imx95-netcmix-mqs";
+		status = "disabled";
+	};
+
 	sram1: sram@204c0000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0x204c0000 0x0 0x18000>;
@@ -322,6 +373,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			arm,max-rx-timeout-ms = <5000>;
+
+			max-rx-timeout-ms = <5000>;
 
 			scmi_devpd: protocol@11 {
 				reg = <0x11>;
@@ -379,7 +432,6 @@
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;
 			thermal-sensors = <&scmi_sensor 1>;
-
 			trips {
 				cpu_alert0: trip0 {
 					temperature = <105000>;
@@ -435,7 +487,13 @@
 						<&A55_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&A55_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&A55_4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A55_5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A55_5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&mali  THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&vpuctrl THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+				map1 {
+					trip = <&ana_crit0>;
+					cooling-device = <&mali THERMAL_NO_LIMIT 1>;
 				};
 			};
 		};
@@ -479,11 +537,37 @@
 		};
 	};
 
+	gpu_opp_table: opp_table {
+		compatible = "operating-points-v2", "operating-points-v2-mali";
+
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-hz-real = /bits/ 64 <500000000>;
+			opp-microvolt = <920000>;
+		};
+
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-hz-real = /bits/ 64 <800000000>;
+			opp-microvolt = <920000>;
+		};
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-hz-real = /bits/ 64 <1000000000>;
+			opp-microvolt = <920000>;
+		};
+	};
+
 	usbphynop: usbphynop {
 		compatible = "usb-nop-xceiv";
 		clocks = <&scmi_clk IMX95_CLK_HSIO>;
 		clock-names = "main_clk";
 		#phy-cells = <0>;
+	};
+
+	imx95_soc: imx95-soc {
+		compatible = "fsl,imx95-soc";
 	};
 
 	soc {
@@ -672,7 +756,8 @@
 					     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>; //error irq
 				clocks = <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "dma";
 			};
@@ -745,9 +830,12 @@
 					     <GIC_SPI 286 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 286 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "dma";
+				dma-coherent;
+				iommus = <&smmu 0x0>;
 			};
 
 			mu7: mailbox@42430000 {
@@ -806,7 +894,7 @@
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <3>;
 				#size-cells = <0>;
-				clocks = <&scmi_clk IMX95_CLK_BUSAON>,
+				clocks = <&scmi_clk IMX95_CLK_BUSWAKEUP>,
 					 <&scmi_clk IMX95_CLK_I3C2SLOW>;
 				clock-names = "pclk", "fast_clk";
 				status = "disabled";
@@ -1018,6 +1106,19 @@
 				status = "disabled";
 			};
 
+			flexio_i2c_master: flexio@425c0000 {
+				compatible = "imx,flexio_i2c_master";
+				reg = <0x425c0000 0x10000>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX95_CLK_BUSWAKEUP>,
+					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
+				clock-names = "per", "ipg";
+				assigned-clocks = <&scmi_clk IMX95_CLK_BUSWAKEUP>;
+				assigned-clock-parents = <&scmi_clk IMX95_CLK_BUSWAKEUP>;
+				assigned-clock-rates = <24000000>;
+				status = "disabled";
+			};
+
 			lpuart7: serial@42690000 {
 				compatible = "fsl,imx95-lpuart", "fsl,imx8ulp-lpuart",
 					     "fsl,imx7ulp-lpuart";
@@ -1213,6 +1314,7 @@
 				bus-width = <8>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
+				iommus = <&smmu 0x1>;
 				status = "disabled";
 			};
 
@@ -1230,6 +1332,7 @@
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
+				iommus = <&smmu 0x2>;
 				status = "disabled";
 			};
 
@@ -1247,6 +1350,7 @@
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
+				iommus = <&smmu 0x3>;
 				status = "disabled";
 			};
 		};
@@ -1358,7 +1462,8 @@
 					     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>; //error irq
 				clocks = <&scmi_clk IMX95_CLK_BUSAON>;
 				clock-names = "dma";
 			};
@@ -1604,35 +1709,35 @@
 			};
 		};
 
-		mailbox@47300000 {
+		v2x_mu4: mailbox@47300000 {
 			compatible = "fsl,imx95-mu-v2x";
 			reg = <0x0 0x47300000 0x0 0x10000>;
 			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
 		};
 
-		mailbox@47320000 {
+		v2x_mu6: mailbox@47320000 {
 			compatible = "fsl,imx95-mu-v2x";
 			reg = <0x0 0x47320000 0x0 0x10000>;
 			interrupts = <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
 		};
 
-		mailbox@47330000 {
+		v2x_mu7: mailbox@47330000 {
 			compatible = "fsl,imx95-mu-v2x";
 			reg = <0x0 0x47330000 0x0 0x10000>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
 		};
 
-		mailbox@47340000 {
+		v2x_mu8: mailbox@47340000 {
 			compatible = "fsl,imx95-mu-v2x";
 			reg = <0x0 0x47340000 0x0 0x10000>;
 			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
 		};
 
-		mailbox@47350000 {
+		v2x_mu: mailbox@47350000 {
 			compatible = "fsl,imx95-mu-v2x";
 			reg = <0x0 0x47350000 0x0 0x10000>;
 			interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
@@ -1739,7 +1844,800 @@
 					     <GIC_SPI 326 IRQ_TYPE_EDGE_RISING>;
 				interrupt-names = "eventq", "gerror", "priq", "cmdq-sync";
 				#iommu-cells = <1>;
+			};
+		};
+
+		cameramix_csr: syscon@4ac10000 {
+			compatible = "nxp,imx95-camera-csr", "syscon";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x0 0x4ac10000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+
+			csi_pixel_formatter_0: formatter@20 {
+				compatible = "fsl,imx95-csi-formatter";
+				reg = <0x20 0x100>;
+				clocks = <&cameramix_csr IMX95_CLK_CAMBLK_CSI2_FOR0>;
+				power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
 				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+					};
+
+					port@1 {
+						reg = <1>;
+					};
+				};
+			};
+
+			csi_pixel_formatter_1: formatter@120 {
+				compatible = "fsl,imx95-csi-formatter";
+				reg = <0x120 0x100>;
+				clocks = <&cameramix_csr IMX95_CLK_CAMBLK_CSI2_FOR1>;
+				power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+					};
+
+					port@1 {
+						reg = <1>;
+					};
+				};
+			};
+		};
+
+		cameramix_mu1: mailbox@4ac60000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4ac60000 0x0 0x10000>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu2: mailbox@4ac70000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4ac70000 0x0 0x10000>;
+			interrupts = <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu3: mailbox@4ac80000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4ac80000 0x0 0x10000>;
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu4: mailbox@4ac90000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4ac90000 0x0 0x10000>;
+			interrupts = <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu5: mailbox@4aca0000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4aca0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu6: mailbox@4acb0000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4acb0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 340 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu7: mailbox@4acc0000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4acc0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu8: mailbox@4acd0000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4acd0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		cameramix_mu9: mailbox@4ace0000 {
+			compatible = "fsl,imx95-mu-isp";
+			reg = <0x0 0x4ace0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+		};
+
+		ocram_c_config: syscon@4add0000 {
+			compatible = "fsl,imx95-ocram-config", "syscon";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x0 0x4add0000 0x0 0x10000>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+
+			interrupt-parent = <&gic>;
+			interrupts =
+				<GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		ocram_c: ocram@4af80000 {
+			reg = <0x0 0x4af80000 0x0 0x18000>;
+			no-map;
+		};
+
+		isp_fw_core: remoteproc {
+			compatible = "nxp,imx95-isp-rproc";
+			nxp,blk-ctrl = <&cameramix_csr>;
+			nxp,ocram-cfg = <&ocram_c_config>;
+			nxp,isp-firmware = "imx9xm0p_isp_fw.bin";
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+
+			mba {
+				memory-region = <&ocram_c>;
+				ocram-map = <0x0 0x14000>;
+			};
+		};
+
+		mipi_dsi: dsi@4acf0000 {
+			compatible = "nxp,imx95-mipi-dsi";
+			reg = <0x0 0x4acf0000 0x0 0x10000>;
+			interrupt-parent = <&displaymix_irqsteer>;
+			interrupts = <48>;
+			clocks = <&scmi_clk IMX95_CLK_MIPIPHYCFG>,
+				 <&scmi_clk IMX95_CLK_MIPIPHYPLLBYPASS>,
+				 <&scmi_clk IMX95_CLK_MIPIPHYPLLREF>,
+				 <&scmi_clk IMX95_CLK_CAMAPB>,
+				 <&scmi_clk IMX95_CLK_DISP1PIX>;
+			clock-names = "cfg", "bypass", "ref", "pclk", "pix";
+			assigned-clocks = <&scmi_clk IMX95_CLK_MIPIPHYCFG>,
+					  <&scmi_clk IMX95_CLK_MIPIPHYPLLBYPASS>,
+					  <&scmi_clk IMX95_CLK_MIPIPHYPLLREF>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_24M>,
+						 <&scmi_clk IMX95_CLK_VIDEOPLL1>,
+						 <&scmi_clk IMX95_CLK_24M>;
+			mux-controls = <&mux 0>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			nxp,disp-master-csr = <&display_master_csr>;
+			nxp,disp-stream-csr = <&display_stream_csr>;
+			nxp,mipi-combo-phy-csr = <&mipi_tx_phy_csr>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					mipi_dsi_to_display_pixel_link0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&display_pixel_link0_to_mipi_dsi>;
+					};
+
+					mipi_dsi_to_display_pixel_link1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&display_pixel_link1_to_mipi_dsi>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+				};
+			};
+		};
+
+		display_stream_csr: syscon@4ad00000 {
+			compatible = "nxp,imx95-display-stream-csr", "syscon", "simple-mfd";
+			reg = <0x0 0x4ad00000 0x0 0x10000>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+		};
+
+		display_master_csr: syscon@4ad10000 {
+			compatible = "nxp,imx95-display-master-csr", "syscon";
+			reg = <0x0 0x4ad10000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+
+			mux: mux-controller {
+				compatible = "mmio-mux";
+				#mux-control-cells = <1>;
+				mux-reg-masks = <0x4 0x00000001>; /* Pixel_link_sel */
+				idle-states = <0>;
+			};
+		};
+
+		mipi_dsi_intf: syscon@4acf0000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x0 0x4acf0000 0x0 0x10000>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+			status = "disabled";
+		};
+
+		combo_phy_csr: syscon@4ad20000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x0 0x4ad20000 0x0 0x114>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+
+			dphy_rx: dphy-rx {
+				compatible = "fsl,imx95-dphy-rx";
+				clocks = <&scmi_clk IMX95_CLK_MIPIPHYCFG>;
+				clock-names = "phy_cfg";
+				assigned-clocks = <&scmi_clk IMX95_CLK_MIPIPHYCFG>;
+				assigned-clock-parents = <&scmi_clk IMX95_CLK_24M>;
+				assigned-clock-rate = <24000000>;
+				#phy-cells = <0>;
+				fsl,csis = <&mipi_csi0>;
+				power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+				status = "disabled";
+			};
+
+			combo_rx: combo-rx {
+				compatible = "fsl,imx95-combo-rx";
+				clocks = <&scmi_clk IMX95_CLK_MIPIPHYCFG>;
+				clock-names = "phy_cfg";
+				assigned-clocks = <&scmi_clk IMX95_CLK_MIPIPHYCFG>;
+				assigned-clock-parents = <&scmi_clk IMX95_CLK_24M>;
+				assigned-clock-rate = <24000000>;
+				#phy-cells = <0>;
+				fsl,reg-offset = <0x100>;
+				fsl,csis = <&mipi_csi1>;
+				fsl,dsi = <&mipi_dsi_intf>;
+				power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+				status = "disabled";
+			};
+
+		};
+
+		mipi_tx_phy_csr: syscon@4ad20100 {
+			compatible = "fsl,imx95-mipi-tx-phy-csr", "syscon";
+			reg = <0x0 0x4ad20100 0x0 0x14>;
+			clocks = <&scmi_clk IMX95_CLK_CAMAPB>;
+		};
+
+		mipi_csi0: csi@4ad30000 {
+			compatible = "snps,dw-mipi-csi2", "syscon";
+			reg = <0x0 0x4ad30000 0x0 0x10000>;
+			interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cameramix_csr IMX95_CLK_CAMBLK_CSI2_FOR0>,
+				 <&scmi_clk IMX95_CLK_CAMAPB>;
+			clock-names = "per", "pixel";
+			phys = <&dphy_rx>;
+			phy-names = "dphy-rx";
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+				};
+			};
+		};
+
+		mipi_csi1: csi@4ad40000 {
+			compatible = "snps,dw-mipi-csi2", "syscon";
+			reg = <0x0 0x4ad40000 0x0 0x10000>;
+			interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cameramix_csr IMX95_CLK_CAMBLK_CSI2_FOR1>,
+				 <&scmi_clk IMX95_CLK_CAMAPB>;
+			clock-names = "per", "pixel";
+			phys = <&combo_rx>;
+			phy-names = "dphy-rx";
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+				};
+			};
+		};
+
+		isi: isi@4ad50000 {
+			compatible = "fsl,imx95-isi";
+			reg = <0x0 0x4ad50000 0x0 0x80000>;
+			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_CAMISI>;
+			clock-names = "axi";
+			fsl,blk-ctrl = <&cameramix_csr>;
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+				};
+
+				port@2 {
+					reg = <2>;
+				};
+
+				port@3 {
+					reg = <3>;
+				};
+			};
+		};
+
+		neoisp0: isp@4ae00000 {
+			compatible = "nxp,imx95-b0-neoisp";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			reg = <0x0 0x4ae00000 0x0 0x8000>,
+			      <0x0 0x4afe0000 0x0 0x10000>;
+			reg-names = "registers", "stats";
+			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			clocks = <&cameramix_csr IMX95_CLK_CAMBLK_ISP_AXI>,
+				 <&cameramix_csr IMX95_CLK_CAMBLK_ISP_PIXEL>,
+				 <&cameramix_csr IMX95_CLK_CAMBLK_ISP>;
+			clock-names = "camblk_isp_axi", "camblk_isp_pixel", "camblk_isp";
+			power-domains = <&scmi_devpd IMX95_PD_CAMERA>;
+			nxp,blk-ctrl = <&cameramix_csr>;
+			status = "disabled";
+		};
+
+		dispmix_csr: syscon@4b010000 {
+			compatible = "nxp,imx95-display-csr", "syscon";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x0 0x4b010000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_DISPAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_DISPLAY>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_DISPAXI>,
+					  <&scmi_clk IMX95_CLK_DISPOCRAM>,
+					  <&scmi_clk IMX95_CLK_DISPAPB>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
+			assigned-clock-rates = <400000000>, <400000000>, <133333333>;
+
+			display_pixel_link: bridge@8 {
+				compatible = "nxp,imx95-dc-pixel-link";
+				reg = <0x8 0x4>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						display_pixel_link0_to_pixel_interleaver_disp0: endpoint {
+							remote-endpoint = <&pixel_interleaver_disp0_to_display_pixel_link0>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+
+						display_pixel_link1_to_pixel_interleaver_disp1: endpoint {
+							remote-endpoint = <&pixel_interleaver_disp1_to_display_pixel_link1>;
+						};
+					};
+
+					port@2 {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						reg = <2>;
+
+						display_pixel_link0_to_mipi_dsi: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&mipi_dsi_to_display_pixel_link0>;
+						};
+
+						display_pixel_link0_to_ldb_ch0: endpoint@1 {
+							reg = <1>;
+							remote-endpoint = <&ldb_ch0_to_display_pixel_link0>;
+						};
+					};
+
+					port@3 {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						reg = <3>;
+
+						display_pixel_link1_to_mipi_dsi: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&mipi_dsi_to_display_pixel_link1>;
+						};
+
+						display_pixel_link1_to_ldb_ch1: endpoint@1 {
+							reg = <1>;
+							remote-endpoint = <&ldb_ch1_to_display_pixel_link1>;
+						};
+					};
+				};
+			};
+		};
+
+		displaymix_irqsteer: interrupt-controller@4b0b0000 {
+			compatible = "fsl,imx-irqsteer";
+			reg = <0x0 0x4b0b0000 0x0 0x1000>;
+			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,	/* reserved */
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,	/* reserved */
+				     <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&scmi_devpd IMX95_PD_DISPLAY>;
+			clocks = <&scmi_clk IMX95_CLK_DISPAPB>;
+			clock-names = "ipg";
+			fsl,channel = <0>;
+			fsl,num-irqs = <512>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			status = "disabled";
+		};
+
+		lvds_csr: syscon@4b0c0000 {
+			compatible = "nxp,imx95-lvds-csr", "syscon";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x0 0x4b0c0000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_DISPAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_DISPLAY>;
+
+			ldb: ldb@4 {
+				compatible = "fsl,imx95-ldb";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x4 0x4>;
+				clocks = <&lvds_csr IMX95_CLK_DISPMIX_PIX_DI0_GATE>,
+					 <&lvds_csr IMX95_CLK_DISPMIX_PIX_DI1_GATE>,
+					 <&lvds_csr IMX95_CLK_DISPMIX_LVDS_CH0_GATE>,
+					 <&lvds_csr IMX95_CLK_DISPMIX_LVDS_CH1_GATE>;
+				clock-names = "ldb_di0", "ldb_di1", "ldb_ch0", "ldb_ch1";
+				status = "disabled";
+
+				channel@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+					phys = <&ldb0_phy1>;
+					phy-names = "lvds_phy";
+					status = "disabled";
+
+					port@0 {
+						reg = <0>;
+
+						ldb_ch0_to_display_pixel_link0: endpoint {
+							remote-endpoint = <&display_pixel_link0_to_ldb_ch0>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+					};
+				};
+
+				channel@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					phys = <&ldb1_phy1>;
+					phy-names = "lvds_phy";
+					status = "disabled";
+
+					port@0 {
+						reg = <0>;
+
+						ldb_ch1_to_display_pixel_link1: endpoint {
+							remote-endpoint = <&display_pixel_link1_to_ldb_ch1>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+					};
+				};
+			};
+
+			ldb0_phy: phy@8 {
+				compatible = "fsl,imx95-lvds0-phy";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x8 0x4>;
+				gpr = <&lvds_csr>;
+				clocks = <&scmi_clk IMX95_CLK_DISPAPB>;
+				clock-names = "apb";
+				power-domains = <&scmi_devpd IMX95_PD_DISPLAY>;
+				status = "disabled";
+
+				ldb0_phy1: port@0 {
+					reg = <0>;
+					#phy-cells = <0>;
+				};
+			};
+
+			ldb1_phy: phy@c {
+				compatible = "fsl,imx95-lvds1-phy";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xc 0x4>;
+				gpr = <&lvds_csr>;
+				clocks = <&scmi_clk IMX95_CLK_DISPAPB>;
+				clock-names = "apb";
+				power-domains = <&scmi_devpd IMX95_PD_DISPLAY>;
+				status = "disabled";
+
+				ldb1_phy1: port@0 {
+					reg = <0>;
+					#phy-cells = <0>;
+				};
+			};
+		};
+
+		pixel_interleaver: bridge@4b0d0000 {
+			compatible = "nxp,imx95-pixel-interleaver";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x4b0d0000 0x0 0x20000>;
+			interrupt-parent = <&displaymix_irqsteer>;
+			interrupts = <62>;
+			clocks = <&scmi_clk IMX95_CLK_DISPAPB>;
+			nxp,blk-ctrl = <&dispmix_csr>;
+			status = "disabled";
+
+			channel@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+				status = "disabled";
+
+				port@0 {
+					reg = <0>;
+
+					pixel_interleaver_disp0_to_dpu_disp0: endpoint {
+						remote-endpoint = <&dpu_disp0_to_pixel_interleaver_disp0>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					pixel_interleaver_disp0_to_display_pixel_link0: endpoint {
+						remote-endpoint = <&display_pixel_link0_to_pixel_interleaver_disp0>;
+					};
+				};
+			};
+
+			channel@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <1>;
+				status = "disabled";
+
+				port@0 {
+					reg = <0>;
+
+					pixel_interleaver_disp1_to_dpu_disp1: endpoint {
+						remote-endpoint = <&dpu_disp1_to_pixel_interleaver_disp1>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					pixel_interleaver_disp1_to_display_pixel_link1: endpoint {
+						remote-endpoint = <&display_pixel_link1_to_pixel_interleaver_disp1>;
+					};
+				};
+			};
+		};
+
+		dpu: display-controller@4b400000 {
+			compatible = "nxp,imx95-dpu";
+			reg = <0x0 0x4b400000 0x0 0x400000>;
+			interrupt-parent = <&displaymix_irqsteer>;
+			interrupts = <448>, <449>, <450>,  <64>,
+				      <65>,  <66>,  <67>,  <68>,
+				      <69>, <192>, <193>, <194>,
+				     <195>, <196>, <197>,  <70>,
+				      <71>,  <72>,  <73>,  <74>,
+				      <75>,  <76>,  <77>,  <78>,
+				      <79>,  <80>,  <81>,  <82>,
+				      <83>,  <84>,  <85>,  <86>,
+				      <87>,  <88>,  <89>,  <90>,
+				      <91>,  <92>, <198>, <199>,
+				     <200>, <201>, <202>, <203>,
+				     <204>, <205>, <206>, <207>,
+				     <208>, <209>, <210>, <211>,
+				     <212>, <451>,   <1>,   <2>,
+				       <3>,   <4>,  <93>,  <94>,
+				      <95>,  <96>,  <97>,  <98>,
+				      <99>, <100>, <101>, <102>,
+				     <103>, <104>, <105>, <106>,
+				     <213>, <214>, <215>, <216>,
+				     <217>, <218>, <219>, <220>,
+				     <221>, <222>, <223>, <224>,
+				     <225>, <226>;
+			interrupt-names = "store9_shdload",
+					  "store9_framecomplete",
+					  "store9_seqcomplete",
+					  "extdst0_shdload",
+					  "extdst0_framecomplete",
+					  "extdst0_seqcomplete",
+					  "extdst4_shdload",
+					  "extdst4_framecomplete",
+					  "extdst4_seqcomplete",
+					  "extdst1_shdload",
+					  "extdst1_framecomplete",
+					  "extdst1_seqcomplete",
+					  "extdst5_shdload",
+					  "extdst5_framecomplete",
+					  "extdst5_seqcomplete",
+					  "domainblend0_shdload",
+					  "domainblend0_framecomplete",
+					  "domainblend0_seqcomplete",
+					  "disengcfg_shdload0",
+					  "disengcfg_framecomplete0",
+					  "disengcfg_seqcomplete0",
+					  "framegen0_int0",
+					  "framegen0_int1",
+					  "framegen0_int2",
+					  "framegen0_int3",
+					  "sig0_shdload",
+					  "sig0_valid",
+					  "sig0_error",
+					  "sig0_cluster_error",
+					  "sig0_cluster_match",
+					  "sig2_shdload",
+					  "sig2_valid",
+					  "sig2_error",
+					  "sig2_cluster_error",
+					  "sig2_cluster_match",
+					  "idhash0_shdload",
+					  "idhash0_valid",
+					  "idhash0_window_error",
+					  "domainblend1_shdload",
+					  "domainblend1_framecomplete",
+					  "domainblend1_seqcomplete",
+					  "disengcfg_shdload1",
+					  "disengcfg_framecomplete1",
+					  "disengcfg_seqcomplete1",
+					  "framegen1_int0",
+					  "framegen1_int1",
+					  "framegen1_int2",
+					  "framegen1_int3",
+					  "sig1_shdload",
+					  "sig1_valid",
+					  "sig1_error",
+					  "sig1_cluster_error",
+					  "sig1_cluster_match",
+					  "cmdseq_error",
+					  "comctrl_sw0",
+					  "comctrl_sw1",
+					  "comctrl_sw2",
+					  "comctrl_sw3",
+					  "framegen0_primsync_on",
+					  "framegen0_primsync_off",
+					  "framegen0_overflow0_on",
+					  "framegen0_overflow0_off",
+					  "framegen0_underrun0_on",
+					  "framegen0_underrun0_off",
+					  "framegen0_threshold0_rise",
+					  "framegen0_threshold0_fail",
+					  "framegen0_overflow1_on",
+					  "framegen0_overflow1_off",
+					  "framegen0_underrun1_on",
+					  "framegen0_underrun1_off",
+					  "framegen0_threshold1_rise",
+					  "framegen0_threshold1_fail",
+					  "framegen1_primsync_on",
+					  "framegen1_primsync_off",
+					  "framegen1_overflow0_on",
+					  "framegen1_overflow0_off",
+					  "framegen1_underrun0_on",
+					  "framegen1_underrun0_off",
+					  "framegen1_threshold0_rise",
+					  "framegen1_threshold0_fail",
+					  "framegen1_overflow1_on",
+					  "framegen1_overflow1_off",
+					  "framegen1_underrun1_on",
+					  "framegen1_underrun1_off",
+					  "framegen1_threshold1_rise",
+					  "framegen1_threshold1_fail";
+			clocks = <&scmi_clk IMX95_CLK_DISP1PIX>,
+				 <&scmi_clk IMX95_CLK_DISPAPB>,
+				 <&scmi_clk IMX95_CLK_DISPAXI>,
+				 <&scmi_clk IMX95_CLK_DISPOCRAM>,
+				 <&ldb_pll_pixel>,
+				 <&scmi_clk IMX95_CLK_LDBPLL_VCO>;
+			clock-names = "pix", "apb", "axi", "ocram", "ldb", "ldb_vco";
+			power-domains = <&scmi_devpd IMX95_PD_DISPLAY>;
+			nxp,blk-ctrl = <&dispmix_csr>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					dpu_disp0_to_pixel_interleaver_disp0: endpoint {
+						remote-endpoint = <&pixel_interleaver_disp0_to_dpu_disp0>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					dpu_disp1_to_pixel_interleaver_disp1: endpoint {
+						remote-endpoint = <&pixel_interleaver_disp1_to_dpu_disp1>;
+					};
+				};
 			};
 		};
 
@@ -1832,8 +2730,10 @@
 			bus-range = <0x00 0xff>;
 			num-lanes = <1>;
 			num-viewport = <8>;
-			interrupts = <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi", "pme", "intr";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &gic 0 0 GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
@@ -1888,6 +2788,7 @@
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			msi-map = <0x0 &its 0x10 0x1>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			fsl,max-link-speed = <3>;
 			status = "disabled";
 		};
 
@@ -1907,8 +2808,10 @@
 			bus-range = <0x00 0xff>;
 			num-lanes = <1>;
 			num-viewport = <8>;
-			interrupts = <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi", "pme", "intr";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &gic 0 0 GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
@@ -1965,6 +2868,7 @@
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			msi-map = <0x0 &its 0x98 0x1>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
+			fsl,max-link-speed = <3>;
 			status = "disabled";
 		};
 
@@ -2020,7 +2924,6 @@
 			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			assigned-clock-rates = <133333333>;
 			power-domains = <&scmi_devpd IMX95_PD_NETC>;
-			status = "disabled";
 		};
 
 		sai2: sai@4c880000 {
@@ -2087,12 +2990,17 @@
 					 0x82000000 0x0 0x4cd20000  0x0 0x4cd20000  0x0 0x60000
 					 /* ENETC0~2: VF0-1 BAR2 - prefetchable memory */
 					 0xc2000000 0x0 0x4cd80000  0x0 0x4cd80000  0x0 0x60000>;
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0000 0 0 1 &gic 0 0 GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>;
 
 				enetc_port0: ethernet@0,0 {
 					compatible = "pci1131,e101";
 					reg = <0x000000 0 0 0 0>;
 					clocks = <&scmi_clk IMX95_CLK_ENETREF>;
 					clock-names = "ref";
+					nvmem-cells = <&eth_mac0>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
@@ -2101,12 +3009,16 @@
 					reg = <0x004000 0 0 0 0>;
 					clocks = <&scmi_clk IMX95_CLK_ENETREF>;
 					clock-names = "ref";
+					nvmem-cells = <&eth_mac1>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
 				enetc_port2: ethernet@10,0 {
 					compatible = "pci1131,e101";
 					reg = <0x008000 0 0 0 0>;
+					nvmem-cells = <&eth_mac2>;
+					nvmem-cell-names = "mac-address";
 					status = "disabled";
 				};
 
@@ -2114,6 +3026,11 @@
 					compatible = "pci1131,ee02";
 					reg = <0x00c000 0 0 0 0>;
 					status = "disabled";
+				};
+
+				rcec@1,0 {
+					reg = <0x000800 0 0 0 0>;
+					interrupts = <1>;
 				};
 			};
 
@@ -2128,6 +3045,9 @@
 				ranges = <0x82000000 0x0 0x4cce0000  0x0 0x4cce0000  0x0 0x20000
 					 /* EMDIO BAR2 - prefetchable memory */
 					 0xc2000000 0x0 0x4cd10000  0x0 0x4cd10000  0x0 0x10000>;
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0000 0 0 1 &gic 0 0 GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
 
 				netc_emdio: mdio@0,0 {
 					compatible = "pci1131,ee00";
@@ -2135,6 +3055,11 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					status = "disabled";
+				};
+
+				rcec@1,0 {
+					reg = <0x010800 0 0 0 0>;
+					interrupts = <1>;
 				};
 			};
 		};
@@ -2144,5 +3069,150 @@
 			reg = <0x0 0x4e090dc0 0x0 0x200>;
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		mali: gpu@4d900000 {
+			compatible = "arm,mali-valhall", "nxp,imx95-mali";
+			reg = <0 0x4d900000 0 0x480000>;
+			reg-names = "gpu_base";
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gpu", "job", "mmu";
+			clocks = <&scmi_clk IMX95_CLK_GPU_CGC>;
+			clock-names = "gpu";
+			power-domains = <&scmi_devpd IMX95_PD_GPU>, <&scmi_perf IMX95_PERF_GPU>;
+			power-domain-names = "gpumix", "gpuperf";
+			operating-points-v2 = <&gpu_opp_table>;
+			#cooling-cells = <2>;
+			simple_power: power_model@0 {
+			    compatible = "arm,mali-simple-power-model";
+			    static-coefficient = <59073>;
+			    dynamic-coefficient = <1013>;
+			    reference_voltage = <920>;
+			    ts = <20000 2000 (-20) 2>;
+			    thermal-zone = "ana-thermal";
+			};
+
+			ipa_power:power_model@1 {
+			    compatible = "arm,mali-tvax-power-model";
+			    reference_voltage = <920>;
+			};
+		};
+
+		vpu0: vpu@4c480000 {
+			compatible = "fsl,cnm633c-vpu";
+			reg = <0x0 0x4c480000 0x0 0x10000>;
+			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_WAVE>;
+			clock-names = "vpu", "vpublk_wave";
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			cnm,ctrl = <&vpuctrl>;
+		};
+
+		vpu1: vpu@4c490000 {
+			compatible = "fsl,cnm633c-vpu";
+			reg = <0x0 0x4c490000 0x0 0x10000>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_WAVE>;
+			clock-names = "vpu", "vpublk_wave";
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			cnm,ctrl = <&vpuctrl>;
+			status = "disabled";
+		};
+
+		vpu2: vpu@4c4a0000 {
+			compatible = "fsl,cnm633c-vpu";
+			reg = <0x0 0x4c4a0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_WAVE>;
+			clock-names = "vpu", "vpublk_wave";
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			cnm,ctrl = <&vpuctrl>;
+			status = "disabled";
+		};
+
+		vpu3: vpu@4c4b0000 {
+			compatible = "fsl,cnm633c-vpu";
+			reg = <0x0 0x4c4b0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_WAVE>;
+			clock-names = "vpu", "vpublk_wave";
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			cnm,ctrl = <&vpuctrl>;
+			status = "disabled";
+		};
+
+		vpuctrl: vpu-ctrl@4c4c0000 {
+			compatible = "fsl,cm633c-vpu-ctrl";
+			reg = <0x0 0x4c4c0000 0x0 0x10000>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_WAVE>;
+			clock-names = "vpu", "vpublk_wave";
+			power-domains = <&scmi_devpd IMX95_PD_VPU>, <&scmi_perf IMX95_PERF_VPU>;
+			power-domain-names = "vpumix", "vpuperf";
+			#cooling-cells = <2>;
+		};
+
+		neutron_core: imx95-neutron-remoteproc@4ab00000 {
+			compatible = "fsl,imx95-neutron-rproc";
+			reg = <0x0 0x4ab00000 0x0 0x4>;
+			power-domains = <&scmi_devpd IMX95_PD_NPU>;
+		};
+
+		neutron: imx95-neutron@4ab00004 {
+			compatible = "fsl,imx95-neutron";
+			reg = <0x0 0x4ab00004 0x0 0x400>;
+			fsl,neutron-rproc = <&neutron_core>;
+			interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_NPU>,
+				 <&scmi_clk IMX95_CLK_NPUAPB>;
+			clock-names = "npu", "npu_apb";
+			power-domains = <&scmi_devpd IMX95_PD_NPU>;
+			iommus = <&smmu 0xd>;
+		};
+	};
+
+	rpmsg-lifecycle {
+		compatible = "nxp,rpmsg-lifecycle";
+	};
+
+	ele_if0: secure-enclave-0 {
+		compatible = "fsl,imx95-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&elemu3 0 0>, <&elemu3 1 0>;
+	};
+
+	v2x_dbg: secure-enclave-1 {
+		compatible = "fsl,imx95-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&v2x_mu 0 0>, <&v2x_mu 1 0>;
+	};
+
+	v2x_sv0: secure-enclave-2 {
+		compatible = "fsl,imx95-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&v2x_mu4 0 0>, <&v2x_mu4 1 0>;
+	};
+
+	v2x_she: secure-enclave-3 {
+		compatible = "fsl,imx95-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&v2x_mu6 0 0>, <&v2x_mu6 1 0>;
+	};
+
+	v2x_sg0: secure-enclave-4 {
+		compatible = "fsl,imx95-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&v2x_mu7 0 0>, <&v2x_mu7 1 0>;
+	};
+
+	v2x_sg1: secure-enclave-5 {
+		compatible = "fsl,imx95-se";
+		mbox-names = "tx", "rx";
+		mboxes = <&v2x_mu8 0 0>, <&v2x_mu8 1 0>;
 	};
 };

@@ -12,7 +12,7 @@
 audio_ipg_clk: clock-audio-ipg {
 	compatible = "fixed-clock";
 	#clock-cells = <0>;
-	clock-frequency = <120000000>;
+	clock-frequency = <175000000>;
 	clock-output-names = "audio_ipg_clk";
 };
 
@@ -123,11 +123,12 @@ audio_subsys: bus@59000000 {
 	asrc0: asrc@59000000 {
 		compatible = "fsl,imx8qm-asrc";
 		reg = <0x59000000 0x10000>;
-		interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&asrc0_lpcg IMX_LPCG_CLK_0>,
-			 <&asrc0_lpcg IMX_LPCG_CLK_0>,
-			 <&aud_pll_div0_lpcg IMX_LPCG_CLK_4>,
-			 <&aud_pll_div1_lpcg IMX_LPCG_CLK_4>,
+		interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&asrc0_lpcg IMX_LPCG_CLK_4>,
+			 <&asrc0_lpcg IMX_LPCG_CLK_4>,
+			 <&aud_pll_div0_lpcg IMX_LPCG_CLK_0>,
+			 <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>,
 			 <&acm IMX_ADMA_ACM_AUD_CLK0_SEL>,
 			 <&acm IMX_ADMA_ACM_AUD_CLK1_SEL>,
 			 <&clk_dummy>,
@@ -451,7 +452,8 @@ audio_subsys: bus@59000000 {
 	asrc1: asrc@59800000 {
 		compatible = "fsl,imx8qm-asrc";
 		reg = <0x59800000 0x10000>;
-		interrupts = <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&asrc1_lpcg IMX_LPCG_CLK_4>,
 			 <&asrc1_lpcg IMX_LPCG_CLK_4>,
 			 <&aud_pll_div0_lpcg IMX_LPCG_CLK_0>,
