@@ -40,6 +40,9 @@ MODULE_PARM_DESC(disable_msipolling,
 
 static const struct iommu_ops arm_smmu_ops;
 static struct iommu_dirty_ops arm_smmu_dirty_ops;
+static bool disable_pm;
+module_param(disable_pm, bool, 0444);
+MODULE_PARM_DESC(disable_pm, "Disable smmu suspend/resume.");
 
 enum arm_smmu_msi_index {
 	EVTQ_MSI_INDEX,
@@ -3989,6 +3992,16 @@ static void arm_smmu_setup_msis(struct arm_smmu_device *smmu)
 	devm_add_action_or_reset(dev, arm_smmu_free_msis, dev);
 }
 
+static void arm_smmu_resume_unique_irqs(struct arm_smmu_device *smmu)
+{
+	struct device *dev = smmu->dev;
+
+	if (!dev->msi.domain)
+		return;
+
+	dev_warn(smmu->dev, "SMMU MSI suspend/resume is not supported as of now\n");
+}
+
 static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 {
 	int irq, ret;
@@ -4035,7 +4048,7 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 	}
 }
 
-static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
+static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu, bool resume)
 {
 	int ret, irq;
 	u32 irqen_flags = IRQ_CTRL_EVTQ_IRQEN | IRQ_CTRL_GERROR_IRQEN;
@@ -4049,7 +4062,7 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 	}
 
 	irq = smmu->combined_irq;
-	if (irq) {
+	if (irq && !resume) {
 		/*
 		 * Cavium ThunderX2 implementation doesn't support unique irq
 		 * lines. Use a single irq line for all the SMMUv3 interrupts.
@@ -4061,8 +4074,12 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 					"arm-smmu-v3-combined-irq", smmu);
 		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable combined irq\n");
-	} else
-		arm_smmu_setup_unique_irqs(smmu);
+	} else {
+		if (resume)
+			arm_smmu_resume_unique_irqs(smmu);
+		else
+			arm_smmu_setup_unique_irqs(smmu);
+	}
 
 	if (smmu->features & ARM_SMMU_FEAT_PRI)
 		irqen_flags |= IRQ_CTRL_PRIQ_IRQEN;
@@ -4111,7 +4128,7 @@ static void arm_smmu_write_strtab(struct arm_smmu_device *smmu)
 	writel_relaxed(reg, smmu->base + ARM_SMMU_STRTAB_BASE_CFG);
 }
 
-static int arm_smmu_device_reset(struct arm_smmu_device *smmu)
+static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool resume)
 {
 	int ret;
 	u32 reg, enables;
@@ -4215,7 +4232,7 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		}
 	}
 
-	ret = arm_smmu_setup_irqs(smmu);
+	ret = arm_smmu_setup_irqs(smmu, resume);
 	if (ret) {
 		dev_err(smmu->dev, "failed to setup irqs\n");
 		return ret;
@@ -4819,7 +4836,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	arm_smmu_rmr_install_bypass_ste(smmu);
 
 	/* Reset the device */
-	ret = arm_smmu_device_reset(smmu);
+	ret = arm_smmu_device_reset(smmu, false);
 	if (ret)
 		goto err_disable;
 
@@ -4864,6 +4881,34 @@ static void arm_smmu_device_shutdown(struct platform_device *pdev)
 	arm_smmu_device_disable(smmu);
 }
 
+static int __maybe_unused arm_smmu_suspend(struct device *dev)
+{
+	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+
+	if (disable_pm)
+		return 0;
+
+	arm_smmu_device_disable(smmu);
+
+	return 0;
+}
+
+static int __maybe_unused arm_smmu_resume(struct device *dev)
+{
+	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+
+	if (disable_pm)
+		return 0;
+
+	arm_smmu_device_reset(smmu, true);
+
+	return 0;
+}
+
+static const struct dev_pm_ops arm_smmu_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(arm_smmu_suspend, arm_smmu_resume)
+};
+
 static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,smmu-v3", },
 	{ },
@@ -4881,6 +4926,7 @@ static struct platform_driver arm_smmu_driver = {
 		.name			= "arm-smmu-v3",
 		.of_match_table		= arm_smmu_of_match,
 		.suppress_bind_attrs	= true,
+		.pm			= &arm_smmu_pm_ops,
 	},
 	.probe	= arm_smmu_device_probe,
 	.remove = arm_smmu_device_remove,
