@@ -2643,6 +2643,17 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 	if (!may_wake)
 		return;
 
+	scoped_guard(tty_port_tty, port) {
+		struct tty_struct *tty = scoped_tty();
+
+		tty_dev = tty->dev;
+		may_wake = tty_dev && device_may_wakeup(tty_dev);
+	}
+
+	/* only configure the wake register when device set as wakeup source */
+	if (!may_wake)
+		return;
+
 	uart_port_lock_irq(&sport->port);
 
 	usr1 = imx_uart_readl(sport, USR1);
