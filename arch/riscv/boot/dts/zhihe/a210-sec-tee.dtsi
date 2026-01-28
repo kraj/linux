@@ -1,7 +1,7 @@
 //sec-tee.dtsi
 
 / {
-    //compatible = "zhihe,p100,tee";//update dst compatible value for tee
+    //compatible = "zhihe,a210,tee";//update dst compatible value for tee
     chosen {
         opensbi-domains {
             compatible = "opensbi,domain,config";
@@ -175,149 +175,149 @@
 
 /* PCIE iopmp*/
 &device_pcie_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_pcie_0_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_pcie_1_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_sata_0_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_dmac_ap_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_sd_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_emmc_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_pcie_iommu_iopmp  {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* VP iopmp*/
 &device_vp_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_venc_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_vdec_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_g2d_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_vp_iommu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* VI iopmp*/
 &device_vi_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_isp_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_vipre_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_dw200_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_vi_comp_decomp_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_vi_iommu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* NPU iopmp*/
 &device_npu_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_npu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_npu_iommu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* VO iopmp */
 &device_vo_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_display_0_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_display_1_iopmp  {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_auxdisp_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_vo_iommu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* PERI1 iopmp */
 &device_peri1_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_gmac_0_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_gmac_1_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_gmac_2_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_chip_dbg_iopmp  {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_aon_iopmp {
     iopmp-regions = <&bypass_region>;
 };
 &device_peri1_iommu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* USB iopmp*/
 &device_usb_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_usb3_0_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_usb2_1_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_usb2_2_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_usb_iommu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* GPU iopmp*/
 &device_gpu_mt_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 &device_gpu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* D2D RX iopmp*/
 &device_d2d_rx_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };
 
 /* D2D CPU iopmp*/
 &device_d2d_cpu_iopmp {
-    iopmp-regions = <&security_device_region>, <&tee_os_region>, <&trust_firmware_region>, <&bypass_region>;
+    iopmp-regions = <&security_device_region>, <&trust_firmware_region>, <&tee_os_region>, <&bypass_region>;
 };

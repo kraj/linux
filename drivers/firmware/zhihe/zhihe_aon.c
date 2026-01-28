@@ -17,6 +17,14 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/zhihe_proc_debug.h>
+#include <linux/init.h>
+#include <linux/firmware.h>
+#include <linux/device.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+
+#define ZHIHE_AON_SYNC_VAL      0xfeabdeff
+#define ZHIHE_AON_RESET_VAL     0x3
 
 #define ZHIHE_AON_V1			0x0
 #define ZHIHE_AON_V2			0x1
@@ -237,6 +245,78 @@ static int get_aon_log_mem(struct device *dev, phys_addr_t *mem, size_t *mem_siz
 	return 0;
 }
 
+static int zhihe_aon_boot_img_by_name(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *node = pdev->dev.of_node;
+	const struct firmware *zhihe_aon_fw = NULL;
+	void __iomem *base_addr;
+	void __iomem *reset_reg;
+	void __iomem *sync_reg;
+	unsigned int reset_val = ZHIHE_AON_RESET_VAL;
+	unsigned int sync_val = ZHIHE_AON_SYNC_VAL;
+	unsigned int sync_read = 0;
+	const char *bin_name = NULL;
+	unsigned int timeout_ms = 50;
+	unsigned long timeout;
+	int ret;
+
+	base_addr = devm_platform_ioremap_resource_byname(pdev, "aon_base_addr");
+	if (IS_ERR(base_addr)) {
+		dev_err(dev, "Failed to map base_addr\n");
+		return PTR_ERR(base_addr);
+	}
+
+	reset_reg = devm_platform_ioremap_resource_byname(pdev, "aon_reset_reg");
+	if (IS_ERR(reset_reg)) {
+		dev_err(dev, "Failed to map aon_reset_reg\n");
+		return PTR_ERR(reset_reg);
+	}
+
+	sync_reg = devm_platform_ioremap_resource_byname(pdev, "aon_sync_reg");
+	if (IS_ERR(sync_reg)) {
+		dev_err(dev, "Failed to map aon_sync_reg\n");
+		return PTR_ERR(sync_reg);
+	}
+
+	ret = of_property_read_string(node, "firmware-name", &bin_name);
+	if (ret) {
+		dev_err(dev, "Failed to get aon-bin-names property: %d\n", ret);
+		return ret;
+	}
+
+	ret = request_firmware(&zhihe_aon_fw, bin_name, NULL);
+	if (ret) {
+		dev_err(dev, "Failed to load firmware: %s (ret=%d)\n",
+		bin_name, ret);
+		return ret;
+	}
+
+	dev_info(dev, "firmware loaded, size = %zu bytes\n", zhihe_aon_fw->size);
+
+	memset(base_addr, 0, zhihe_aon_fw->size);
+	memcpy(base_addr, zhihe_aon_fw->data, zhihe_aon_fw->size);
+
+	iowrite32(reset_val, reset_reg);
+
+	timeout = jiffies + msecs_to_jiffies(timeout_ms);
+
+	while(ioread32(sync_reg) != sync_val) {
+		if (time_after(jiffies, timeout)) {
+			dev_err(dev, "AON bringup timeout! sync_reg=0x%x, expected=0x%x\n",
+					sync_read, sync_val);
+			release_firmware(zhihe_aon_fw);
+			return -ETIMEDOUT;
+		}
+
+		usleep_range(1000, 2000);
+	}
+
+	release_firmware(zhihe_aon_fw);
+
+	return 0;
+}
+
 static int zhihe_aon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -246,6 +326,17 @@ static int zhihe_aon_probe(struct platform_device *pdev)
 	struct device_node *np;
 	char dir_name[32] = { 0x0 };
 	int ret;
+
+	ret = zhihe_aon_boot_img_by_name(pdev);
+	if (ret == -ETIMEDOUT) {
+		dev_warn(dev, "AON sync timeout, retrying...\n");
+		ret = zhihe_aon_boot_img_by_name(pdev);
+		if (ret) {
+			dev_err(dev, "AON bringup failed after retry (ret=%d)\n", ret);
+			return ret;
+		}
+	}
+
 	aon_ipc = devm_kzalloc(dev, sizeof(*aon_ipc), GFP_KERNEL);
 	if (!aon_ipc)
 		return -ENOMEM;

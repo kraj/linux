@@ -12,7 +12,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
-
 #include <linux/types.h>
 #include <dt-bindings/clock/a210-clock.h>
 
@@ -37,6 +36,7 @@
 #define USB_CLK_EN		0
 /* vi reg idx */
 #define VI_CLK			0
+#define VI_MISC_CTRL		1
 /* vp reg idx */
 #define VP_CLK			0
 /* vo reg idx */
@@ -232,6 +232,7 @@ static struct zhihe_clk_reg regs_usb[] = {
 
 static struct zhihe_clk_reg regs_vi[] = {
 	REG(VI_CLK),
+	REG(VI_MISC_CTRL),
 };
 
 static struct zhihe_clk_reg regs_vp[] = {
@@ -396,13 +397,13 @@ static struct zhihe_clk_info info_top[] = {
 	FIXED_FACTOR(TOP_PERI_TIMER_CLK_100M, "peri0_timer_clk_100M", "gmac_pll_foutpostdiv", 1, 10),
 	MUX(TOP_PERI_TIMER_CLK_MUX, "peri0_timer_clk", TOP_CRG, 0x20, 15, 1,
 	    peri0_timer_clk_parents, ARRAY_SIZE(peri0_timer_clk_parents), CLK_SET_RATE_PARENT),
-	MUX(TOP_PERI_I2S_8CH0_SRC_CLK_MUX, "peri2_i2s3_src_clk", TOP_CRG, 0x20, 14, 1,
+	MUX(TOP_PERI_I2S_8CH0_SRC_CLK_MUX, "peri2_i2s3_src_clk", TOP_CRG, 0x28, 21, 1,
 	    peri2_i2s3_src_clk_parents, ARRAY_SIZE(peri2_i2s3_src_clk_parents), CLK_SET_RATE_PARENT),
 	MUX(TOP_PERI_I2S_2CH0_SRC_CLK_MUX, "peri1_i2s0_src_clk", TOP_CRG, 0x20, 13, 1,
 	    peri1_i2s0_src_clk_parents, ARRAY_SIZE(peri1_i2s0_src_clk_parents), CLK_SET_RATE_PARENT),
-	MUX(TOP_PERI_I2S_2CH1_SRC_CLK_MUX, "peri2_i2s1_src_clk", TOP_CRG, 0x28, 23, 1,
+	MUX(TOP_PERI_I2S_2CH1_SRC_CLK_MUX, "peri2_i2s1_src_clk", TOP_CRG, 0x20, 14, 1,
 	    peri2_i2s1_src_clk_parents, ARRAY_SIZE(peri2_i2s1_src_clk_parents), CLK_SET_RATE_PARENT),
-	MUX(TOP_PERI_I2S_2CH2_SRC_CLK_MUX, "peri2_i2s2_src_clk", TOP_CRG, 0x28, 21, 1,
+	MUX(TOP_PERI_I2S_2CH2_SRC_CLK_MUX, "peri2_i2s2_src_clk", TOP_CRG, 0x28, 23, 1,
 	    peri2_i2s2_src_clk_parents, ARRAY_SIZE(peri2_i2s2_src_clk_parents), CLK_SET_RATE_PARENT),
 	DIV(TOP_PERI_QSPI0_SSI_CLK_DIV0, "peri1_qspi_ssi_clk_div0", "video_pll_foutvco", TOP_CRG, 0x20, 8, 4,
 	    NO_DIV_EN, MUX_TYPE_DIV, 2, 15),
@@ -583,8 +584,8 @@ static struct zhihe_clk_info info_vi[] = {
 	GATE(VI_MIPI0CSI0_PCLK_EN, "mipi0_csi0_pclk", "vi_pclk", VI_CLK, 0, 0),
 	GATE(VI_MIPI0CSI1_PCLK_EN, "mipi0_csi1_pclk", "vi_pclk", VI_CLK, 0, 1),
 	GATE(VI_MIPI1CSI0_PCLK_EN, "mipi1_csi0_pclk", "vi_pclk", VI_CLK, 0, 6),
-	GATE(VI_MIPI1CSI1_PCLK_EN, "mipi1_csi1_pclk", "vi_pclk", VI_CLK, 0, 12),
-	GATE(VI_VIPRE_PCLK_EN, "vipre_pclk", "vi_pclk", VI_CLK, 0, 7),
+	GATE(VI_MIPI1CSI1_PCLK_EN, "mipi1_csi1_pclk", "vi_pclk", VI_CLK, 0, 7),
+	GATE(VI_VIPRE_PCLK_EN, "vipre_pclk", "vi_pclk", VI_CLK, 0, 12),
 	GATE(VI_DFMU_PCLK_EN, "dfmu_pclk", "vi_pclk", VI_CLK, 0x4, 0),
 	GATE(VI_MIPI0CSI0_FPCLK_EN, "mipi0_csi0_fpclk", "vi_pclk", VI_CLK, 0x4, 8),
 	GATE(VI_MIPI0CSI1_FPCLK_EN, "mipi0_csi1_fpclk", "vi_pclk", VI_CLK, 0x4, 9),
@@ -615,10 +616,10 @@ static struct zhihe_clk_info info_vi[] = {
 	    25, MUX_TYPE_DIV, 3, 15),
 	MUX(VI_MIPI1_PIX_REF_SWITCH_SEL, "vi_preocc_mipi1_ifclk_mux", VI_CLK, 0x8, 21, 1,
 	    vi_preocc_mipi1_ifclk_mux_parents, ARRAY_SIZE(vi_preocc_mipi1_ifclk_mux_parents), CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
-	GATE(VI_MIPI1B_CFGCLK_EN, "mipi1_csi1_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 9),
-	GATE(VI_MIPI1A_CFGCLK_EN, "mipi1_csi0_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 8),
-	GATE(VI_MIPI0B_CFGCLK_EN, "mipi0_csi1_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 3),
-	GATE(VI_MIPI0A_CFGCLK_EN, "mipi0_csi0_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 2),
+	GATE(VI_MIPI1B_CFGCLK_EN, "mipi1_csi0_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 9),
+	GATE(VI_MIPI1A_CFGCLK_EN, "mipi1_csi1_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 8),
+	GATE(VI_MIPI0B_CFGCLK_EN, "mipi0_csi0_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 3),
+	GATE(VI_MIPI0A_CFGCLK_EN, "mipi0_csi1_cfgclk", "aon_osc_clk_logic", VI_CLK, 0, 2),
 	GATE(VI_DFMU_ACLK_EN, "dfmu_aclk", "vi_preocc_aclk", VI_CLK, 0x4, 1),
 	GATE(VI_PTW_ACLK_EN, "dfmu_ptw_aclk", "iommu_ptw_aclk", VI_CLK, 0x4, 2),
 	GATE(VI_ARB_PCLK_EN, "vi_arb_pclk", "top_cfg_aclk", VI_CLK, 0x4, 3),
@@ -629,6 +630,17 @@ static struct zhihe_clk_info info_vi[] = {
 	GATE(VI_FENCE_ACLK_EN, "vi_fence_aclk", "top_cfg_aclk", VI_CLK, 0x4, 12),
 	GATE(VI_REC_PCLK_EN, "vi_rec_pclk", "top_cfg_aclk", VI_CLK, 0x4, 13),
 	GATE(VI_REC_ACLK_EN, "vi_rec_aclk", "top_cfg_aclk", VI_CLK, 0x4, 14),
+	GATE(VI_MISC_CTRL_H0CLK_CLK_EN, "vi_misc_ctrl_h0clk", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 1),
+	GATE(VI_MISC_CTRL_H1CLK_CLK_EN, "vi_misc_ctrl_h1clk", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 2),
+	GATE(VI_MISC_CTRL_ISP_ACLK_CLK_EN, "vi_misc_ctrl_isp_aclk", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 3),
+	GATE(VI_MISC_CTRL_ISP_SCLK_CLK0_EN, "vi_misc_ctrl_isp_sclk0", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 4),
+	GATE(VI_MISC_CTRL_ISP_SCLK_CLK1_EN, "vi_misc_ctrl_isp_sclk1", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 5),
+	GATE(VI_MISC_CTRL_ISP_SCLK_CLK2_EN, "vi_misc_ctrl_isp_sclk2", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 6),
+	GATE(VI_MISC_CTRL_ISP_SCLK_CLK3_EN, "vi_misc_ctrl_isp_sclk3", "top_cfg_aclk", VI_MISC_CTRL, 0x0, 7),
+	GATE(VI_MISC_CTRL_ISP_CORE_CLK_EN, "vi_misc_ctrl_isp_core_clk", "isp_core_clk", VI_MISC_CTRL, 0x0, 8),
+	GATE(VI_MISC_CTRL_ISP_FLEXA_CLK_EN, "vi_misc_ctrl_isp_flexa_clk", "isp_core_clk", VI_MISC_CTRL, 0x0, 9),
+	GATE(VI_MISC_CTRL_ISP_MCM_CLK_EN, "vi_misc_ctrl_isp_mcm_clk", "isp_core_clk", VI_MISC_CTRL, 0x0, 10),
+	GATE(VI_MISC_CTRL_BUS_CLK_GT_DISABLE, "vi_misc_ctrl_bus_clk", "isp_core_clk", VI_MISC_CTRL, 0x0, 11),
 };
 
 static struct zhihe_clk_info info_vp[] = {
@@ -970,13 +982,17 @@ static int a210_clocks_probe(struct platform_device *pdev)
 	int ret;
 
 	struct clk_onecell_data *clk_data = devm_kzalloc(dev, sizeof(*clk_data), GFP_KERNEL);
-	if (!clk_data)
-		return -ENOMEM;
+	if (!clk_data) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	clk_data->clks = devm_kcalloc(dev, CLK_END, sizeof(*clk_data->clks),
 					GFP_KERNEL);
-	if (!clk_data->clks)
-		return -ENOMEM;
+	if (!clk_data->clks) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 	clk_data->clk_num = CLK_END;
 
 	for (int i = 0; i < CLK_END; i++)
@@ -995,7 +1011,8 @@ static int a210_clocks_probe(struct platform_device *pdev)
 	ret = zhihe_parse_regbase(pdev);
 	if (ret) {
 		dev_err(dev, "fail to parse reg base");
-		return ret;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	zhihe_register_clock(pdev);
@@ -1007,11 +1024,11 @@ static int a210_clocks_probe(struct platform_device *pdev)
 	}
 
 	dev_info(dev, "succeed to register a210 %s driver on die%d\n", priv->name, priv->die_num);
-
 	return 0;
 
 unregister_clks:
 	zhihe_unregister_clocks(priv->clk_data->clks, CLK_END);
+fail:
 	return ret;
 }
 

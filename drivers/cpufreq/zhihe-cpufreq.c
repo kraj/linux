@@ -373,24 +373,19 @@ static int zh_cpufreq_prepare_cluster(struct device *dev, int cpu)
 	 * the name of the regulator first.
 	 */
 	num_regulators = find_supply_name(dev, of_get_cpu_node(cpu, NULL), &reg_names);
-	if (num_regulators <= 0) {
-		of_node_put(of_get_cpu_node(cpu, NULL));
-		ret = dev_err_probe(dev, num_regulators,
-					"failed to find regulators for cpu%d\n", cpu);
-		goto free_cpumask;
-	}
+	if (num_regulators > 0) {
+		cluster->opp_token = dev_pm_opp_set_regulators(cpu_dev, reg_names);
+		if (cluster->opp_token < 0) {
+			ret = dev_err_probe(dev, cluster->opp_token,
+						"failed to set regulators\n");
+			goto free_cpumask;
+		}
 
-	cluster->opp_token = dev_pm_opp_set_regulators(cpu_dev, reg_names);
-	if (cluster->opp_token < 0) {
-		ret = dev_err_probe(dev, cluster->opp_token,
-					"failed to set regulators\n");
-		goto free_cpumask;
-	}
-
-	ret = dev_pm_opp_set_config_regulators(cpu_dev, zh_opp_config_regulators);
-	if (ret < 0) {
-		dev_err(dev, "failed to set config_regulators callback ret=%d\n", ret);
-		goto free_cpumask;
+		ret = dev_pm_opp_set_config_regulators(cpu_dev, zh_opp_config_regulators);
+		if (ret < 0) {
+			dev_err(dev, "failed to set config_regulators callback ret=%d\n", ret);
+			goto free_cpumask;
+		}
 	}
 
 	/* Get OPP-sharing information from "operating-points-v2" bindings .
@@ -457,7 +452,7 @@ static int zh_cpufreq_probe(struct platform_device *pdev)
 	struct zh_cpufreq_soc_data *soc;
 	struct device *dev = &pdev->dev;
 	int cpu, ret;
-	
+
 	soc = devm_kzalloc(dev, sizeof(*soc), GFP_KERNEL);
 	if (!soc)
 		return -ENOMEM;

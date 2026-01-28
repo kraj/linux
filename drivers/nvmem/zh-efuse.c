@@ -1139,7 +1139,7 @@ static const struct attribute_group dev_attr_efuse_sysfs_group = {
 };
 
 static const struct of_device_id zh_efuse_of_match[] = {
-	{.compatible = "zhihe,p100-fm-efuse"},
+	{.compatible = "zhihe,a210-fm-efuse"},
 	{ /* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, zh_efuse_of_match);
@@ -1165,7 +1165,7 @@ static int __maybe_unused zh_efuse_runtime_suspend(struct device *dev)
 
 	dev_dbg(dev, "[%s,%d] ret = %d, pd status: 0x%lx\n", __func__, __LINE__, ret,
 			readl(priv->base + CON) & EFUSE_CON_POWER_MSK);
-	
+
 	clk_disable_unprepare(priv->clk);
 
 	return ret;
@@ -1183,7 +1183,7 @@ static int __maybe_unused zh_efuse_runtime_resume(struct device *dev)
 		dev_err(dev, "failed to get efuse clk\n");
 		return ret;
 	}
-		
+
 	return efuse_poweron(priv->base);
 }
 
@@ -1208,7 +1208,7 @@ static int __maybe_unused zh_efuse_suspend(struct device *dev)
 
 	dev_dbg(dev, "[%s,%d] ret = %d, pd status: 0x%lx\n", __func__, __LINE__, ret,
 			readl(priv->base + CON) & EFUSE_CON_POWER_MSK);
-	
+
 	clk_disable_unprepare(priv->clk);
 
 	return ret;
@@ -1226,7 +1226,7 @@ static int __maybe_unused zh_efuse_resume(struct device *dev)
 		dev_err(dev, "failed to get efuse clk\n");
 		return ret;
 	}
-		
+
 	return efuse_poweron(priv->base);
 }
 

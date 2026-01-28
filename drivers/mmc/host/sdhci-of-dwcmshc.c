@@ -490,24 +490,63 @@ static void th1520_set_uhs_signaling(struct sdhci_host *host,
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	struct th1520_priv *th_priv = priv->th_priv;
+	u32 val;
 
 	dwcmshc_set_uhs_signaling(host, timing);
 
 	pr_debug("%s: %s timing %d\n",host->hw_name,__func__,timing);
 	if (timing == MMC_TIMING_MMC_HS400) {
-		//disable auto tuning
-		u32 reg = sdhci_readl(host, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
-		reg &= ~AT_CTRL_AT_EN;
-		sdhci_writel(host, reg, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
+		/* Disable auto tuning */
+		val = sdhci_readl(host, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
+		val &= ~AT_CTRL_AT_EN;
+		sdhci_writel(host, val, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
 
-		priv->delay_line = th_priv->delay_line[MMC_TIMING_MMC_HS400];
-		th1520_sdhci_set_phy(host);	/* update tx delay*/
-	} else if(timing == MMC_TIMING_MMC_HS200) {
-		priv->delay_line = th_priv->delay_line[MMC_TIMING_MMC_HS200];
-	} else if(timing == MMC_TIMING_UHS_SDR104) {
-		priv->delay_line = th_priv->delay_line[MMC_TIMING_UHS_SDR104];
-		th1520_sdhci_set_phy(host);	/* update tx delay*/
-		sdhci_writeb(host, 0, PHY_DLLDL_CNFG_R);
+		/* Update tx delay */
+		priv->delay_line = th_priv->delay_line[timing];
+		th1520_sdhci_set_phy(host);
+	} else if((timing == MMC_TIMING_MMC_HS200) | (timing == MMC_TIMING_UHS_SDR104)) {
+		/*
+		 * Default count=MAX_TUNING_LOOP(40),
+		 * th1520 device Must be configured to 128.
+		 */
+		host->tuning_loop_count = 128;
+
+		/* Drives drift_cclk_rx DelayLine's config input. */
+		sdhci_writeb(host, FIELD_PREP(PHY_ATDL_CNFG_INPSEL_MASK, PHY_ATDL_CNFG_INPSEL), PHY_ATDL_CNFG_R);
+
+		/*
+		* Clear tuning settings:
+		*  - center phase select code driven in block gap interval
+		*  - disable reporting of framing errors
+		*  - disable software managed tuning
+		*  - disable sampling window threshold
+		*     Choose largest sampling window tuning schema, do not care AT_CTRL_SWIN_TH_VAL
+		*  - disable user selection of sampling window edges,
+		*    instead tuning calculated edges are used
+		*/
+		val = sdhci_readl(host, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
+		val &= ~(AT_CTRL_CI_SEL | AT_CTRL_RPT_TUNE_ERR | AT_CTRL_SW_TUNE_EN | AT_CTRL_SWIN_TH_EN |
+			AT_CTRL_WIN_EDGE_SEL_MASK | AT_CTRL_SWIN_TH_VAL_MASK);
+
+		/*
+		* Configure tuning settings:
+		*  - enable auto-tuning
+		*  - stop clocks during phase code change
+		*  - set max latency in cycles between tx and rx clocks
+		*  - set max latency in cycles to switch output phase
+		*  - set max sampling window threshold value
+		*/
+		val |= AT_CTRL_AT_EN | AT_CTRL_TUNE_CLK_STOP_EN;
+		val |= FIELD_PREP(AT_CTRL_PRE_CHANGE_DLY_MASK, AT_CTRL_PRE_CHANGE_DLY);
+		val |= FIELD_PREP(AT_CTRL_POST_CHANGE_DLY_MASK, AT_CTRL_POST_CHANGE_DLY);
+		sdhci_writel(host, val, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
+
+		/* Update tx delay */
+		priv->delay_line = th_priv->delay_line[timing];
+		th1520_sdhci_set_phy(host);
+		if (timing == MMC_TIMING_UHS_SDR104) {
+			sdhci_writeb(host, 0, PHY_DLLDL_CNFG_R);
+		}
 	} else {
 		sdhci_writeb(host, 0, PHY_DLLDL_CNFG_R);
 		if(th_priv->rxclk_sw_tune_en && (timing == MMC_TIMING_SD_HS)) {
@@ -662,66 +701,6 @@ static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
 	sdhci_reset(host, mask);
 }
 
-static int th1520_execute_tuning(struct sdhci_host *host, u32 opcode)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	u32 val = 0;
-
-	if (host->flags & SDHCI_HS400_TUNING)
-		return 0;
-
-	sdhci_writeb(host, FIELD_PREP(PHY_ATDL_CNFG_INPSEL_MASK, PHY_ATDL_CNFG_INPSEL),
-		     PHY_ATDL_CNFG_R);
-	val = sdhci_readl(host, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
-
-	/*
-	 * configure tuning settings:
-	 *  - center phase select code driven in block gap interval
-	 *  - disable reporting of framing errors
-	 *  - disable software managed tuning
-	 *  - disable user selection of sampling window edges,
-	 *    instead tuning calculated edges are used
-	 */
-	val &= ~(AT_CTRL_CI_SEL | AT_CTRL_RPT_TUNE_ERR | AT_CTRL_SW_TUNE_EN |
-		 FIELD_PREP(AT_CTRL_WIN_EDGE_SEL_MASK, AT_CTRL_WIN_EDGE_SEL));
-
-	/*
-	 * configure tuning settings:
-	 *  - enable auto-tuning
-	 *  - enable sampling window threshold
-	 *  - stop clocks during phase code change
-	 *  - set max latency in cycles between tx and rx clocks
-	 *  - set max latency in cycles to switch output phase
-	 *  - set max sampling window threshold value
-	 */
-	val |= AT_CTRL_AT_EN | AT_CTRL_SWIN_TH_EN | AT_CTRL_TUNE_CLK_STOP_EN;
-	val |= FIELD_PREP(AT_CTRL_PRE_CHANGE_DLY_MASK, AT_CTRL_PRE_CHANGE_DLY);
-	val |= FIELD_PREP(AT_CTRL_POST_CHANGE_DLY_MASK, AT_CTRL_POST_CHANGE_DLY);
-	val |= FIELD_PREP(AT_CTRL_SWIN_TH_VAL_MASK, AT_CTRL_SWIN_TH_VAL);
-
-	sdhci_writel(host, val, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
-	val = sdhci_readl(host, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
-
-	host->tuning_loop_count = 128; /*max loop count allow to 128*/
-
-	val &= ~AT_CTRL_AT_EN;
-	sdhci_writel(host, val, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
-
-	/* perform tuning */
-	sdhci_start_tuning(host);
-	host->tuning_err = __sdhci_execute_tuning(host, opcode);
-	if (host->tuning_err) {
-		/* disable auto-tuning upon tuning error */
-		val &= ~AT_CTRL_AT_EN;
-		sdhci_writel(host, val, priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
-		dev_err(mmc_dev(host->mmc), "tuning failed: %d\n", host->tuning_err);
-		return -EIO;
-	}
-	sdhci_end_tuning(host);
-
-	return 0;
-}
 
 static void th1520_sdhci_reset(struct sdhci_host *host, u8 mask)
 {
@@ -914,7 +893,6 @@ static const struct sdhci_ops sdhci_dwcmshc_th1520_ops = {
 	.get_ro			= th1520_sdhci_get_ro,
 	.adma_write_desc	= dwcmshc_adma_write_desc,
 	.voltage_switch		= dwcmshc_phy_1_8v_init,
-	.platform_execute_tuning = &th1520_execute_tuning,
 };
 
 static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
@@ -950,7 +928,7 @@ static const struct sdhci_pltfm_data sdhci_dwcmshc_th1520_pdata = {
 static const struct sdhci_pltfm_data sdhci_dwcmshc_a210_pdata = {
 	.ops = &sdhci_dwcmshc_th1520_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-			SDHCI_QUIRK_SINGLE_POWER_WRITE | SDHCI_QUIRK_BROKEN_ADMA,
+			SDHCI_QUIRK_SINGLE_POWER_WRITE,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 

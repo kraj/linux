@@ -125,8 +125,8 @@
 
 		simple-audio-card,widgets = "Speaker", "Speaker";
 		simple-audio-card,routing =
-			"Speaker", "AW87565_PA2 VO",
-			"AW87565_PA2 IN", "ES8156_DAC1 LOUT";
+		"Speaker", "AW87565_PA2 VO",
+		"AW87565_PA2 IN", "ES8156_DAC1 LOUT";
 		simple-audio-card,aux-devs = <&audio_aw87565_pa2>;
 		SOUND_CARD_LINK(0, i2s, i2s1, 0, es8156_dac1, 0);
 		SOUND_CARD_LINK(1, i2s, i2s1, 0, es7210_adc1, 0);

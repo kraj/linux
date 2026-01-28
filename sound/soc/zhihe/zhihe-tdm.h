@@ -23,6 +23,7 @@
 
 #define ZHIHE_TDM_DMABUF_SIZE	(64 * 1024)
 #define ZHIHE_TDM_DMA_MAX_BURST	16
+#define ZHIHE_TDM_DMA_FIX_BURST	1
 
 #define ZHIHE_TDM_SLOT_MAX_CNT	8
 #define DAI_TDM_SLOT		0
@@ -106,8 +107,13 @@
 #define TDMCTL_TDMEN_MSK		(0x1U << TDMCTL_TDMEN_POS)
 #define TDMCTL_TDMEN_SEL(X)		(X << TDMCTL_TDMEN_POS)
 
-#define TDM_STATE_IDLE			0
-#define TDM_STATE_RUNNING		1
+/* PERI1 SYSREG */
+#define PERI1_DMA_REUSE_CSR		(0x10)
+
+/* DMA REUSE CSR */
+#define TDM_DMA_REUSE_MSK		GENMASK(5, 0)
+#define TDM_DMA_REUSE_POS		(0U)
+#define TDM_DMA_REUSE_SEL		(0x15U << TDM_DMA_REUSE_POS)
 
 #define TDM_SPEDGE_UP			0
 #define TDM_SPEDGE_DOWN			1
@@ -124,8 +130,7 @@ struct zhihe_tdm_priv {
 	struct clk *sclk;
 	struct device *dev;
 	struct regmap *regmap;
-	struct regmap *audio_pin_regmap;
-	struct regmap *audio_cpr_regmap;
+	struct regmap *sys_regmap;
 	struct snd_soc_dai_driver *dev_dai;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	const struct zhihe_tdm_soc_drvdata *drvdata;
@@ -152,7 +157,6 @@ struct zhihe_tdm_priv {
 	u32 suspend_div0level;
 	u32 cpr_peri_div_sel;
 	u32 cpr_peri_clk_sel;
-	u32 state;
 
 	spinlock_t zhihe_tdm_lock;
 };

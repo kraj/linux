@@ -4,10 +4,10 @@
  */
 
 
-#ifndef P100_IOMB_H
-#define P100_IOMB_H
+#ifndef A210_IOMB_H
+#define A210_IOMB_H
 
-inline void p100_iomb(void);
-inline void p100_iowmb(void);
+inline void a210_iomb(void);
+inline void a210_iowmb(void);
 
 #endif

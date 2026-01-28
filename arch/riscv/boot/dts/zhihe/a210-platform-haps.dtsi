@@ -186,6 +186,14 @@
 	status = "disabled";
 };
 
+&auxdisp {
+	status = "disabled";
+};
+
+&dpu_enc0 {
+	status = "disabled";
+};
+
 &clk_gpu {
 	status = "disabled";
 };
@@ -215,5 +223,33 @@
 };
 
 &clk_d2d {
+	status = "disabled";
+};
+
+&dfmu_mt_vp {
+	status = "disabled";
+};
+
+&dfmu_mt_npu {
+	status = "disabled";
+};
+
+&dfmu_mt_vi {
+	status = "disabled";
+};
+
+&dfmu_mt_vo {
+	status = "disabled";
+};
+
+&dfmu_mt_peri1 {
+	status = "disabled";
+};
+
+&dfmu_mt_pcie {
+	status = "disabled";
+};
+
+&dfmu_mt_usb {
 	status = "disabled";
 };

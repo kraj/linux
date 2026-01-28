@@ -26,8 +26,8 @@
 
 #include <asm/iomb.h>
 /* p100-specific barrier to enforce ordering on devices, don't use in portable drivers*/
-#define dma_mb()	p100_iomb()
-#define dma_wmb()	p100_iowmb()
+#define dma_mb()	a210_iomb()
+#define dma_wmb()	a210_iowmb()
 
 /* These barriers do not need to enforce ordering on devices, just memory. */
 #define __smp_mb()	RISCV_FENCE(rw,rw)

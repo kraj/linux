@@ -376,6 +376,8 @@ static int tee_shm_fop_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vma->vm_pgoff + vma_pages(vma) > shm->size >> PAGE_SHIFT)
 		return -EINVAL;
 
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+
 	return remap_pfn_range(vma, vma->vm_start, shm->paddr >> PAGE_SHIFT,
 			       size, vma->vm_page_prot);
 }

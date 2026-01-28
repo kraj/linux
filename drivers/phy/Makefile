@@ -37,4 +37,4 @@ obj-y					+= allwinner/	\
 					   tegra/	\
 					   ti/		\
 					   xilinx/	\
-					   synopsys/
+					   zhihe/

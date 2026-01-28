@@ -7,6 +7,7 @@
  * Author: Anonymous <anonymous@zhcomputing.com>
  */
 
+#include <linux/dma/dw-axi-dma.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -40,10 +41,8 @@ static int zhihe_tdm_dai_probe(struct snd_soc_dai *dai)
 
 static void zhihe_tdm_snd_rxctrl(struct zhihe_tdm_priv *chip, u32 on)
 {
-	regmap_update_bits(chip->regmap, TDM_DMACTL, DMACTL_DMAEN_MSK,
-			   DMACTL_DMAEN_SEL(on));
-	regmap_update_bits(chip->regmap, TDM_TDMEN, TDMCTL_TDMEN_MSK,
-			   TDMCTL_TDMEN_SEL(on));
+	regmap_write(chip->regmap, TDM_DMACTL, DMACTL_DMAEN_SEL(on));
+	regmap_write(chip->regmap, TDM_TDMEN, TDMCTL_TDMEN_SEL(on));
 }
 
 static int zhihe_tdm_dai_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -61,22 +60,24 @@ static int zhihe_tdm_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!slot_use_cnt) {
+		if (!slot_use_cnt)
 			zhihe_tdm_snd_rxctrl(tdm_priv, 1);
-			tdm_priv->state |= TDM_STATE_RUNNING;
-		}
 		++slot_use_cnt;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		--slot_use_cnt;
+		/* work around for DMAC stop issue. */
+		dmaengine_terminate_async(snd_dmaengine_pcm_get_chan(substream));
+		if (!slot_use_cnt)
+			zhihe_tdm_snd_rxctrl(tdm_priv, 0);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		--slot_use_cnt;
 		/* work around for DMAC stop issue. */
-		dmaengine_terminate_async(snd_dmaengine_pcm_get_chan(substream));
-		if (!slot_use_cnt) {
+		dmaengine_pause(snd_dmaengine_pcm_get_chan(substream));
+		if (!slot_use_cnt)
 			zhihe_tdm_snd_rxctrl(tdm_priv, 0);
-			tdm_priv->state &= ~TDM_STATE_RUNNING;
-		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -96,10 +97,8 @@ static int zhihe_tdm_set_fmt_dai(struct snd_soc_dai *dai, unsigned int fmt)
 	if (!tdm_priv->regmap)
 		return -EINVAL;
 
-	if (is_set_fmt_dai) {
-		pr_info("TDM fmt dai already setting\n");
+	if (is_set_fmt_dai)
 		return 0;
-	}
 
 	pm_runtime_resume_and_get(tdm_priv->dev);
 
@@ -181,6 +180,22 @@ static void zhihe_tdm_set_div(struct zhihe_tdm_priv *chip, u32 sample_rate,
 			   div0);
 }
 
+static int zhihe_tdm_dai_startup(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
+{
+	struct zhihe_tdm_priv *tdm_priv =  snd_soc_dai_get_drvdata(dai);
+	unsigned int dma_reuse;
+
+	if (!tdm_priv->sys_regmap)
+		return -EINVAL;
+
+	regmap_read(tdm_priv->sys_regmap, PERI1_DMA_REUSE_CSR, &dma_reuse);
+	if (dma_reuse != TDM_DMA_REUSE_SEL)
+		regmap_write(tdm_priv->sys_regmap, PERI1_DMA_REUSE_CSR, TDM_DMA_REUSE_SEL);
+
+	return 0;
+}
+
 static int zhihe_tdm_dai_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params,
 				   struct snd_soc_dai *dai)
@@ -194,9 +209,6 @@ static int zhihe_tdm_dai_hw_params(struct snd_pcm_substream *substream,
 	if (!tdm_priv || !tdm_priv->regmap)
 		return -EINVAL;
 
-	/* mask all tdm-interrupt to avoid too much irq info. */
-	writel(0, tdm_priv->regs + TDM_IMR);
-
 	sample_rate = params_rate(params);
 
 	switch(params_format(params)) {
@@ -206,9 +218,6 @@ static int zhihe_tdm_dai_hw_params(struct snd_pcm_substream *substream,
 		width = ZHIHE_TDM_BITWTH_16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		datawth = TDMCTL_DATAWTH_24BIT;
-		width = ZHIHE_TDM_BITWTH_24;
-		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 	case SNDRV_PCM_FMTBIT_FLOAT_LE:
 		datawth = TDMCTL_DATAWTH_32BIT;
@@ -253,6 +262,7 @@ static const struct snd_soc_dai_ops zhihe_tdm_dai_ops = {
 	.probe		= zhihe_tdm_dai_probe,
 	.trigger	= zhihe_tdm_dai_trigger,
 	.set_fmt	= zhihe_tdm_set_fmt_dai,
+	.startup	= zhihe_tdm_dai_startup,
 	.hw_params	= zhihe_tdm_dai_hw_params,
 	.set_tdm_slot	= NULL,
 };
@@ -456,6 +466,7 @@ static int zhihe_tdm_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct zhihe_tdm_priv *tdm_priv;
 	struct resource *res;
+	struct axi_dma_peripheral_config *dma_pcfg;
 	const uint32_t *iprop;
 	int ret;
 
@@ -498,12 +509,11 @@ static int zhihe_tdm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tdm_priv);
 
 	if (is_tdm_probe) {
-		pr_info("%s: tdm is already probed\n", __func__);
 		tdm_priv->regs = tdm_host_priv->regs;
 		tdm_priv->regmap = tdm_host_priv->regmap;
+		tdm_priv->sys_regmap = tdm_host_priv->sys_regmap;
 		tdm_priv->irq = tdm_host_priv->irq;
 	} else {
-		pr_info("%s: tdm probing\n", __func__);
 		tdm_host_priv = tdm_priv;
 
 		tdm_priv->regs = devm_ioremap_resource(dev, res);
@@ -517,6 +527,12 @@ static int zhihe_tdm_probe(struct platform_device *pdev)
 			dev_err(dev,
 				"Failed to initialise managed register map\n");
 			return PTR_ERR(tdm_priv->regmap);
+		}
+
+		tdm_priv->sys_regmap = syscon_regmap_lookup_by_phandle(np, "zhihe,peri1-sys");
+		if (IS_ERR(tdm_priv->sys_regmap)) {
+			dev_err(&pdev->dev, "Failed to get syscon regmap\n");
+			return PTR_ERR(tdm_priv->sys_regmap);
 		}
 
 		/* prepare source clocks */
@@ -539,6 +555,16 @@ static int zhihe_tdm_probe(struct platform_device *pdev)
 	tdm_priv->dma_params_rx.addr = res->start + TDM_LDR1 + \
 				       tdm_priv->drvdata->slot_num * \
 				       ZHIHE_TDM_REG_STRIDE;
+	dma_pcfg = devm_kzalloc(&pdev->dev, sizeof(*dma_pcfg), GFP_KERNEL);
+	if (!dma_pcfg) {
+		ret = -ENOMEM;
+		goto err_pm_disable;
+	}
+	dma_pcfg->src_addr_incr = false;
+	dma_pcfg->src_fixed_burst = ZHIHE_TDM_DMA_FIX_BURST;
+
+	tdm_priv->dma_params_rx.peripheral_config = (void *)dma_pcfg;
+	tdm_priv->dma_params_rx.peripheral_size = sizeof(*dma_pcfg);
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {

@@ -39,7 +39,6 @@ static atomic_t rx_device_usage = ATOMIC_INIT(0);
 
 /* 0: master-sd0 && 1: slave-sd1 && 2: slave-sd2 && 3: slave-sd3 */
 static struct dma_chan *i2s3_tx_ch[4] = { NULL, NULL, NULL, NULL };
-static struct dma_chan *i2s3_rx_ch[4] = { NULL, NULL, NULL, NULL };
 
 static unsigned int a200_special_sample_rates[] = { 11025, 22050, 44100, 88200 };
 
@@ -247,6 +246,15 @@ static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on,
 		i2s_multi_channel_sync(i2s_priv->regs, i2s_priv->ch_cnt, true, tx, on);
 		regmap_write(i2s_priv->regmap, I2S_DMACR, dma_en);
 
+
+		/* work around to deal with tx channel sync */
+		if (tx) {
+			for (i = 1; i < i2s_priv->ch_cnt / 2; i++) {
+				if (i2s3_tx_ch[i])
+					cb(i2s3_tx_ch[i]);
+			}
+		}
+
 		/**
 		 * The enablement of I2S can onlybe truned off when
 		 * the DMA configuration for RX and TX is completely disabled.
@@ -260,14 +268,6 @@ static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on,
 					   FUNCMODE_RMODE_Msk,
 					   FUNCMODE_TMODE_WEN |
 					   FUNCMODE_RMODE_WEN);
-
-			/* work around to deal with channel sync */
-			for (i = 1; i < i2s_priv->ch_cnt / 2; i++) {
-				if (i2s3_tx_ch[i])
-					cb(i2s3_tx_ch[i]);
-				if (i2s3_rx_ch[i])
-					cb(i2s3_rx_ch[i]);
-			}
 		}
 	}
 
@@ -378,9 +378,6 @@ static int zhihe_i2s_set_fmt_dai(struct snd_soc_dai *dai, unsigned int fmt)
 			   CNFOUT_TALOLRC_Msk | CNFOUT_I2S_TXMODE_Msk, cnfout);
 	regmap_update_bits(i2s_priv->regmap, I2S_IISCNF_IN, CNFIN_RSAFS_Msk |
 			   CNFIN_RALOLRC_Msk | CNFIN_I2S_RXMODE_Msk, cnfin);
-
-	/* mask all i2s-interrupt to avoid too much irq info */
-	regmap_write(i2s_priv->regmap, I2S_IMR, 0);
 
 err_pm_put:
 	pm_runtime_put_sync(i2s_priv->dev);
@@ -552,23 +549,15 @@ static int zhihe_i2s_dai_startup(struct snd_pcm_substream *substream,
 	if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
 		if (tx)
 			i2s3_tx_ch[0] = chan;
-		else
-			i2s3_rx_ch[0] = chan;
 	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd1")) {
 		if (tx)
 			i2s3_tx_ch[1] = chan;
-		else
-			i2s3_rx_ch[1] = chan;
 	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd2")) {
 		if (tx)
 			i2s3_tx_ch[2] = chan;
-		else
-			i2s3_rx_ch[2] = chan;
 	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd3")) {
 		if (tx)
 			i2s3_tx_ch[3] = chan;
-		else
-			i2s3_rx_ch[3] = chan;
 	}
 
 	return 0;
@@ -583,23 +572,15 @@ static void zhihe_i2s_dai_shutdown(struct snd_pcm_substream *substream,
 	if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
 		if (tx)
 			i2s3_tx_ch[0] = NULL;
-		else
-			i2s3_rx_ch[0] = NULL;
 	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd1")) {
 		if (tx)
 			i2s3_tx_ch[1] = NULL;
-		else
-			i2s3_rx_ch[1] = NULL;
 	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd2")) {
 		if (tx)
 			i2s3_tx_ch[2] = NULL;
-		else
-			i2s3_rx_ch[2] = NULL;
 	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd3")) {
 		if (tx)
 			i2s3_tx_ch[3] = NULL;
-		else
-			i2s3_rx_ch[3] = NULL;
 	}
 
 	if (i2s_priv->regmap)

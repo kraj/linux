@@ -115,7 +115,7 @@
 /* ---------------------------------- PLL ------------------------------- */
 
 #define FCLKIN_FREQ_MIN					2000UL		/* in KHz */
-#define FCLKIN_FREQ_MAX					297000UL
+#define FCLKIN_FREQ_MAX					594000UL
 #define FOUT_FREQ_MIN					40000UL
 #define FOUT_FREQ_MAX					2500000UL
 #define CFGCLK_FREQ_MIN					17000UL
@@ -726,6 +726,8 @@ static int dw_dphy_runtime_suspend(struct device *dev)
 	clk_disable_unprepare(dphy->refclk);
 	clk_disable_unprepare(dphy->cfgclk);
 	clk_disable_unprepare(dphy->pclk);
+	clk_disable_unprepare(dphy->prefclk);
+	clk_disable_unprepare(dphy->pcfgclk);
 
 	return 0;
 }
@@ -753,10 +755,20 @@ static int dw_dphy_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	ret = clk_prepare_enable(dphy->prefclk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable prefclk\n");
+	}
+
+	ret = clk_prepare_enable(dphy->pcfgclk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable pcfgclk\n");
+	}
+
 	return 0;
 }
 
-static int dw_dphy_resume(struct device *dev)
+static int __maybe_unused dw_dphy_resume(struct device *dev)
 {
 	int ret;
 	struct dw_dphy *dphy = dev_get_drvdata(dev);
@@ -764,6 +776,8 @@ static int dw_dphy_resume(struct device *dev)
 	clk_disable_unprepare(dphy->refclk);
 	clk_disable_unprepare(dphy->cfgclk);
 	clk_disable_unprepare(dphy->pclk);
+	clk_disable_unprepare(dphy->prefclk);
+	clk_disable_unprepare(dphy->pcfgclk);
 
 	ret = clk_prepare_enable(dphy->pclk);
 	if (ret) {
@@ -783,19 +797,33 @@ static int dw_dphy_resume(struct device *dev)
 		return ret;
 	}
 
+	ret = clk_prepare_enable(dphy->pcfgclk);
+	if (ret) {
+		dev_err(dev, "dphy resume failed to prepare/enable pcfgclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(dphy->prefclk);
+	if (ret) {
+		dev_err(dev, "dphy resume failed to prepare/enable prefclk\n");
+		return ret;
+	}
+
 	dw_dphy_config_testclr(dphy, 1);
 	dw_dphy_config_testclr(dphy, 0);
 
 	return 0;
 }
 
-static int dw_dphy_suspend(struct device *dev)
+static int __maybe_unused dw_dphy_suspend(struct device *dev)
 {
 	struct dw_dphy *dphy = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(dphy->refclk);
 	clk_disable_unprepare(dphy->cfgclk);
 	clk_disable_unprepare(dphy->pclk);
+	clk_disable_unprepare(dphy->prefclk);
+	clk_disable_unprepare(dphy->pcfgclk);
 
 	return 0;
 }

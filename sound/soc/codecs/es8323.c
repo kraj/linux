@@ -653,7 +653,6 @@ static int es8323_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
-	int i, ret;
 	int count = 0;
 
 	es8323->sysclk = freq;
@@ -664,14 +663,14 @@ static int es8323_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return 0;
 	}
 
-	// ret = clk_set_rate(es8323->mclk, freq);
+	// int ret = clk_set_rate(es8323->mclk, freq);
 	// if (ret)
 	// 	return ret;
 
 	/* Limit supported sample rates to ones that can be autodetected
 	 * by the codec running in slave mode.
 	 */
-	for (i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
+	for (int i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
 		const unsigned int ratio = supported_mclk_lrck_ratios[i];
 
 		if (freq % ratio == 0)
@@ -825,11 +824,10 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 	u16 srate = snd_soc_component_read(component, ES8323_IFACE) & 0x80;
 	u16 adciface = snd_soc_component_read(component, ES8323_ADC_IFACE) & 0xE3;
 	u16 daciface = snd_soc_component_read(component, ES8323_DAC_IFACE) & 0xC7;
-
 	int coeff;
+#if 0
 	int i;
 
-#if 0
 	/* Validate supported sample rates that are autodetected from MCLK */
 	for (i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
 		const unsigned int ratio = supported_mclk_lrck_ratios[i];
@@ -845,6 +843,7 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 			params_rate(params), es8323->sysclk);
 		return -EINVAL;
 	}
+#endif
 	coeff = get_coeff(es8323->sysclk, params_rate(params));
 	if (coeff < 0) {
 		coeff = get_coeff(es8323->sysclk / 2, params_rate(params));
@@ -856,7 +855,6 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 			params_rate(params), es8323->sysclk);
 		return coeff;
 	}
-#endif 
 	/* bit size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -875,7 +873,6 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* set iface & srate */
 	snd_soc_component_write(component, ES8323_DAC_IFACE, daciface);
 	snd_soc_component_write(component, ES8323_ADC_IFACE, adciface);
 
@@ -900,8 +897,7 @@ static int es8323_mute(struct snd_soc_dai *dai, int mute, int stream)
 static int es8323_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
-	int ret;
+	// struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -914,7 +910,7 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 		// if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 		// 	clk_disable_unprepare(es8323->mclk);
 		// } else {
-		// 	ret = clk_prepare_enable(es8323->mclk);
+		// 	int ret = clk_prepare_enable(es8323->mclk);
 		// 	if (ret)
 		// 		return ret;
 		// }
@@ -1142,8 +1138,6 @@ static const struct regmap_config es8323_regmap_config = {
 static int es8323_codec_parse_dt_property(struct device *dev,
 					 	struct es8323_priv *es8323)
 {
-	struct device_node *node = dev->parent->of_node;
-	int ret;
 
 	DBG("%s()\n", __func__);
 
@@ -1168,9 +1162,9 @@ static int es8323_codec_parse_dt_property(struct device *dev,
 
 static void pa_delay_worker(struct work_struct *work)
 {
+#ifdef CONFIG_RK_HEADSET
 	struct es8323_priv *es8323 = container_of(work, struct es8323_priv, pa_work.work);
 
-	#ifdef CONFIG_RK_HEADSET
 	if(!rk_headset_get_headset()) {
 		DBG("get headset out \n");
 		es8323_codec_ctl_gpio(es8323, CODEC_SET_SPK, 1);
@@ -1180,7 +1174,7 @@ static void pa_delay_worker(struct work_struct *work)
 		es8323_codec_ctl_gpio(es8323, CODEC_SET_SPK, 0);
 		es8323_codec_ctl_gpio(es8323, CODEC_SET_HP, 1);
 	}
-	#endif
+#endif
 }
 
 static int es8323_i2c_probe(struct i2c_client *i2c)
@@ -1247,7 +1241,7 @@ static int es8323_i2c_probe(struct i2c_client *i2c)
 					      &soc_codec_dev_es8323,
 					      &es8323_dai, 1);
 
-err_:						  
+err_:
 	return ret;
 }
 

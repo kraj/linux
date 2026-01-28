@@ -6,41 +6,17 @@
 #ifndef __A210_PD_H
 #define __A210_PD_H
 
-#define P100_PD_NAME_SIZE 20
-#define P100_PD_STATE_NAME_SIZE 10
+#include <dt-bindings/power/a210-power.h>
+
+#define A210_PD_NAME_SIZE 20
+#define A210_PD_STATE_NAME_SIZE 10
 
 #define BPC_SW_MODEL 1
 #define BPC_HW_MODEL 0
 #define PCU_REG_TRIGGER 1
 #define PCU_R2P_TRIGGER 0
 
-#define  AON_AON_I2C0_BADDR                       0x3084A000
-
 #define  IOPMP_DEVICES_MAX_COUNT    16
-
-enum {
-	P100_PD_GPU = 1,
-	P100_PD_NPU_WRAPPER,
-	P100_PD_NPU_IP,
-	P100_PD_D2D,
-	P100_PD_PCIE0,
-	P100_PD_PCIE1,
-	P100_PD_SATA,
-	P100_PD_USB,
-	P100_PD_VI_WRAP,
-	P100_PD_VI_ISP,
-	P100_PD_VO,
-	P100_PD_VP_WRAP,
-	P100_PD_VENC,
-	P100_PD_VDEC,
-	P100_PD_TOP,
-	P100_PD_PERI0,
-	P100_PD_PERI1,
-	P100_PD_PERI2,
-	P100_PD_PERI3,
-	P100_PD_TEE,
-	P100_POWER_DOMAINS_MAX,
-};
 
 enum {
 	PMIC_CTRL,
@@ -75,34 +51,30 @@ enum {
 	VI_ISP_PCU,
 	VO_BPC,
 	VO_PCU,
-	P100_POWER_DOMAIN_REGS_MAX,
-};
-
-struct p100_pd_range {
-	char *name;
-	u32 index;
+	A210_POWER_DOMAIN_REGS_MAX,
 };
 
 /* represent power domains info at soc level */
-struct p100_pd_soc {
-	const struct p100_pd_range *pd_ranges;
-	u8 num_ranges;
-	struct p100_pm_domain *domains[P100_POWER_DOMAINS_MAX];
-	u8 num_domains;
+struct a210_pd_soc {
 	struct device *dev;
-	void __iomem *base[P100_POWER_DOMAIN_REGS_MAX];
+	struct a210_pm_domain *domains[A210_POWER_DOMAINS_MAX];
+	u32 num_domains;
+	struct regulator *regulators[A210_POWER_DOMAINS_MAX];
 };
 
 /* represent a single power domain */
-struct p100_pm_domain {
+struct a210_pm_domain {
 	struct generic_pm_domain pd;
 	u16 index;
-	struct p100_pd_soc *soc;
+	struct a210_pd_soc *soc;
 	struct reset_control *reset;
 	struct clk_bulk_data *clks;
 	u32 num_clks;
-	u32 device_count;
 	u32 device_ids[IOPMP_DEVICES_MAX_COUNT];
+	u32 device_ids_count;
+	void __iomem *pca_base;
+	void __iomem *bpc_base;
+	void __iomem *pcu_base;
 };
 
 typedef enum {

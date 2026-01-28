@@ -429,7 +429,7 @@
 		};
 		key-sleep {
 			label = "Sleep Wake Key";
-			wakeup-source;
+			//wakeup-source;
 			linux,code = <KEY_SLEEP>;
 			debounce-interval = <1>;
 			gpios = <&aogpio 2 GPIO_ACTIVE_LOW>;

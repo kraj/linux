@@ -86,6 +86,8 @@ struct dwc3_thead {
 	struct regmap			*misc_sysreg;
 
 	struct gpio_desc		*hubswitch;
+	struct gpio_desc		*usb3_vbus_ok;
+	struct gpio_desc		*usb3_oc;
 	struct regulator		*hub1v2;
 	struct regulator		*hub5v;
 	struct regulator		*vbus;
@@ -155,6 +157,18 @@ static int dwc3_thead_probe(struct platform_device *pdev)
 		dev_err(dev, "no need to get hubswitch GPIO\n");
 	dev_info(dev, "hubswitch usb_role = %d\n", usb_role);
 
+	thead->usb3_vbus_ok = devm_gpiod_get_optional(&pdev->dev, "usb3-vbus-en", GPIOD_OUT_LOW);
+	if (IS_ERR(thead->usb3_vbus_ok))
+		thead->usb3_vbus_ok = NULL;
+	else if (thead->usb3_vbus_ok)
+		gpiod_set_value(thead->usb3_vbus_ok, 1);
+
+	thead->usb3_oc = devm_gpiod_get_optional(&pdev->dev, "usb3-oc", GPIOD_OUT_LOW);
+	if (IS_ERR(thead->usb3_oc))
+		thead->usb3_oc = NULL;
+	else if (thead->usb3_oc)
+		gpiod_set_value(thead->usb3_oc, 1);
+
 	thead->misc_sysreg = syscon_regmap_lookup_by_phandle(np, "usb3-misc-regmap");
 	if (IS_ERR(thead->misc_sysreg)) {
 		dev_err(dev, "failed to get regmap - %ld\n", PTR_ERR(thead->misc_sysreg));
@@ -195,7 +209,7 @@ static int dwc3_thead_probe(struct platform_device *pdev)
 
 	device_enable_async_suspend(dev);
 
-	dev_info(dev,"th1520 dwc3 probe ok!\n");
+	dev_info(dev,"th1520 dwc3 driver\n");
 
 	return 0;
 

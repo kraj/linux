@@ -134,76 +134,10 @@
 		status = "okay";
 	};
 
-	codec_dummy_pdm0: codec_dummy_pdm0 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC0";
-		#address-cells = <0>;
-		#size-cells = <0>;
+	codec_dmic: dmic-codec {
+		compatible = "dmic-codec";
+		num-channels = <8>;
 		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm1: codec_dummy_pdm1 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC1";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm2: codec_dummy_pdm2 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC2";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm3: codec_dummy_pdm3 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC3";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm4: codec_dummy_pdm4 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC4";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm5: codec_dummy_pdm5 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC5";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm6: codec_dummy_pdm6 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC6";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm7: codec_dummy_pdm7 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC7";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
 	};
 
 	sound_i2s {
@@ -255,19 +189,19 @@
 		#size-cells = <0>;
 		status = "okay";
 
-		SOUND_CARD_LINK(0, pdm, pdm0, 0, dummy_pdm0, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(1, pdm, pdm1, 1, dummy_pdm1, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(2, pdm, pdm2, 2, dummy_pdm2, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(3, pdm, pdm3, 3, dummy_pdm3, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(4, pdm, pdm4, 4, dummy_pdm4, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(5, pdm, pdm5, 5, dummy_pdm5, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(6, pdm, pdm6, 6, dummy_pdm6, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(7, pdm, pdm7, 7, dummy_pdm7, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(0, pdm, pdm0, 0, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(1, pdm, pdm1, 1, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(2, pdm, pdm2, 2, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(3, pdm, pdm3, 3, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(4, pdm, pdm4, 4, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(5, pdm, pdm5, 5, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(6, pdm, pdm6, 6, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(7, pdm, pdm7, 7, dmic, 0);  /* PDM <-> Dmic */
 	};
 };
 
 &clk {
-	compatible = "zhihe,p100-clk-haps";
+	compatible = "zhihe,a210-clk-haps";
 	/* pll */
 	audio0_pll_foutvco_frequency = <150000000>;
 	audio1_pll_foutvco_frequency = <80000000>;
@@ -577,62 +511,6 @@
 		host-notify;
 		reg = <0x49>;
 	};
-};
-
-&vp_dfmu_iommu {
-    status = "disabled";
-};
-
-&vp_dfmu_mt {
-    status = "disabled";
-};
-
-&npu_dfmu_iommu {
-    status = "disabled";
-};
-
-&npu_dfmu_mt {
-    status = "disabled";
-};
-
-&vi_dfmu_iommu {
-    status = "disabled";
-};
-
-&vi_dfmu_mt {
-    status = "disabled";
-};
-
-&vo_dfmu_iommu {
-    status = "disabled";
-};
-
-&vo_dfmu_mt {
-    status = "disabled";
-};
-
-&peri1_dfmu_iommu {
-    status = "disabled";
-};
-
-&peri1_dfmu_mt {
-    status = "disabled";
-};
-
-&pcie_dfmu_iommu {
-    status = "disabled";
-};
-
-&pcie_dfmu_mt {
-    status = "disabled";
-};
-
-&usb_dfmu_iommu {
-    status = "disabled";
-};
-
-&usb_dfmu_mt {
-    status = "disabled";
 };
 
 &bmu0 {

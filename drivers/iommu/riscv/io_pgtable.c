@@ -141,7 +141,7 @@ static int riscv_iommu_map_pages(struct io_pgtable_ops *ops,
 	pte_t pte_val;
 	pgprot_t pte_prot;
 
-	dev_dbg(domain->iommu->dev, "%s enter iova=0x%lx, phys=0x%llx pgsize=0x%lx pgcount=0x%lx\n", __func__, iova, phys, pgsize, pgcount);
+	dev_dbg(domain->iommus->dev, "%s enter iova=0x%lx, phys=0x%llx pgsize=0x%lx pgcount=0x%lx\n", __func__, iova, phys, pgsize, pgcount);
 	if (domain->domain.type == IOMMU_DOMAIN_BLOCKED)
 		return -ENODEV;
 

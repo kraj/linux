@@ -1,14 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-config USB_DWC2_ZHIHE
-	tristate "Zhihe DWC2 Platform"
-	depends on ARCH_ZHIHE || COMPILE_TEST
-	default USB_DWC2
-	help
-	  Support Zhihe platform with DesignWare Core USB2 IP.
-	  Only the host mode is currently supported.
-	  Say 'Y' or 'M' here if you have one such device.
-
 config USB_DWC2
 	tristate "DesignWare USB2 DRD Core Support"
 	depends on HAS_DMA

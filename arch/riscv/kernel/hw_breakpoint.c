@@ -89,8 +89,6 @@ static int arch_smp_setup_sbi_shmem(unsigned int cpu)
 		}
 	}
 
-	pr_info("CPU %d: HW Breakpoint shared memory registered.\n", cpu);
-
 	return rc;
 }
 

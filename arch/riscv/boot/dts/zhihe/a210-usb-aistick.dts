@@ -1,0 +1,635 @@
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "a210-soc-core.dtsi"
+#include "a210-soc-peri.dtsi"
+#include "a210-platform-dev.dtsi"
+
+#define SOUND_CARD_LINK(REG, FMT, CPU, M, CODEC, N) \
+	simple-audio-card,dai-link@##REG { \
+		reg = <REG>; \
+		format = #FMT; \
+		cpu { \
+			sound-dai = <&audio_##CPU M>; \
+		}; \
+		codec { \
+			sound-dai = <&codec_##CODEC N>; \
+		}; \
+	}
+
+/ {
+	model = "A210 DEV configuration";
+
+	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+
+		gpio0 = &ao_gpio0;
+		gpio1 = &ao_gpio1;
+		gpio2 = &gpio0;
+		gpio3 = &gpio1;
+		gpio4 = &gpio2;
+		gpio5 = &gpio3;
+		gpio6 = &gpio4;
+
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &aoi2c1;
+
+		can0 = &can0;
+		can1 = &can1;
+		can2 = &can2;
+
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
+		serial6 = &uart6;
+		serial7 = &uart7;
+		serial8 = &uart8;
+		serial9 = &uart9;
+		spi0 = &qspi0;
+		spi1 = &qspi1;
+		spi2 = &spi0;
+		spi3 = &spi1;
+		pcie3x4 = &dm3x4;
+		pcie3x1 = &rp3x1;
+	};
+
+	/* The actual capacity will be adjusted through SPL */
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00 0x80000000  0x01 0x00000000>; /* 4G */
+		numa-node-id = <0>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00 0x40000000>;
+			alloc-ranges = <0x00 0x90000000 0x00 0x40000000>;
+			linux,cma-default;
+		};
+
+		memory@1c000000 {
+			reg = <0x00 0x1c000000 0x00 0x2000000>;
+			no-map;
+		};
+
+		framebuffer: framebuffer@10000000 {
+			reg = <0x01 0x00 0x00 0x5000000>;
+			no-map;
+		};
+
+		npu_mmu_memory@130000000 {
+			reg = <0x01 0x30000000 0x00 0x04000000>;
+			no-map;
+		};
+
+		memblock-memory@17b800000 {
+			reg = <0x01 0x7b800000 0x00 0x04000000>;
+			no-map;
+		};
+	};
+
+	/* The bootargs in U-Boot will override the configuration set here. */
+	chosen {
+		stdout-path = "serial4";
+	};
+};
+
+&aon {
+	regulators {
+		compatible = "zhihe,a210-aon-regulator";
+
+		avdd33_emmc_reg: avdd33_emmc {
+			regulator-name = "avdd33_emmc";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd33_usb2_reg: avdd33_usb2 {
+			regulator-name = "avdd33_usb2";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		dvdd08_aon_reg: dvdd08_aon {
+			regulator-name = "dvdd08_aon";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd18_aon_reg: avdd18_aon {
+			regulator-name = "avdd18_aon";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd18_emmc_usb2_reg: avdd18_emmc_usb2 {
+			regulator-name = "avdd18_emmc_usb2";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd18_emmc_peri_reg: avdd18_emmc_peri {
+			regulator-name = "avdd18_emmc_peri";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd18_top_reg: avdd18_top {
+			regulator-name = "avdd18_top";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd18_pll_reg: avdd18_pll {
+			regulator-name = "avdd18_pll";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		avdd18_reg: avdd18 {
+			regulator-name = "avdd18";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		dvdd18_ddr_vaa_reg: dvdd18_ddr_vaa {
+			regulator-name = "dvdd18_ddr_vaa";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		p3v3_reg: p3v3 {
+			regulator-name = "p3v3";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		dvdd08_top_reg: dvdd08_top {
+			regulator-name = "dvdd08_top";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		dvdd06_ddr_vddqlp_reg: dvdd06_ddr_vddqlp {
+			regulator-name = "dvdd06_ddr_vddqlp";
+			regulator-type = "voltage";
+			regulator-always-on;
+		};
+
+		dvdd08_ddr_reg: dvdd08_ddr {
+			regulator-name = "dvdd08_ddr";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <750000>;
+			regulator-max-microvolt = <800000>;
+			regulator-always-on;
+		};
+
+		dvdd_cpu_reg: dvdd_cpu {
+			regulator-name = "dvdd_cpu";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		dvddm_cpu_reg: dvddm_cpu {
+			regulator-name = "dvddm_cpu";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		dvdd_vp_reg: dvdd_vp {
+			regulator-name = "dvdd_vp";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <750000>;
+			regulator-max-microvolt = <800000>;
+			regulator-always-on;
+		};
+
+		dvdd_npu_vip_reg: dvdd_npu_vip {
+			regulator-name = "dvdd_npu_vip";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <750000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		dvdd_cpu_p_reg: dvdd_cpu_p {
+			regulator-name = "dvdd_cpu_p";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		dvdd_gpu_reg: dvdd_gpu {
+			regulator-name = "dvdd_gpu";
+			regulator-type = "voltage";
+			regulator-ramp-delay = <100>;
+			regulator-min-microvolt = <750000>;
+			regulator-max-microvolt = <800000>;
+			regulator-always-on;
+		};
+
+	};
+
+	cpufreq: a210_cpufreq {
+		compatible = "zhihe,a210-cpufreq";
+		clocks = <&clk TOP_CPUSYS_BUS_CLK_DIV>,
+			 <&clk TOP_CPUSYS_PIC_CLK_DIV>,
+			 <&clk TOP_CPUSYS_CFG_ACLK_DIV>,
+			 <&clk TOP_CPUSYS_COM_APB_CLK_DIV>,
+			 <&clk TOP_CPUSYS_APB_CLK_DIV>;
+		clock-names = "bus_clk", "pic_clk", "cfg_clk", "com_clk", "apb_clk";
+		status = "okay";
+	};
+};
+
+&aon_padctrl {
+	rtc_pins: rtc {
+		rtc-pins {
+			pins = "AOGPIO0_27";
+			function = "aogpio0";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+	};
+    aoi2c1_pins: aoi2c1-0 {
+		i2c-pins {
+			pins = "AOI2C1_SCL", "AOI2C1_SDA";
+			function = "aoi2c1";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&peri1_padctrl {
+	sdhci_pins: sdhci0-1 {
+		sd-pins {
+			pins = "GPIO1_1";
+			function = "sdio";
+			bias-disable;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	usb3_pins: usb3-1 {
+		usb3-pins {
+			pins = "GPIO0_27";
+			function = "gpio0";
+			bias-disable;
+			drive-strength = <13>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&peri2_padctrl {
+	uart4_pins: uart4-0 {
+		tx-pins {
+			pins = "GPIO2_0";
+			function = "uart4";
+			bias-disable;
+			drive-strength = <3>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pins = "GPIO2_1";
+			function = "uart4";
+			bias-disable;
+			drive-strength = <1>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	i2c5_pins: i2c5-1 {
+		i2c-pins {
+			pins = "GPIO2_28", "GPIO2_29";
+			function = "i2c5";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	uart5_pins: uart5-1 {
+		tx-pins {
+			pins = "GPIO2_18", "GPIO3_10";	// TXD, RTSN
+			function = "uart5";
+			bias-disable;
+			drive-strength = <3>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pins = "GPIO2_19", "GPIO3_9";	// RXD, CTSN
+			function = "uart5";
+			bias-disable;
+			drive-strength = <1>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	i2c6_pins: i2c6-1 {
+		i2c-pins {
+			pins = "GPIO2_8", "GPIO2_9";
+			function = "i2c6";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	i2s1_pins: i2s1-0 {
+		i2s-pins {
+			pins = "GPIO2_2", "GPIO2_3", "GPIO2_4", "GPIO2_5", "GPIO2_6";
+			function = "i2s1";
+			bias-disable;
+			drive-strength = <13>;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+	};
+	i2c7_pins: i2c7-0 {
+		i2c-pins {
+			pins = "GPIO2_10", "GPIO2_11";
+			function = "i2c7";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	i2c4_pins: i2c4-2 {
+		i2c-pins {
+			pins = "GPIO2_26", "GPIO2_27";
+			function = "i2c4";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	sen_vclk_pin0: sen_vclk0 {
+		sen_vclk0-pins {
+			pins = "GPIO3_0";
+			function = "sen_vclk";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	sen_vclk_pin1: sen_vclk1 {
+		sen_vclk1-pins {
+			pins = "GPIO3_1";
+			function = "sen_vclk";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	uart8_pins: uart8-1 {
+		tx-pins {
+			pins = "GPIO3_2";	// TXD
+			function = "uart8";
+			bias-disable;
+			drive-strength = <3>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pins = "GPIO3_3";	// RXD
+			function = "uart8";
+			bias-disable;
+			drive-strength = <1>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+};
+
+&gmac0 {
+	status = "disabled";
+};
+
+&mdio0 {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "disabled";
+};
+
+&qspi0 {
+	status = "disabled";
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+	clock-frequency = <400000>;
+};
+
+&i2c5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5_pins>;
+	clock-frequency = <400000>;
+};
+
+&i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pins>;
+	clock-frequency = <400000>;
+};
+
+&i2c7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7_pins>;
+	clock-frequency = <400000>;
+};
+
+&aoi2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&aoi2c1_pins>;
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins>;
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5_pins>;
+};
+
+&uart8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart8_pins>;
+};
+
+&rp3x1 {
+	status = "disabled";
+};
+
+&dm3x4 {
+	status = "disabled";
+};
+
+&audio_i2s1 {
+	status = "disabled";
+};
+
+&adc {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&pwm1 {
+	status = "disabled";
+};
+
+&can0 {
+	status = "disabled";
+};
+
+&hdmi_tx {
+	status = "disabled";
+};
+
+&vidmem {
+  memory-region = <&framebuffer>;
+};
+
+&emmc {
+	max-frequency = <196608000>;
+	non-removable;
+	mmc-hs400-1_8v;
+	mmc-hs200-1_8v;
+	io_fixed_1v8;
+	is_emmc;
+	no-sdio;
+	no-sd;
+	pull_up;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+};
+
+&sdhci0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhci_pins>;
+	max-frequency = <196608000>;
+	cap-sd-highspeed;
+	bus-width = <4>;
+	sd-uhs-sdr104;
+	pull_up;
+	no-sd;
+	no-mmc;
+	non-removable;
+	io_fixed_1v8;
+	post-power-on-delay-ms = <200>;
+	wprtn_ignore;
+	wakeup-source;
+};
+
+&usb3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb3_pins>;
+	typec-pwren-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+};
+
+&sata {
+	status = "disabled";
+};
+
+&mipi0_csi0 {
+	status = "disabled";
+};
+
+&mipi0_csi1 {
+	status = "disabled";
+};
+
+//config dsi display: dpu_disp0->dup_enc0->dsi0->lcd_plane
+
+&dpu_enc0 {
+    status = "disabled";
+};
+
+&dsi_host0 {
+	status = "disabled";
+};
+
+&c920_4 {
+	dvdd-cpu-p-supply = <&dvdd_cpu_p_reg>;
+};
+
+&c908_0 {
+	dvdd-cpu-supply = <&dvdd_cpu_reg>;
+	dvddm-cpu-supply = <&dvddm_cpu_reg>;
+};

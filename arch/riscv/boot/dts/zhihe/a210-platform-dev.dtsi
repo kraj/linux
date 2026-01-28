@@ -54,6 +54,10 @@
 	status = "disabled";
 };
 
+&can0 {
+	status = "disabled";
+};
+
 &can1 {
 	status = "disabled";
 };
@@ -100,6 +104,14 @@
 
 &dm3x4 {
 	status = "okay";
+};
+
+&auxdisp {
+	status = "disabled";
+};
+
+&dpu_enc0 {
+	status = "disabled";
 };
 
 &audio_i2s0 {
@@ -175,60 +187,36 @@
 };
 
 /* dfmu/iommu */
-&vp_dfmu_iommu {
-    status = "disabled";
+&iommu {
+	status = "okay";
 };
 
-&vp_dfmu_mt {
-    status = "disabled";
+&dfmu_mt_vp {
+	status = "disabled";
 };
 
-&npu_dfmu_iommu {
-    status = "disabled";
+&dfmu_mt_npu {
+	status = "disabled";
 };
 
-&npu_dfmu_mt {
-    status = "disabled";
+&dfmu_mt_vi {
+	status = "disabled";
 };
 
-&vi_dfmu_iommu {
-    status = "disabled";
+&dfmu_mt_vo {
+	status = "disabled";
 };
 
-&vi_dfmu_mt {
-    status = "disabled";
+&dfmu_mt_peri1 {
+	status = "disabled";
 };
 
-&vo_dfmu_iommu {
-    status = "disabled";
+&dfmu_mt_pcie {
+	status = "disabled";
 };
 
-&vo_dfmu_mt {
-    status = "disabled";
-};
-
-&peri1_dfmu_iommu {
-    status = "okay";
-};
-
-&peri1_dfmu_mt {
-    status = "disabled";
-};
-
-&pcie_dfmu_iommu {
-    status = "disabled";
-};
-
-&pcie_dfmu_mt {
-    status = "disabled";
-};
-
-&usb_dfmu_iommu {
-    status = "okay";
-};
-
-&usb_dfmu_mt {
-    status = "disabled";
+&dfmu_mt_usb {
+	status = "disabled";
 };
 
 &bmu9 {

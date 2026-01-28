@@ -7,12 +7,21 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+#include <linux/of.h>
+#include <drm/drm_atomic.h>
+#endif
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_modes.h>
 #include <drm/vs_drm.h>
 
 #include "vs_crtc.h"
+
+#ifdef CONFIG_ZHIHE_AUXDISP
+#include "vs_drv.h"
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
 #include <linux/media-bus-format.h>
@@ -301,7 +310,7 @@ static void vs_crtc_atomic_enable(struct drm_crtc *crtc,
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
 static void vs_crtc_atomic_disable(struct drm_crtc *crtc,
-                   struct drm_atomic_state *old_state)
+                   struct drm_atomic_state *state)
 #else
 static void vs_crtc_atomic_disable(struct drm_crtc *crtc,
                    struct drm_crtc_state *old_state)
@@ -309,11 +318,50 @@ static void vs_crtc_atomic_disable(struct drm_crtc *crtc,
 {
     struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+    struct drm_device *drm_dev = crtc->dev;
+    struct vs_drm_private *priv = drm_dev->dev_private;
+    bool auxdisp_enabling = false;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+    /* 检查是否有 AuxDisp CRTC 即将启用 */
+    struct drm_crtc *other_crtc;
+    struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+    int i;
+
+    for_each_oldnew_crtc_in_state(state, other_crtc, old_crtc_state, new_crtc_state, i) {
+        if (other_crtc == crtc)
+            continue;
+
+        /* 检查是否是 AuxDisp CRTC */
+        if (other_crtc->port && other_crtc->port->parent &&
+            of_device_is_compatible(other_crtc->port->parent, ZH_AUXDISP_COMPATIBLE)) {
+
+            /* 检查 AuxDisp 是否从 inactive → active */
+            if (!old_crtc_state->active && new_crtc_state->active) {
+                auxdisp_enabling = true;
+                break;
+            }
+        }
+    }
+#endif
+#endif
+
     drm_crtc_vblank_off(crtc);
 
     vs_crtc->funcs->disable(vs_crtc->dev, crtc);
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+    /* 如果检测到 AuxDisp 即将启用，不释放 PM 引用 */
+    if (auxdisp_enabling) {
+        priv->dc_clk_held_for_auxdisp = true;
+    } else {
+        /* 正常情况：立即释放 PM 引用 */
+        pm_runtime_put(vs_crtc->dev);
+    }
+#else
     pm_runtime_put(vs_crtc->dev);
+#endif
 
     spin_lock_irq(&crtc->dev->event_lock);
     if (crtc->state->event && !crtc->state->active) {

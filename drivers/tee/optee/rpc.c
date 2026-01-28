@@ -275,5 +275,3 @@ void optee_rpc_cmd(struct tee_context *ctx, struct optee *optee,
 		handle_rpc_supp_cmd(ctx, optee, arg);
 	}
 }
-
-

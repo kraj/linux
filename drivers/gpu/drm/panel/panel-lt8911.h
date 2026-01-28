@@ -82,6 +82,7 @@ struct i2c_mipi_dsi {
 
 	// backlight
 	int brightness;
+	bool prepared;
 };
 
 #define panel_to_md(_p)	container_of(_p, struct i2c_mipi_dsi, panel)

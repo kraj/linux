@@ -272,63 +272,63 @@ struct zhihe_clk_info {
 	};
 };
 
-static inline struct clk *zhihe_clk_fixed_factor(const char *name,
+static inline struct clk *zhihe_clk_fixed_factor(struct device *dev, const char *name,
 		const char *parent, unsigned int mult, unsigned int div)
 {
-	return clk_register_fixed_factor(NULL, name, parent,
+	return clk_register_fixed_factor(dev, name, parent,
 			CLK_SET_RATE_PARENT, mult, div);
 }
 
-struct clk *zhihe_pll(const char *name, const char *parent_name,
+struct clk *zhihe_pll(struct device *dev, const char *name, const char *parent_name,
 			    void __iomem *base,
 			    const struct zhihe_clk_info_pll *pll_clk);
 
-static inline struct clk *zhihe_clk_gate(const char *name, const char *parent,
+static inline struct clk *zhihe_clk_gate(struct device *dev, const char *name, const char *parent,
 					       void __iomem *reg, u8 shift)
 {
-	return clk_register_gate(NULL, name, parent, CLK_SET_RATE_PARENT, reg,
+	return clk_register_gate(dev, name, parent, CLK_SET_RATE_PARENT, reg,
 			shift, 0, &zhihe_clk_lock);
 }
 
-struct clk *zhihe_clk_register_gate_shared(const char *name, const char *parent,
+struct clk *zhihe_clk_register_gate_shared(struct device *dev, const char *name, const char *parent,
 						 unsigned long flags, void __iomem *reg,
 						 u8 shift, spinlock_t *lock,
 						 unsigned int *share_count);
 
-struct clk *zhihe_clk_divider(const char *name, const char *parent,
-				    void __iomem *reg, u8 shift, u8 width,
-				    u8 sync, enum zhihe_div_type div_type,
-				    u16 min, u16 max);
+struct clk *zhihe_clk_divider(struct device *dev, const char *name, const char *parent,
+						void __iomem *reg, u8 shift, u8 width,
+						u8 sync, enum zhihe_div_type div_type,
+						u16 min, u16 max);
 
 /**
 * By default, the clk framework calculates frequency by rounding downwards.
 * This function is to achieve closest frequency.
 */
-struct clk *zhihe_clk_divider_closest(const char *name, const char *parent,
-				    void __iomem *reg, u8 shift, u8 width,
-				    u8 sync, enum zhihe_div_type div_type,
-				    u16 min, u16 max);
+struct clk *zhihe_clk_divider_closest(struct device *dev, const char *name, const char *parent,
+						void __iomem *reg, u8 shift, u8 width,
+						u8 sync, enum zhihe_div_type div_type,
+						u16 min, u16 max);
 
 
-static inline struct clk *zhihe_clk_fixed(const char *name, const char *parent, unsigned long rate)
+static inline struct clk *zhihe_clk_fixed(struct device *dev, const char *name, const char *parent, unsigned long rate)
 {
-	return clk_register_fixed_rate(NULL, name, parent, 0, rate);
+	return clk_register_fixed_rate(dev, name, parent, 0, rate);
 }
 
-static inline struct clk *zhihe_clk_gate_shared(const char *name, const char *parent,
+static inline struct clk *zhihe_clk_gate_shared(struct device *dev, const char *name, const char *parent,
 					void __iomem *reg, u8 shift,
 					unsigned int *share_count)
 {
-	return zhihe_clk_register_gate_shared(name, parent, CLK_SET_RATE_PARENT, reg,
+	return zhihe_clk_register_gate_shared(dev, name, parent, CLK_SET_RATE_PARENT, reg,
 						    shift, &zhihe_clk_lock, share_count);
 }
 
-static inline struct clk *zhihe_clk_mux_flags(const char *name,
+static inline struct clk *zhihe_clk_mux_flags(struct device *dev, const char *name,
 			void __iomem *reg, u8 shift, u8 width,
 			const char * const *parents, int num_parents,
 			unsigned long flags)
 {
-	return clk_register_mux(NULL, name, parents, num_parents,
+	return clk_register_mux(dev, name, parents, num_parents,
 			flags , reg, shift, width, 0,
 			&zhihe_clk_lock);
 }

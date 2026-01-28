@@ -29,6 +29,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
+#include <linux/clk-provider.h>
 
 #define THEAD_PWM_MAX_NUM		6
 #define THEAD_PWM_MAX_PERIOD		GENMASK(31, 0)
@@ -220,24 +221,28 @@ static int thead_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->mmio_base))
 		return PTR_ERR(priv->mmio_base);
 
-	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
-
 	priv->chip.ops = &thead_pwm_ops;
 	priv->chip.dev = &pdev->dev;
 	priv->chip.npwm = THEAD_PWM_MAX_NUM;
 
-	/* check whether PWM is ever started or not */
-	for (i = 0; i < priv->chip.npwm; i++) {
-		val = readl(priv->mmio_base + THEAD_PWM_FP(i));
-		if (val)
-			priv->channel_ever_started |= 1 << i;
-	}
-
 	ret = devm_pwmchip_add(&pdev->dev, &priv->chip);
 	if (ret)
 		return ret;
+
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	/* Compatible with the default clock being enabled state. */
+	if (__clk_get_enable_count(priv->clk) > 0) {
+		/* check whether PWM is ever started or not */
+		for (i = 0; i < priv->chip.npwm; i++) {
+			val = readl(priv->mmio_base + THEAD_PWM_FP(i));
+			if (val)
+				priv->channel_ever_started |= 1 << i;
+		}
+		clk_disable_unprepare(priv->clk);
+	}
 
 	devm_pm_runtime_enable(&pdev->dev);
 

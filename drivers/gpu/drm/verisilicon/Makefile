@@ -15,5 +15,6 @@ vs_drm-$(CONFIG_VERISILICON_DW_HDMI_TH1520) += dw_hdmi-th1520.o
 vs_drm-$(CONFIG_VERISILICON_DW_DP_P100) += dw_dp.o
 vs_drm-$(CONFIG_VERISILICON_MMU) += vs_dc_mmu.o
 vs_drm-$(CONFIG_VERISILICON_DEC) += vs_dc_dec.o
+vs_drm-$(CONFIG_ZHIHE_AUXDISP) += auxdisp_crtc.o
 
 obj-$(CONFIG_DRM_VERISILICON) += vs_drm.o

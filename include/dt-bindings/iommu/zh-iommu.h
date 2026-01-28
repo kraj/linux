@@ -119,4 +119,12 @@
 #define DEVID_DIE1_NPU_DFMU      0x70
 #define DEVID_DIE1_NPU           0x71
 
+/* Dummy device IDs */
+#define DEVID_VIDEO_MEMORY_DUMMY 0xf0
+
+/* GROUPS */
+#define IOMMU_GROUP_PER_DEV      0x00
+#define IOMMU_GROUP_VIDEO        0x01
+#define IOMMU_GROUP_NPU          0x02
+
 #endif

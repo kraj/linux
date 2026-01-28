@@ -530,7 +530,7 @@ struct dw_dp_compliance {
 	bool test_active;
 };
 
-struct p100_drm_sub_dev {
+struct a210_drm_sub_dev {
 	struct list_head list;
 	struct drm_connector *connector;
 	struct device_node *of_node;
@@ -589,7 +589,7 @@ struct dw_dp {
 	struct drm_property *hdr_panel_metadata_property;
 	struct drm_property_blob *hdr_panel_blob_ptr;
 
-	struct p100_drm_sub_dev sub_dev;
+	struct a210_drm_sub_dev sub_dev;
 	struct dw_dp_hdcp hdcp;
 	int eotf_type;
 
@@ -1758,9 +1758,9 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 			!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
 
 	link->revision = link->dpcd[DP_DPCD_REV];
-#if NO_PHY 
+#if NO_PHY
 	//link->rate = MAX_FREQ;
-	//link->lanes = LANES_NUM; 
+	//link->lanes = LANES_NUM;
 	link->rate = drm_dp_max_link_rate(link->dpcd);
 	link->lanes = min_t(u8, LANES_NUM, drm_dp_max_lane_count(link->dpcd));
 #else
@@ -1786,7 +1786,7 @@ static int dw_dphy_set_voltage_pre_level(struct dw_dp *dp, int lane_id, int leve
 static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigned int lanes,
 				    struct drm_dp_link_train_set *train_set)
 {
-#if !NO_PHY 
+#if !NO_PHY
 	union phy_configure_opts phy_cfg;
 #endif
 	unsigned int *vs, *pe;
@@ -1808,7 +1808,7 @@ static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigne
 
 //	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
 //			   FIELD_PREP(PHY_POWERDOWN, 0x0));
-#if !NO_PHY 
+#if !NO_PHY
 	for (i = 0; i < lanes; i++) {
 		phy_cfg.dp.voltage[i] = vs[i];
 		phy_cfg.dp.pre[i] = pe[i];
@@ -1922,7 +1922,6 @@ static int dw_dp_phy_configure(struct dw_dp *dp, unsigned int rate,
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
 			   FIELD_PREP(PHY_POWERDOWN, 0x3));
 
-	
 	regmap_read(dp->regmap, DPTX_PHYIF_CTRL, &phy_ctl_val);
 	while((PHY_BUSY & phy_ctl_val) && count) {
 		regmap_read(dp->regmap, DPTX_PHYIF_CTRL, &phy_ctl_val);
@@ -1937,7 +1936,7 @@ static int dw_dp_phy_configure(struct dw_dp *dp, unsigned int rate,
 
 	dw_dphy_set_rate(dp, rate);
 
-#if !NO_PHY 
+#if !NO_PHY
 	union phy_configure_opts phy_cfg;
 	int ret;
 	phy_cfg.dp.lanes = lanes;
@@ -2697,7 +2696,7 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	regmap_write(dp->regmap, DPTX_VINPUT_POLARITY_CTRL, value);
 
 	/* Configure DPTX_VIDEO_CONFIG1 register */
-		
+
 	hactive = mode->hdisplay;
 	hblank = mode->htotal - mode->hdisplay;
 	value = FIELD_PREP(HACTIVE, hactive) | FIELD_PREP(HBLANK, hblank);
@@ -2751,7 +2750,7 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 			init_threshold = 3;
 		else
 			init_threshold = 16;
-	} 
+	}
 
 	if (g_init_threshold) {
 		init_threshold = g_init_threshold;
@@ -3977,10 +3976,10 @@ static irqreturn_t dw_dp_irq_handler(int irq, void *data)
 	if (value & VIDEO_FIFO_OVERFLOW_STREAM0) {
 		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
 		     VIDEO_FIFO_OVERFLOW_STREAM0);
-	} 
+	}
 
 	if (value & VIDEO_FIFO_UNDERFLOW_STREAM0) {
-		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT, 
+		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
 			VIDEO_FIFO_UNDERFLOW_STREAM0);
 	}
 #endif
@@ -4486,7 +4485,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (IS_ERR(dp->aux_clk))
 		return dev_err_probe(dev, PTR_ERR(dp->aux_clk),
 				     "failed to get aux clock\n");
-	
+
 	dp->gtc_clk = devm_clk_get(dev, "gtc");
 	if (IS_ERR(dp->gtc_clk))
 		return dev_err_probe(dev, PTR_ERR(dp->gtc_clk),

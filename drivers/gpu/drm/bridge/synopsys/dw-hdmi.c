@@ -22,6 +22,14 @@
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#endif
+
 #include <media/cec-notifier.h>
 
 #include <uapi/linux/media-bus-format.h>
@@ -40,6 +48,10 @@
 #include "dw-hdmi-audio.h"
 #include "dw-hdmi-cec.h"
 #include "dw-hdmi.h"
+
+#ifdef CONFIG_ZHIHE_AUXDISP
+#define AUXDISP_DT_COMPATIBLE "zhihe,auxdisp"
+#endif
 
 #define DDC_CI_ADDR		0x37
 #define DDC_SEGMENT_ADDR	0x30
@@ -1033,6 +1045,10 @@ static void hdmi_video_sample(struct dw_hdmi *hdmi)
 	case MEDIA_BUS_FMT_YUV8_1X24:
 	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 		color_format = 0x09;
+#ifdef CONFIG_ZHIHE_AUXDISP
+		/* auxdisp 输出的NV12 AVI值为28 */
+		color_format = 0x1c;
+#endif
 		break;
 	case MEDIA_BUS_FMT_YUV10_1X30:
 	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
@@ -1115,7 +1131,7 @@ static int is_color_space_interpolation(struct dw_hdmi *hdmi)
 	return 0;
 }
 
-static bool is_csc_needed(struct dw_hdmi *hdmi)
+static bool __maybe_unused is_csc_needed(struct dw_hdmi *hdmi)
 {
 	return is_color_space_conversion(hdmi) ||
 	       is_color_space_decimation(hdmi) ||
@@ -2325,7 +2341,7 @@ static void hdmi_check_scrambling_status(struct dw_hdmi *hdmi,
 }
 
 static int dw_hdmi_setup(struct dw_hdmi *hdmi,
-			 const struct drm_connector *connector,
+			 struct drm_connector *connector,
 			 const struct drm_display_mode *mode)
 {
 	int ret;
@@ -2697,6 +2713,162 @@ static int dw_hdmi_connector_create(struct dw_hdmi *hdmi)
 /* -----------------------------------------------------------------------------
  * DRM Bridge Operations
  */
+#ifdef CONFIG_ZHIHE_AUXDISP
+static u32 *get_bus_input_format_for_auxdisp(struct drm_crtc_state *crtc_state, u32 *input_fmts, unsigned int *num_input_fmts){
+	struct device_node *crtc_port;
+	struct drm_plane_state *plane_state;
+	struct drm_framebuffer *fb = NULL;
+	struct drm_crtc *crtc = crtc_state->crtc;
+
+	/* 判断是哪个 CRTC */
+	if (crtc && crtc->port) {
+		crtc_port = crtc->port->parent;
+		if (crtc_port) {
+			/* 检查是否是 auxdisp */
+			if (!of_device_is_compatible(crtc_port, AUXDISP_DT_COMPATIBLE)) {
+				*num_input_fmts = 0;
+				return NULL;
+			}
+		}
+	}
+	/*
+	 * 只有 AuxDisp CRTC 需要根据 framebuffer 格式设置 bus_format
+	 */
+
+	/* 获取 primary plane 的 framebuffer */
+	if (crtc_state->crtc && crtc_state->crtc->primary) {
+		plane_state = drm_atomic_get_new_plane_state(crtc_state->state,
+		                                              crtc_state->crtc->primary);
+		if (plane_state)
+			fb = plane_state->fb;
+	}
+
+	/* 根据 framebuffer 的格式确定 bus_format */
+	if (!fb) {
+		*num_input_fmts = 0;
+		return NULL;
+	}
+
+	switch (fb->format->format) {
+	/* RGB 8bit 格式 */
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+
+	/* RGB 10bit 格式 */
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+
+	/* RGB565 格式 */
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		input_fmts[0] = MEDIA_BUS_FMT_RGB565_1X16;
+		break;
+
+	/* YUV420 8bit 格式 */
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		input_fmts[0] = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
+		break;
+
+	/* YUV420 10bit 格式 */
+	case DRM_FORMAT_P010:
+		input_fmts[0] = MEDIA_BUS_FMT_UYYVYY10_0_5X30;
+		break;
+
+	default:
+		input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	}
+
+	*num_input_fmts = 1;
+	return input_fmts;
+
+}
+
+static u32 *get_bus_output_format_for_auxdisp(struct drm_crtc_state *crtc_state, u32 *output_fmts, unsigned int *num_output_fmts){
+	struct device_node *crtc_port;
+	struct drm_plane_state *plane_state;
+	struct drm_framebuffer *fb = NULL;
+	struct drm_crtc *crtc = crtc_state->crtc;
+
+	if (crtc && crtc->port) {
+		crtc_port = crtc->port->parent;
+		if (crtc_port) {
+			/* 检查是否是 auxdisp */
+			if (!of_device_is_compatible(crtc_port, AUXDISP_DT_COMPATIBLE)) {
+				*num_output_fmts = 0;
+				return NULL;
+			}
+		}
+	}
+
+	/*
+	 *只有 AuxDisp CRTC 需要根据 framebuffer 格式设置 bus_format
+	 */
+
+	/* 获取 primary plane 的 framebuffer */
+	if (crtc_state->crtc && crtc_state->crtc->primary) {
+		plane_state = drm_atomic_get_new_plane_state(crtc_state->state,
+		                                              crtc_state->crtc->primary);
+		if (plane_state)
+			fb = plane_state->fb;
+	}
+
+	if (!fb) {
+		*num_output_fmts = 0;
+		return NULL;
+	}
+
+	switch (fb->format->format) {
+	/* RGB 8bit 格式 */
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		output_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+
+	/* RGB 10bit 格式 */
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		output_fmts[0] = MEDIA_BUS_FMT_FIXED;
+		break;
+
+	/* RGB565 格式 */
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		output_fmts[0] = MEDIA_BUS_FMT_RGB565_1X16;
+		break;
+
+	/* YUV420 8bit 格式 */
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		output_fmts[0] = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
+		break;
+	/* YUV420 10bit 格式 */
+	case DRM_FORMAT_P010:
+		output_fmts[0] = MEDIA_BUS_FMT_UYYVYY10_0_5X30;
+		break;
+	default:
+		output_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	}
+
+	*num_output_fmts = 1;
+	return output_fmts;
+
+}
+#endif
 
 /*
  * Possible output formats :
@@ -2742,6 +2914,11 @@ static u32 *dw_hdmi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	if (!output_fmts)
 		return NULL;
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+    if(get_bus_output_format_for_auxdisp(crtc_state, output_fmts, num_output_fmts)){
+        return output_fmts;
+    }
+#endif
 	/* If dw-hdmi is the first or only bridge, avoid negociating with ourselves */
 	if (list_is_singular(&bridge->encoder->bridge_chain) ||
 	    list_is_first(&bridge->chain_node, &bridge->encoder->bridge_chain)) {
@@ -2865,6 +3042,12 @@ static u32 *dw_hdmi_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 			     GFP_KERNEL);
 	if (!input_fmts)
 		return NULL;
+
+#ifdef CONFIG_ZHIHE_AUXDISP
+    if(get_bus_input_format_for_auxdisp(crtc_state, input_fmts, num_input_fmts)){
+        return input_fmts;
+    }
+#endif
 
 	switch (output_fmt) {
 	/* If MEDIA_BUS_FMT_FIXED is tested, return default bus format */

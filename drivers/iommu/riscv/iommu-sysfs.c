@@ -61,10 +61,6 @@ static DEVICE_ATTR_RO(address);
 	return len;							\
 }
 
-extern void riscv_iommu_flush_iotlb_range(struct iommu_domain *iommu_domain,
-                    unsigned long *start, unsigned long *end,
-                    size_t *pgsize);
-
 #define ATTR_WR_REG64(name, offset)					\
 	ssize_t reg_ ## name ## _store(struct device *dev,		\
 			struct device_attribute *attr,			\
@@ -73,20 +69,12 @@ extern void riscv_iommu_flush_iotlb_range(struct iommu_domain *iommu_domain,
 	struct riscv_iommu_device *iommu = sysfs_dev_to_iommu(dev);	\
 	unsigned long long val;						\
 	int ret;							\
-	unsigned long end = 0xffffffff; \
-	size_t pgsize = 0x1000; \
 	ret = kstrtoull(buf, 0, &val);					\
 	if (ret)							\
 		return ret;						\
-	if (offset == 0xdeadbeef) {			\
-		unsigned long tmp = (unsigned long)val;		\
-		riscv_iommu_flush_iotlb_range(&iommu->domain->domain, &tmp, &end, &pgsize); \
-	} else {					\
-		riscv_iommu_writeq(iommu, offset, val);				\
-	}					\
+	riscv_iommu_writeq(iommu, offset, val);				\
 	return len;							\
 }
-
 
 #define ATTR_RO_REG32(name, offset)					\
 static ATTR_RD_REG32(name, offset);					\
@@ -139,7 +127,6 @@ ATTR_RW_REG64(iohpmctr_4, RISCV_IOMMU_REG_IOHPMCTR(3));
 ATTR_RW_REG64(iohpmctr_5, RISCV_IOMMU_REG_IOHPMCTR(4));
 ATTR_RW_REG64(iohpmctr_6, RISCV_IOMMU_REG_IOHPMCTR(5));
 ATTR_RW_REG64(iohpmctr_7, RISCV_IOMMU_REG_IOHPMCTR(6));
-ATTR_RW_REG64(invalid_range, 0xdeadbeef);
 
 static struct attribute *riscv_iommu_attrs[] = {
 	&dev_attr_address.attr,
@@ -176,7 +163,6 @@ static struct attribute *riscv_iommu_attrs[] = {
 	&dev_attr_reg_iohpmevt_6.attr,
 	&dev_attr_reg_iohpmctr_7.attr,
 	&dev_attr_reg_iohpmevt_7.attr,
-	&dev_attr_reg_invalid_range.attr,
 	NULL,
 };
 

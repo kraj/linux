@@ -172,7 +172,7 @@ static ssize_t log_show(struct kobject *kobj, struct kobj_attribute *attr, char 
 			   is_current_master ? 'y' : 'n',
 			   priv->authenticated ? 'y' : 'n',
                // from_kuid_munged(seq_user_ns(m), uid)
-			   uid,
+			   __kuid_val(uid),
 			   priv->magic);
 		rcu_read_unlock();
 	}
@@ -212,7 +212,6 @@ static ssize_t log_show(struct kobject *kobj, struct kobj_attribute *attr, char 
 	list_for_each_entry(drm_crtc, &drm_dev->mode_config.crtc_list, head) {
         // struct vs_crtc *crtc = to_vs_crtc(drm_crtc);
         struct drm_crtc *crtc = drm_crtc->state->crtc;
-        struct vs_crtc_state *crtc_state = to_vs_crtc_state(drm_crtc->state);
         len += scnprintf(buf + len, PAGE_SIZE - len,
         "crtc[%u]: %s\n"
         "\tenable= %d\n"
@@ -231,7 +230,6 @@ static ssize_t log_show(struct kobject *kobj, struct kobj_attribute *attr, char 
 
     list_for_each_entry(plane, &drm_dev->mode_config.plane_list, head) {
         struct drm_plane_state *state = plane->state;
-        struct vs_plane_state *plane_state = to_vs_plane_state(state);
         struct drm_rect src  = drm_plane_state_src(state);
         struct drm_rect dest = drm_plane_state_dest(state);
 
@@ -466,6 +464,14 @@ static int vs_drm_bind(struct device *dev)
     priv->dma_dev = drm_dev->dev;
     priv->dma_dev->coherent_dma_mask = dma_mask;
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+    /* 初始化 DC8200 ↔ AuxDisp 切换状态 */
+    priv->dc_dev = NULL;
+    priv->auxdisp_dev = NULL;
+    priv->dc_clk_held_for_auxdisp = false;
+    priv->auxdisp_clk_held_for_dc = false;
+#endif
+
     drm_dev->dev_private = priv;
 
     drm_mode_config_init(drm_dev);
@@ -537,7 +543,7 @@ static void vs_drm_unbind(struct device *dev)
     drm_kms_helper_poll_fini(drm_dev);
 
     drm_dev_unregister(drm_dev);
-    
+
     struct drm_connector *connector;
     struct drm_connector_list_iter iter;
 
@@ -547,7 +553,7 @@ static void vs_drm_unbind(struct device *dev)
     }
     drm_connector_list_iter_end(&iter);
 
-    component_unbind_all(drm_dev->dev, drm_dev);    
+    component_unbind_all(drm_dev->dev, drm_dev);
 
     drm_mode_config_cleanup(drm_dev);
 
@@ -567,9 +573,16 @@ static const struct component_master_ops vs_drm_ops = {
 };
 
 extern struct platform_driver dw_dp_driver;
+extern struct platform_driver auxdisp_crtc_driver;
+
 static struct platform_driver *drm_sub_drivers[] = {
     /* put display control driver at start */
     &dc_platform_driver,
+
+    /* auxiliary display CRTC */
+#ifdef CONFIG_ZHIHE_AUXDISP
+    &auxdisp_crtc_driver,
+#endif
 
     /* connector */
 

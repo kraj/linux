@@ -70,68 +70,12 @@
 };
 
 &clk {
-	compatible = "zhihe,p100-clk-emu";
+	compatible = "zhihe,a210-clk-emu";
 };
 
 &vidmem {
   status = "okay";
   memory-region = <&framebuffer>;
-};
-
-&vp_dfmu_iommu {
-    status = "disabled";
-};
-
-&vp_dfmu_mt {
-    status = "disabled";
-};
-
-&npu_dfmu_iommu {
-    status = "disabled";
-};
-
-&npu_dfmu_mt {
-    status = "disabled";
-};
-
-&vi_dfmu_iommu {
-    status = "disabled";
-};
-
-&vi_dfmu_mt {
-    status = "disabled";
-};
-
-&vo_dfmu_iommu {
-    status = "disabled";
-};
-
-&vo_dfmu_mt {
-    status = "disabled";
-};
-
-&peri1_dfmu_iommu {
-    status = "okay";
-};
-
-&peri1_dfmu_mt {
-    status = "disabled";
-};
-
-&pcie_dfmu_iommu {
-    status = "okay";
-};
-
-&pcie_dfmu_mt {
-    status = "disabled";
-};
-
-&usb_dfmu_iommu {
-    status = "okay";
-};
-
-&usb_dfmu_mt {
-    status = "disabled";
 };
 
 /*

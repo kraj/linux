@@ -177,37 +177,34 @@
 		};
 
 		mbox_920_die1: mbox@2000320000 {
-                        compatible = "zhihe,a210-mbox";
-			reg = <0x20 0x00321000 0x0 0x1000>,        //mailbox1的中断通道
+			compatible = "zhihe,mailbox";
+			reg = <0x20 0x00321000 0x0 0x1000>,
 			      <0x20 0x00320000 0x0 0x1000>,
-			      <0x20 0x00322000 0x0 0x1000>,
-			      <0x00 0x00312000 0x0 0x1000>,
-			      <0x20 0x00312000 0x0 0x1000>;
+			      <0x20 0x00311000 0x0 0x1000>;
 			reg-names = "interrupt_addr",
 				    "local_addr0",
-				    "local_addr1",
-				    "remote_icu0",
-				    "remote_icu1";
+				    "remote_icu0";
 			interrupt-parent = <&intc_die1>;
 			interrupts = <336 IRQ_TYPE_LEVEL_HIGH>;
 			icu_cpu_id = <1>;
 			#mbox-cells = <2>;
+			version = <1>;
 			status = "okay";
 		};
 
-		aon_die1_to_die0: aon_subsys_die1_to_die0 {
-			compatible = "zhihe,a210-aon";
-			mbox-names = "aon2";
-			mboxes = <&mbox_920_die1 1 0>;                     //parent / channel / type
+		aon_die1: aon_subsys1@20308f8000 {
+			compatible = "zhihe,aon";
+			reg = <0x20 0x308f8000 0x0 0x10000>,
+			      <0x20 0x30842018 0x0 0x4>,
+			      <0x20 0x30846144 0x0 0x4>;
+			reg-names = "aon_base_addr",
+				    "aon_reset_reg",
+				    "aon_sync_reg";
+			firmware-name = "a210-aon.bin";
+			mboxes = <&mbox_920_die1 1 0>;                                         //parent / channel / type
+			mbox-names = "aon1";
 			#mbox-cells = <2>;
-			status = "okay";
-		};
-
-		aon_die1_to_die1: aon_subsys_die1_to_die1 {
-			compatible = "zhihe,a210-aon";
-			mbox-names = "aon3";
-			mboxes = <&mbox_920_die1 1 0>;
-			#mbox-cells = <2>;
+			version = <1>;
 			status = "okay";
 		};
 

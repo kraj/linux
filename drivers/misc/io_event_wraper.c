@@ -11,6 +11,7 @@
 #define DEVICE_NAME "io_event"
 #define DEFAULT_BUFFER_SIZE 4096
 #define MY_IOCTL_RESIZE _IOW('k', 1, int)
+#define MY_IOCTL_GET_COUNT _IOR('k', 2, int)
 
 MODULE_LICENSE("GPL");
 
@@ -237,6 +238,19 @@ static long io_event_ioctl(struct file *filp, unsigned int cmd,
 				wake_up_interruptible(&priv->queue);
 		}
 
+		mutex_unlock(&priv->lock);
+		break;
+
+	case MY_IOCTL_GET_COUNT:
+		mutex_lock(&priv->lock);
+		if (priv->is_closing) {
+			ret = -ENODEV;
+		} else {
+			unsigned int count = kfifo_len(&priv->fifo);
+			if (copy_to_user((int __user *)arg, &count, sizeof(count))) {
+				ret = -EFAULT;
+			}
+		}
 		mutex_unlock(&priv->lock);
 		break;
 

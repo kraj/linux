@@ -69,3 +69,13 @@ config VERISILICON_DEC
 	  This is a decompression function which reads compressed pixels from
 	  external memory (DDR or SRAM) under DPU's control, then it decompress
 	  comprssed pixels before returing these pixels to DPU.
+
+config ZHIHE_AUXDISP
+	bool "Auxiliary Display CRTC support"
+	depends on DRM_VERISILICON
+	help
+	  Enable support for auxiliary display CRTC device.
+	  This CRTC can connect to HDMI and DisplayPort outputs,
+	  providing additional display pipeline for external monitors.
+	  It supports up to 10-bit color depth and multiple color formats
+	  including RGB444, YCbCr444, and YCbCr422.

@@ -683,6 +683,7 @@ void ahci_start_engine(struct ata_port *ap)
 	u32 tmp;
 
 	/* start DMA */
+	dma_mb();
 	tmp = readl(port_mmio + PORT_CMD);
 	tmp |= PORT_CMD_START;
 	writel(tmp, port_mmio + PORT_CMD);

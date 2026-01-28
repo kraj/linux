@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/a210-clock.h>
 #include <dt-bindings/reset/a210-reset.h>
 #include <dt-bindings/iopmp/zh-iopmp.h>
+#include <dt-bindings/power/a210-power.h>
 
 / {
 	compatible = "zhihe,a210";
@@ -20,8 +21,9 @@
 			device_type = "cpu";
 			reg = <0>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "1.9Ghz";
 			i-cache-block-size = <64>;
@@ -49,8 +51,9 @@
 			device_type = "cpu";
 			reg = <1>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "1.9Ghz";
 			i-cache-block-size = <64>;
@@ -77,8 +80,9 @@
 			device_type = "cpu";
 			reg = <2>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "1.9Ghz";
 			i-cache-block-size = <64>;
@@ -105,8 +109,9 @@
 			device_type = "cpu";
 			reg = <3>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "1.9Ghz";
 			i-cache-block-size = <64>;
@@ -134,8 +139,9 @@
 			device_type = "cpu";
 			reg = <4>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.3Ghz";
 			i-cache-block-size = <64>;
@@ -163,8 +169,9 @@
 			device_type = "cpu";
 			reg = <5>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.3Ghz";
 			i-cache-block-size = <64>;
@@ -191,8 +198,9 @@
 			device_type = "cpu";
 			reg = <6>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.3Ghz";
 			i-cache-block-size = <64>;
@@ -219,8 +227,9 @@
 			device_type = "cpu";
 			reg = <7>;
 			compatible = "riscv";
+			riscv,isa = "rv64imac";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "svpbmt", "sscofpmf";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "zicntr", "zicsr", "zifencei", "zihpm", "zba", "zbb", "zbc", "zbs", "svpbmt", "sscofpmf";
 			mmu-type = "riscv,sv39";
 			cpu-freq = "2.3Ghz";
 			i-cache-block-size = <64>;
@@ -390,8 +399,8 @@
 	cluster1_opp: opp-table-cluster1 {
 		compatible = "operating-points-v2";
 		opp-shared;
-		opp1-1500000000 {
-			opp-hz = /bits/ 64 <1500000000>;
+		opp1-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <800000>;
 		};
 		opp1-1698000000 {
@@ -566,6 +575,7 @@
 			#clock-cells = <1>;
 			assigned-clocks = <&clk TOP_GPU_CORE_CLK_DIV>;
 			assigned-clock-rates = <792000000>;
+			power-domains = <&power_gpu>;
 			status = "okay";
 		};
 
@@ -599,9 +609,10 @@
 
 		clk_vi: clock-controller@4 {
 			compatible = "zhihe,a210-vi-clk";
-			reg = <0x00 0x063a0200 0x0 0x200>;
-			reg-names = "VI_CLK";
+			reg = <0x00 0x063a0200 0x0 0x200>, <0x00 0x063a0050 0x0 0x4>;
+			reg-names = "VI_CLK", "VI_MISC_CTRL";
 			#clock-cells = <1>;
+			power-domains = <&power_vi_wrapper>;
 			status = "okay";
 		};
 
@@ -614,6 +625,7 @@
 				 	  <&clk TOP_VP_VENC_CCLK_DIV>, <&clk TOP_VP_G2D_CCLK_DIV>;
 			assigned-clock-rates = <880000000>, <786432000>,
 					       <600000000>, <786432000>;
+			power-domains = <&power_vp_wrapper>;
 			status = "okay";
 		};
 
@@ -625,11 +637,14 @@
 			assigned-clocks = <&clk_vo VO_DPUC_CLK_EN>, <&clk_vo VO_CH0_PIXCLK_EN>,
 					  <&clk_vo VO_CH1_PIXCLK_EN>, <&clk_vo VO_CH2_PIXCLK_EN>,
 					  <&clk_vo VO_DPU_ACLK_EN>, <&clk_vo VO_HDMI_PCLK_EN>,
-					  <&clk_vo VO_DECOMP0_CLK_EN>, <&clk_vo VO_DECOMP1_CLK_EN>;
+					  <&clk_vo VO_DECOMP0_CLK_EN>, <&clk_vo VO_DECOMP1_CLK_EN>,
+					  <&clk_vo VO_AUXDISP_ACLK_EN>, <&clk_vo VO_AUXDISP_PCLK_EN>;
 			assigned-clock-rates = <880000000>, <594000000>,
 					       <594000000>, <594000000>,
 					       <880000000>, <165000000>,
-					       <220000000>, <220000000>;
+					       <220000000>, <220000000>,
+					       <880000000>, <165000000>;
+			power-domains = <&power_vo>;
 			status = "okay";
 		};
 
@@ -640,6 +655,7 @@
 			#clock-cells = <1>;
 			assigned-clocks = <&clk TOP_NPU_CCLK_DIV>, <&clk TOP_NPU_ACLK_DIV>;
 			assigned-clock-rates = <880000000>, <880000000>;
+			power-domains = <&power_npu_wrapper>;
 			status = "okay";
 		};
 
@@ -668,9 +684,9 @@
 					  <&clk TOP_PERI_QSPI_SSI_CLK_MUX1>, <&clk TOP_PERI_PDM_MCLK_DIV>,
 					  <&clk TOP_PERI_TDM_SRC_CLK_MUX>, <&clk TOP_PAD_SENSOR_VCLK0_DIV>,
 					  <&clk TOP_PAD_SENSOR_VCLK1_DIV>, <&clk TOP_PERI_HIRES_CLK0_DIV>,
-					  <&clk TOP_PERI_HIRES_CLK1_DIV>, <&clk TOP_TEE_CLK_DIV>,
-					  <&clk TOP_PERI_EMMC_REF_CLK_DIV>, <&clk TOP_PERI_MST_ACLK0_DIV>,
-					  <&clk TOP_PERI_MST_CLK1_DIV>;
+					  <&clk TOP_PERI_HIRES_CLK1_DIV>, <&clk TOP_PERI_EMMC_REF_CLK_DIV>,
+					  <&clk TOP_PERI_MST_ACLK0_DIV>, <&clk TOP_PERI_MST_CLK1_DIV>,
+					  <&clk TOP_TEE_CLK_DIV>;
 			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
 					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */
 					       <316108800>, <421478400>, /* peri2_i2s3_src_clk,peri1_spi_ssi_clk */
@@ -684,86 +700,81 @@
 			status = "okay";
 		};
 
-		power: p100-power-domain {
-			compatible = "zhihe,p100-power-domain";
-			reg = <0x00 0x30892000 0x0 0x1000>,<0x00 0x06BFB000 0x0 0x1000>,
-			<0x00 0x06BF9000 0x0 0x1000>,<0x00 0x06BF8000 0x0 0x1000>,
-			<0x00 0x06BF0000 0x0 0x1000>,<0x00 0x06BF3000 0x0 0x1000>,
-			<0x00 0x06BF2000 0x0 0x1000>,<0x00 0x06BF6000 0x0 0x1000>,
-			<0x00 0x06BF5000 0x0 0x1000>,<0x00 0x06E00600 0x0 0x200>,
-			<0x00 0x06E00400 0x0 0x200>,<0x00 0x06E00000 0x0 0x200>,
-			<0x00 0x07300600 0x0 0x200>,<0x00 0x07300200 0x0 0x200>,
-			<0x00 0x07300000 0x0 0x200>,<0x00 0x07117200 0x0 0x200>,
-			<0x00 0x07117000 0x0 0x200>,<0x00 0x0A006200 0x0 0x200>,
-			<0x00 0x0A006000 0x0 0x200>,<0x00 0x0A006600 0x0 0x200>,
-			<0x00 0x0A006400 0x0 0x200>,<0x00 0x0A006A00 0x0 0x200>,
-			<0x00 0x0A006800 0x0 0x200>,<0x00 0x08004200 0x0 0x200>,
-			<0x00 0x08004000 0x0 0x200>,<0x00 0x063F0000 0x0 0x200>,
-			<0x00 0x063F9000 0x0 0x200>,<0x00 0x063F8000 0x0 0x200>,
-			<0x00 0x063F6000 0x0 0x200>,<0x00 0x063F5000 0x0 0x200>,
-			<0x00 0x067F1000 0x0 0x200>,<0x00 0x067F0000 0x0 0x200>;
-			reg-names = "AON_PMIC_CTRL","VP_PCA","VP_WRAP_BPC","VP_WRAP_PCU",
-				"VP_R2P","VP_VENC_BPC","VP_VENC_PCU","VP_VDEC_BPC",
-				"VP_VDEC_PCU","GPU_PCA","GPU_BPC","GPU_PCU",
-				"NPU_PCA","NPU_WRAP_BPC","NPU_WRAP_PCU","NPU_IP_BPC",
-				"NPU_IP_PCU","PCIE0_BPC","PCIE0_PCU","PCIE1_BPC",
-				"PCIE1_PCU","SATA_BPC","SATA_PCU","USB_BPC",
-				"USB_PCU","VI_R2P","VI_WRAP_BPC","VI_WRAP_PCU",
-				"VI_ISP_BPC","VI_ISP_PCU","VO_BPC","VO_PCU";
+		power: a210-power-domain {
+			compatible = "zhihe,a210-power-domain";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
 			power_top:power_top {
 				#power-domain-cells = <0>;
+				id = <A210_PD_TOP>;
 				iopmps = <&device_pcie_mt_iopmp>,<&device_pcie_iommu_iopmp>, <&device_eip120i_iopmp>,
 						 <&device_eip120ii_iopmp>, <&device_eip120iii_iopmp>, <&device_tee_dmac_iopmp>;
 			};
 			power_gpu:power_gpu {
+				reg = <0x00 0x06E00600 0x0 0x200>, <0x00 0x06E00400 0x0 0x200>, <0x00 0x06E00000 0x0 0x200>;
+				reg-names = "pca","bpc","pcu";
 				#power-domain-cells = <0>;
+				id = <A210_PD_GPU>;
 				resets = <&rst GPU_PWR_WRAP_RGX_HOOD_RST>,
 					 <&rst GPU_PWR_WRAP_DFMU_RST>;
 				iopmps = <&device_gpu_iopmp>, <&device_gpu_mt_iopmp>;
 			};
 			power_npu_wrapper:power_npu_wrapper {
+				reg = <0x00 0x07300600 0x0 0x200>,<0x00 0x07300200 0x0 0x200>, <0x00 0x07300000 0x0 0x200>;
+				reg-names = "pca","bpc","pcu";
 				#power-domain-cells = <0>;
+				id = <A210_PD_NPU_WRAPPER>;
 			};
 			power_npu_ip:power_npu_ip {
+				reg = <0x00 0x07117200 0x0 0x200>, <0x00 0x07117000 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_npu_wrapper>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_npu SW_NPU_IP_ACLK_EN>, <&clk_npu SW_NPU_IP_CCLK_EN>,
-					 <&clk_npu SW_NPU_IP_HCLK_EN>;
+				id = <A210_PD_NPU_IP>;
 				resets = <&rst NPU_ARST>, <&rst NPU_CRST>, <&rst NPU_HRST>;
 				iopmps = <&device_npu_iopmp>, <&device_npu_iommu_iopmp>, <&device_npu_mt_iopmp>;
 			};
 			power_pcie0:power_pcie0 {
+				reg = <0x00 0x0A006200 0x0 0x200>, <0x00 0x0A006000 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_pcie E16PHY_PCLK_EN>, <&clk_pcie PCIE_DM_GEN3X4_AUX_CLK_EN>,
+				id = <A210_PD_PCIE0>;
+				clocks = <&clk_pcie PCIE_DM_GEN3X4_AUX_CLK_EN>,
 					 <&clk_pcie PCIE_DM_GEN3X4_SLV_ACLK_EN>, <&clk_pcie PCIE_DM_GEN3X4_MST_ACLK_EN>,
 					 <&clk_pcie PCIE_DM_GEN3X4_PCLK_EN>;
-				resets = <&rst PCIE_E16PHY_PHY_RST>, <&rst PCIE_E16PHY_APBS_PRST>,
-					 <&rst PCIE_DM_GEN3X4_APBS_PRST>, <&rst PCIE_DM_GEN3X4_POWER_UP_RST>;
+				resets = <&rst PCIE_DM_GEN3X4_APBS_PRST>, <&rst PCIE_DM_GEN3X4_POWER_UP_RST>;
 				iopmps =  <&device_pcie_0_iopmp>;
 			};
 			power_pcie1:power_pcie1 {
+				reg = <0x00 0x0A006600 0x0 0x200>, <0x00 0x0A006400 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_pcie E16PHY_PCLK_EN>, <&clk_pcie PCIE_RP_GEN3X1_AUX_CLK_EN>,
+				id = <A210_PD_PCIE1>;
+				clocks = <&clk_pcie PCIE_RP_GEN3X1_AUX_CLK_EN>,
 					 <&clk_pcie PCIE_RP_GEN3X1_SLV_ACLK_EN>, <&clk_pcie PCIE_RP_GEN3X1_MST_ACLK_EN>,
 					 <&clk_pcie PCIE_RP_GEN3X1_PCLK_EN>;
-				resets = <&rst PCIE_E16PHY_PHY_RST>, <&rst PCIE_E16PHY_APBS_PRST>,
-					 <&rst PCIE_RP_GEN3X1_APBS_PRST>, <&rst PCIE_RP_GEN3X1_POWER_UP_RST>;
+				resets = <&rst PCIE_RP_GEN3X1_APBS_PRST>, <&rst PCIE_RP_GEN3X1_POWER_UP_RST>;
 				iopmps = <&device_pcie_1_iopmp>;
 			};
 			power_sata:power_sata {
+				reg = <0x00 0x0A006A00 0x0 0x200>, <0x00 0x0A006800 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_pcie E16PHY_PCLK_EN>, <&clk_pcie SATA_GEN3X2_ACLK_EN>, <&clk_pcie SATA_PMALIVE_CLK_EN>,
+				id = <A210_PD_SATA>;
+				clocks = <&clk_pcie SATA_GEN3X2_ACLK_EN>, <&clk_pcie SATA_PMALIVE_CLK_EN>,
 					 <&clk_pcie SATA_RXOOB0_CLK_EN>, <&clk_pcie SATA_RXOOB1_CLK_EN>;
-				resets = <&rst PCIE_E16PHY_PHY_RST>, <&rst PCIE_E16PHY_APBS_PRST>, <&rst PCIE_SATA_ARESET>,
+				resets = <&rst PCIE_SATA_ARESET>,
 					 <&rst PCIE_SATA_RST_PMALIVE>, <&rst PCIE_SATA_RST_ASIC0>, <&rst PCIE_SATA_RST_ASIC1>,
 					 <&rst PCIE_SATA_RST_RXOOB0>, <&rst PCIE_SATA_RST_RXOOB1>;
 				iopmps = <&device_sata_0_iopmp>;
 			};
 			power_usb:power_usb {
 				#power-domain-cells = <0>;
+				id = <A210_PD_USB>;
 				clocks = <&clk_usb DPTX_PCLK_EN>, <&clk_usb DPTX_GTC_CLK_EN>, <&clk_usb DPTX_AUX_CLK_EN>,
 					 <&clk_usb DPTX_IPI_CLK_EN>, <&clk_usb DPTX_I2S_CLK_EN>;
 				resets = <&rst USB_DPTX_APBS_PRST>, <&rst USB_DPTX_VCC_RST>,
@@ -773,21 +784,10 @@
 						 <&device_usb_mt_iopmp>;
 			};
 			power_vi_wrapper:power_vi_wrapper {
+				reg = <0x00 0x063F9000 0x0 0x200>,<0x00 0x063F8000 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				#power-domain-cells = <0>;
-				clocks = <&clk_vi VI_MIPI0CSI0_PCLK_EN>, <&clk_vi VI_MIPI0CSI1_PCLK_EN>, <&clk_vi VI_MIPI0A_CFGCLK_EN>,
-					 <&clk_vi VI_MIPI0B_CFGCLK_EN>, <&clk_vi VI_MIPI0_CSI0_PIXCLK_EN>, <&clk_vi VI_MIPI0_CSI1_PIXCLK_EN>,
-					 <&clk_vi VI_MIPI1CSI0_PCLK_EN>, <&clk_vi VI_MIPI1CSI1_PCLK_EN>, <&clk_vi VI_MIPI1A_CFGCLK_EN>,
-					 <&clk_vi VI_MIPI1B_CFGCLK_EN>, <&clk_vi VI_MIPI1_CSI0_PIXCLK_EN>, <&clk_vi VI_MIPI1_CSI1_PIXCLK_EN>,
-					 <&clk_vi VI_VIPRE_PCLK_EN>, <&clk_vi VI_VIPRE_I0_PIXCLK_EN>, <&clk_vi VI_VIPRE_I1_PIXCLK_EN>,
-					 <&clk_vi VI_VIPRE_SCLK_EN>, <&clk_vi VI_VIPRE_ACLK_EN>,
-					 <&clk_vi VI_COMP_PCLK_EN>, <&clk_vi VI_COMP_ACLK_EN>,
-					 <&clk_vi VI_DECOUT_CLK_EN>, <&clk_vi VI_VSEOUT_CLK_EN>, <&clk_vi VI_COMP0_CLK_EN>,
-					 <&clk_vi VI_COMP1_CLK_EN>, <&clk_vi VI_DECOMP_CLK_EN>, <&clk_vi VI_DW200_HCLK_EN>,
-					 <&clk_vi VI_DW200_ACLK_EN>, <&clk_vi VI_DWE_CLK_EN>, <&clk_vi VI_VSE_CLK_EN>,
-					 <&clk_vi VI_DW_SCLK_EN>, <&clk_vi VI_PTW_ACLK_EN>, <&clk_vi VI_X2H0_CLK_EN>,
-					 <&clk_vi VI_X2H1_CLK_EN>, <&clk_vi VI_X2H2_CLK_EN>, <&clk_vi VI_MIPI0CSI0_FPCLK_EN>,
-					 <&clk_vi VI_MIPI0CSI1_FPCLK_EN>, <&clk_vi VI_MIPI1CSI0_FPCLK_EN>, <&clk_vi VI_MIPI1CSI1_FPCLK_EN>,
-					 <&clk_vi VI_REC_PCLK_EN>, <&clk_vi VI_REC_ACLK_EN>;
+				id = <A210_PD_VI_WRAP>;
 				resets = <&rst VI_MIPI0_CSI0_PRST>, <&rst VI_MIPI0_CSI1_PRST>, <&rst VI_MIPI0_FIFO_RST>,
 					 <&rst VI_MIPI1_CSI0_PRST>, <&rst VI_MIPI1_CSI1_PRST>, <&rst VI_MIPI1_FIFO_RST>,
 					 <&rst VI_VIPRE_PRST>, <&rst VI_VIPRE_I0_PIX_RST>, <&rst VI_VIPRE_I1_PIX_RST>,
@@ -801,14 +801,19 @@
 						 <&device_vi_mt_iopmp>;
 			};
 			power_vi_isp:power_vi_isp {
+				reg = <0x00 0x063F6000 0x0 0x200>,<0x00 0x063F5000 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_vi_wrapper>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_vi VI_ISP_CLK_EN>, <&clk_vi VI_ISPOUT_CLK_EN>;
+				id = <A210_PD_VI_ISP>;
 				resets = <&rst VI_ISP_RST>;
 				iopmps = <&device_isp_iopmp>;
 			};
 			power_vo:power_vo {
+				reg = <0x00 0x067F1000 0x0 0x200>,<0x00 0x067F0000 0x0 0x200>;
+				reg-names = "bpc","pcu";
 				#power-domain-cells = <0>;
+				id = <A210_PD_VO>;
 				resets = <&rst VO_X2H0_RST>, <&rst VO_X2H1_RST>, <&rst VO_DPU_HRST>,
 					 <&rst VO_DPU_CRST>, <&rst VO_DPU_ARST>, <&rst VO_AUXDISP_PRST>,
 					 <&rst VO_AUXDISP_PIX_RST>, <&rst VO_AUXDISP_ARST>, <&rst VO_HDMI_PRST>,
@@ -819,11 +824,10 @@
 						 <&device_vo_mt_iopmp>;
 			};
 			power_vp_wrapper:power_vp_wrapper {
+				reg = <0x00 0x06BFB000 0x0 0x1000>, <0x00 0x06BF9000 0x0 0x1000>, <0x00 0x06BF8000 0x0 0x1000>;
+				reg-names = "pca","bpc","pcu";
 				#power-domain-cells = <0>;
-				clocks = <&clk_vp VP_G2D_PCLK_EN>, <&clk_vp VP_G2D_CCLK_EN>, <&clk_vp VP_G2D_ACLK_EN>,
-					 <&clk_vp VP_COMP_PCLK_EN>, <&clk_vp VP_COMP_CCLK_EN>, <&clk_vp VP_COMP_ACLK_EN>,
-					 <&clk_vp VP_DECOMP_PCLK_EN>, <&clk_vp VP_DECOMP_CCLK_EN>, <&clk_vp VP_DECOMP_ACLK_EN>,
-					 <&clk_vp VP_COMP_EXTPCLK_EN>, <&clk_vp VP_DECOMP_EXTPCLK_EN>;
+				id = <A210_PD_VP_WRAP>;
 				resets = <&rst VP_G2D_PRST>, <&rst VP_G2D_CRST>,
 					 <&rst VP_G2D_ARST>, <&rst VP_COMP_PRST>,
 					 <&rst VP_COMP_CRST>, <&rst VP_COMP_ARST>,
@@ -833,22 +837,27 @@
 				iopmps = <&device_vp_iommu_iopmp>, <&device_g2d_iopmp>, <&device_vp_mt_iopmp>;
 			};
 			power_venc:power_venc {
+				reg = <0x00 0x06BF3000 0x0 0x1000>, <0x00 0x06BF2000 0x0 0x1000>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_vp_wrapper>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_vp VP_VENC_PCLK_EN>, <&clk_vp VP_VENC_CCLK_EN>, <&clk_vp VP_VENC_ACLK_EN>;
+				id = <A210_PD_VENC>;
 				resets = <&rst VP_VENC_PRST>, <&rst VP_VENC_CRST>, <&rst VP_VENC_ARST>;
 				iopmps = <&device_venc_iopmp>;
 			};
 			power_vdec:power_vdec {
+				reg = <0x00 0x06BF6000 0x0 0x1000>, <0x00 0x06BF5000 0x0 0x1000>;
+				reg-names = "bpc","pcu";
 				power-domains = <&power_vp_wrapper>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_vp VP_VDEC_PCLK_EN>, <&clk_vp VP_VDEC_CCLK_EN>, <&clk_vp VP_VDEC_ACLK_EN>;
+				id = <A210_PD_VDEC>;
 				resets = <&rst VP_VDEC_PRST>, <&rst VP_VDEC_CRST>, <&rst VP_VDEC_ARST>;
 				iopmps = <&device_vdec_iopmp>;
 			};
 			power_peri0:power_peri0 {
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
+				id = <A210_PD_PERI0>;
 				clocks = <&clk_peri PERI0_TIMER1_PCLK_EN>, <&clk_peri PERI0_TIMER1_CCLK_EN>;
 				resets = <&rst PERI0_TIMER0_CRST>, <&rst PERI0_TIMER0_PRST>, <&rst PERI0_TIMER1_CRST>,
 					 <&rst PERI0_TIMER1_PRST>, <&rst PERI0_WDT0_PRST>, <&rst PERI0_MBOX0_PRST>,
@@ -857,39 +866,7 @@
 			power_peri1:power_peri1 {
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
-				clocks = <&clk_peri PERI1_GMAC0_ACLK_EN>, <&clk_peri PERI1_GMAC0_HCLK_EN>, <&clk_peri PERI1_GMAC1_ACLK_EN>,
-					 <&clk_peri PERI1_GMAC1_HCLK_EN>, <&clk_peri PERI1_I2C0_IC_CLK_EN>, <&clk_peri PERI1_I2C0_PCLK_EN>,
-					 <&clk_peri PERI1_I2C1_IC_CLK_EN>, <&clk_peri PERI1_I2C1_PCLK_EN>, <&clk_peri PERI1_I2C2_IC_CLK_EN>,
-					 <&clk_peri PERI1_I2C2_PCLK_EN>, <&clk_peri PERI1_I2S0_PCLK_EN>, <&clk_peri PERI1_I2S0_SRC_CLK_EN>,
-					 <&clk_peri PERI1_PWM0_CCLK_EN>, <&clk_peri PERI1_PWM0_PCLK_EN>, <&clk_peri PERI1_SPI0_PCLK_EN>,
-					 <&clk_peri PERI1_SPI0_SSI_CLK_EN>, <&clk_peri PERI1_UART1_PCLK_EN>, <&clk_peri PERI1_UART1_SCLK_EN>,
-					 <&clk_peri PERI1_UART2_PCLK_EN>, <&clk_peri PERI1_UART2_SCLK_EN>, <&clk_peri PERI1_UART3_PCLK_EN>,
-					 <&clk_peri PERI1_UART3_SCLK_EN>, <&clk_peri PERI1_X2H_GMAC0_ACLK_EN>, <&clk_peri PERI1_X2H_GMAC0_HCLK_EN>,
-					 <&clk_peri PERI1_X2H_GMAC1_ACLK_EN>, <&clk_peri PERI1_X2H_GMAC1_HCLK_EN>, <&clk_peri PERI1_CAN0_HIRES_CLK_EN>,
-					 <&clk_peri PERI1_CAN0_OSC_CLK_EN>, <&clk_peri PERI1_CAN0_PCLK_EN>, <&clk_peri PERI1_CAN1_HIRES_CLK_EN>,
-					 <&clk_peri PERI1_CAN1_OSC_CLK_EN>, <&clk_peri PERI1_CAN1_PCLK_EN>, <&clk_peri PERI1_PDM0_MCLK_EN>,
-					 <&clk_peri PERI1_PDM0_PCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>, <&clk_peri PERI1_TDM0_SCLK_EN>,
-					 <&clk_peri PERI1_X2H_GMAC2_ACLK_EN>, <&clk_peri PERI1_X2H_GMAC2_HCLK_EN>, <&clk_peri PERI1_GMAC2_ACLK_EN>,
-					 <&clk_peri PERI1_GMAC2_HCLK_EN>, <&clk_peri PERI1_ZGMAC_X2X_ACLK_EN>;
-				resets = <&rst PERI1_GMAC0_ARST>, <&rst PERI1_GMAC0_HRST>, <&rst PERI1_GMAC1_ARST>,
-					 <&rst PERI1_GMAC1_HRST>, <&rst PERI1_GPIO0_DBRST>, <&rst PERI1_GPIO0_PRST>,
-					 <&rst PERI1_GPIO1_DBRST>, <&rst PERI1_GPIO1_PRST>, <&rst PERI1_I2C0_IC_RST>,
-					 <&rst PERI1_I2C0_PRST>, <&rst PERI1_I2C1_IC_RST>, <&rst PERI1_I2C1_PRST>,
-					 <&rst PERI1_I2C2_IC_RST>, <&rst PERI1_I2C2_PRST>, <&rst PERI1_I2S0_PRST>,
-					 <&rst PERI1_PWM0_CRST>,
-					 <&rst PERI1_PWM0_PRST>, <&rst PERI1_QSPI0_PRST>, <&rst PERI1_QSPI0_SSI_RST>,
-					 <&rst PERI1_SPI0_PRST>, <&rst PERI1_SPI0_SSI_RST>, <&rst PERI1_UART0_PRST>,
-					 <&rst PERI1_UART0_S_RST>, <&rst PERI1_UART1_PRST>, <&rst PERI1_UART1_S_RST>,
-					 <&rst PERI1_UART2_PRST>, <&rst PERI1_UART2_S_RST>, <&rst PERI1_UART3_PRST>,
-					 <&rst PERI1_UART3_S_RST>, <&rst PERI1_X2H_GMAC0_ARST>, <&rst PERI1_X2H_GMAC0_HRST>,
-					 <&rst PERI1_X2H_GMAC1_ARST>, <&rst PERI1_X2H_GMAC1_HRST>, <&rst PERI1_PDM0_MRST>,
-					 <&rst PERI1_PDM0_PRST>, <&rst PERI1_TDM0_RST>, <&rst PERI1_CAN0_IPG_PE_RST>,
-					 <&rst PERI1_CAN0_IPG_RST>, <&rst PERI1_CAN0_IPG_SOFT_RST>, <&rst PERI1_CAN0_IPG_TS_RST>,
-					 <&rst PERI1_CAN0_PRST>, <&rst PERI1_CAN1_IPG_PE_RST>, <&rst PERI1_CAN1_IPG_RST>,
-					 <&rst PERI1_CAN1_IPG_SOFT_RST>, <&rst PERI1_CAN1_IPG_TS_RST>, <&rst PERI1_CAN1_PRST>,
-					 <&rst PERI1_CHIP_DBG_ARST>, <&rst PERI1_CHIP_DBG_CRST>, <&rst PERI1_CHIP_DBG_PRST>,
-					 <&rst PERI1_GMAC_CRST>, <&rst PERI1_X2H_GMAC2_ARST>, <&rst PERI1_X2H_GMAC2_HRST>,
-					 <&rst PERI1_ZGMAC_X2X_ARST>;
+				id = <A210_PD_PERI1>;
 				iopmps = <&device_aon_iopmp>, <&device_chip_dbg_iopmp> ,<&device_peri1_iommu_iopmp>,
 						 <&device_gmac_0_iopmp>, <&device_gmac_1_iopmp>, <&device_gmac_2_iopmp>,
 						 <&device_peri1_mt_iopmp>;
@@ -897,6 +874,7 @@
 			power_peri2:power_peri2 {
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
+				id = <A210_PD_PERI2>;
 				clocks = <&clk_peri PERI2_CAN2_HIRES_CLK_EN>, <&clk_peri PERI2_CAN2_OSC_CLK_EN>, <&clk_peri PERI2_SPI1_SSI_CLK_EN>,
 					 <&clk_peri PERI2_UART5_SCLK_EN>, <&clk_peri PERI2_UART6_SCLK_EN>, <&clk_peri PERI2_CAN2_PCLK_EN>,
 					 <&clk_peri PERI2_SPI1_PCLK_EN>, <&clk_peri PERI2_UART5_PCLK_EN>, <&clk_peri PERI2_UART6_PCLK_EN>,
@@ -927,23 +905,17 @@
 			power_peri3:power_peri3 {
 				power-domains = <&power_top>;
 				#power-domain-cells = <0>;
+				id = <A210_PD_PERI3>;
 				clocks = <&clk_peri PERI3_DMAC_ACLK_EN>, <&clk_peri PERI3_DMAC_HCLK_EN>, <&clk_peri PERI3_SDIO_ACLK_EN>,
 					 <&clk_peri PERI3_SDIO_HCLK_EN>, <&clk_peri PERI3_SDIO_OSC_CLK_EN>, <&clk_peri PERI3_SDIO_X2X_ACLK_M_EN>,
 					 <&clk_peri PERI3_SDIO_X2X_ACLK_S_EN>, <&clk_peri PERI3_ADC_PCLK_EN>;
 				resets = <&rst PERI3_DMAC_ARESET>, <&rst PERI3_DMAC_HRESET>, <&rst PERI3_ADC_PRST>;
 				iopmps = <&device_dmac_ap_iopmp>, <&device_emmc_iopmp>, <&device_sd_iopmp>;
 			};
-			power_tee:power_tee {
-				power-domains = <&power_top>;
-				#power-domain-cells = <0>;
-				resets = <&rst TEE_DMAC_ARST>, <&rst TEE_DMAC_HRST>, <&rst TEE_EIP120SI_ARST>,
-					 <&rst TEE_EIP120SI_HRST>, <&rst TEE_EIP120SII_ARST>, <&rst TEE_EIP120SII_HRST>,
-					 <&rst TEE_EIP120SIII_ARST>, <&rst TEE_EIP120SIII_HRST>, <&rst TEE_EIP150B_HRST>;
-			};
 		};
 
 		rst: reset-controller {
-			compatible =  "zhihe,p100-reset-controller";
+			compatible =  "zhihe,a210-reset-controller";
 			reg = <0x00 0x06B20400 0x0 0x200>,
 			      <0x00 0x063A0400 0x0 0x200>,
 			      <0x00 0x07112200 0x0 0x10>,
@@ -980,7 +952,7 @@
 			reg = <0x00 0x18000000 0x0 0x04000000>;
 			reg-names = "control";
 			riscv,max-priority = <7>;
-			riscv,ndev = <400>;
+			riscv,ndev = <351>;
 		};
 
 		clocks {

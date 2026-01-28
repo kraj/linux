@@ -73,7 +73,6 @@ static bool errata_probe_pmu(unsigned int stage,
 	if (!IS_ENABLED(CONFIG_ERRATA_THEAD_PMU))
 		return false;
 
-out:
 	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
 		return false;
 

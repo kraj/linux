@@ -1,4 +1,0 @@
-include:
-  - project: 'linux_sdk/cicd-pipeline'
-    ref: develop
-    file: '/gitlabci/gitlab-ci.yml'

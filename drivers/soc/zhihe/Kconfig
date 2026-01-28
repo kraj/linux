@@ -22,4 +22,10 @@ config A210_BMU
         help
           This driver provides support for A210 bmu.
 
+config A210_D2D
+	tristate "A210 d2d driver"
+	default n
+	help
+	  This is the d2d driver for A210 Soc.
+
 endmenu

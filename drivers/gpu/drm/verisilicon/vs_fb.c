@@ -17,10 +17,13 @@
 #endif
 #include <drm/drm_gem.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "vs_fb.h"
 #include "vs_gem.h"
@@ -166,10 +169,54 @@ vs_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
         return NULL;
 }
 
+static int vs_drm_atomic_check(struct drm_device *dev,
+                               struct drm_atomic_state *state)
+{
+#ifdef CONFIG_ZHIHE_AUXDISP
+    struct drm_connector *connector;
+    struct drm_connector_state *old_conn_state, *new_conn_state;
+    int i;
+
+    for_each_oldnew_connector_in_state(state, connector, old_conn_state, new_conn_state, i) {
+        struct drm_crtc *old_crtc = old_conn_state->crtc;
+        struct drm_crtc *new_crtc = new_conn_state->crtc;
+        struct drm_crtc_state *old_crtc_state;
+        struct drm_connector *conn2;
+        struct drm_connector_state *conn2_state;
+        bool has_other_connectors;
+        int j;
+
+        if (!old_crtc || !new_crtc || old_crtc == new_crtc)
+            continue;
+
+        old_crtc_state = drm_atomic_get_crtc_state(state, old_crtc);
+        if (IS_ERR(old_crtc_state))
+            return PTR_ERR(old_crtc_state);
+
+        has_other_connectors = false;
+        for_each_new_connector_in_state(state, conn2, conn2_state, j) {
+            if (conn2 == connector)
+                continue;
+
+            if (conn2_state->crtc == old_crtc) {
+                has_other_connectors = true;
+                break;
+            }
+        }
+
+        if (!has_other_connectors) {
+            old_crtc_state->enable = false;
+            old_crtc_state->active = false;
+        }
+    }
+#endif
+    return drm_atomic_helper_check(dev, state);
+}
+
 static const struct drm_mode_config_funcs vs_mode_config_funcs = {
     .fb_create           = vs_fb_create,
     .get_format_info     = vs_get_format_info,
-    .atomic_check        = drm_atomic_helper_check,
+    .atomic_check        = vs_drm_atomic_check,
     .atomic_commit       = drm_atomic_helper_commit,
 };
 

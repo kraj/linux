@@ -1,6 +1,8 @@
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/input/linux-event-codes.h>
 #include "a210-soc-core.dtsi"
 #include "a210-soc-peri.dtsi"
 #include "a210-platform-dev.dtsi"
@@ -67,7 +69,7 @@
 		pcie3x4 = &dm3x4;
 		pcie3x1 = &rp3x1;
 		vi_sensor0 = &mipicsi0_4lane_port;
-		vi_sensor1 = &mipicsi1_a_port;
+		vi_sensor1 = &mipi1csi1_a_port;
 	};
 
 	/* The actual capacity will be adjusted through SPL */
@@ -111,6 +113,11 @@
 		};
 	};
 
+	/* The bootargs in U-Boot will override the configuration set here. */
+	chosen {
+		stdout-path = "serial4";
+	};
+
 	Sound_Card@0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "Sound-Card-I2S0";
@@ -131,32 +138,27 @@
 
 		simple-audio-card,widgets = "Speaker", "Speaker";
 		simple-audio-card,routing =
-			"Speaker", "AW87565_PA2 VO",
-			"AW87565_PA2 IN", "ES8156_DAC1 LOUT";
+		"Speaker", "AW87565_PA2 VO",
+		"AW87565_PA2 IN", "ES8156_DAC1 LOUT";
 		simple-audio-card,aux-devs = <&audio_aw87565_pa2>;
 		SOUND_CARD_LINK(0, i2s, i2s1, 0, es8156_dac1, 0);
 		SOUND_CARD_LINK(1, i2s, i2s1, 0, es7210_adc1, 0);
 	};
 
- 	wcn_wifi: wireless-wlan {
- 		compatible = "wlan-platdata";
+	wcn_wifi: wireless-wlan {
+		compatible = "wlan-platdata";
 		WIFI,vcc1-gpios = <&aw9535_1 11 GPIO_ACTIVE_HIGH>;
 		WIFI,vcc2-gpios = <&aw9535_1 12 GPIO_ACTIVE_HIGH>;
 		WIFI,poweren-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		power_on_after_init;
 		power_on_when_resume;
- 		status = "okay";
- 	};
+		status = "okay";
+	};
 
- 	wcn_bt: wireless-bluetooth {
- 		compatible = "bluetooth-platdata";
+	wcn_bt: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
 		BT,power-gpios = <&ao_gpio1 4 GPIO_ACTIVE_HIGH>;
- 		status = "okay";
- 	};
-
-	/* The bootargs in U-Boot will override the configuration set here. */
-	chosen {
-		stdout-path = "serial4";
+		status = "okay";
 	};
 
 	lcd0_backlight: pwm-backlight@0 {
@@ -203,7 +205,7 @@
 		status = "okay";
 	};
 
-	mipicsi1_a_port: mipicsi1_a_port@0 {
+	mipi1csi1_a_port: mipi1csi1_a_port@0 {
 		compatible = "zhihe,vi_sensor";
 		clocks = <&clk SW_TOP_PAD_SENSOR_VCLK1_EN>;
 		clock-names = "core_clk";
@@ -218,6 +220,42 @@
 		AVDD1-supply = <&avdd1_mipicsi1_reg>;
 		AVDD2-supply = <&avdd2_mipicsi1_reg>;
 		status = "okay";
+	};
+
+	reg_usb_typec_vbus: regulator-typec-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_typec_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		status = "okay";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		key-sleep {
+			label = "KEY_SLEEP";
+			linux,code = <KEY_SLEEP>;
+			debounce-interval = <1>;
+			gpios = <&ao_gpio0 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&ao_gpio0 {
+	pwoer-5v-en-hog {
+		gpio-hog;
+		gpios = <29 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "power_5v_en";
+	};
+
+	pwoer-3v3-en-hog {
+		gpio-hog;
+		gpios = <26 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "power_3v3_en";
 	};
 };
 
@@ -316,6 +354,7 @@
 			regulator-name = "dvdd_cpu";
 			regulator-type = "voltage";
 			regulator-ramp-delay = <100>;
+			regulator-enable-ramp-delay = <2000>;
 			regulator-min-microvolt = <600000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-always-on;
@@ -325,6 +364,7 @@
 			regulator-name = "dvddm_cpu";
 			regulator-type = "voltage";
 			regulator-ramp-delay = <100>;
+			regulator-enable-ramp-delay = <2000>;
 			regulator-min-microvolt = <800000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-always-on;
@@ -334,24 +374,25 @@
 			regulator-name = "dvdd_vp";
 			regulator-type = "voltage";
 			regulator-ramp-delay = <100>;
+			regulator-enable-ramp-delay = <2000>;
 			regulator-min-microvolt = <750000>;
 			regulator-max-microvolt = <800000>;
-			regulator-always-on;
 		};
 
 		dvdd_npu_vip_reg: dvdd_npu_vip {
 			regulator-name = "dvdd_npu_vip";
 			regulator-type = "voltage";
 			regulator-ramp-delay = <100>;
+			regulator-enable-ramp-delay = <2000>;
 			regulator-min-microvolt = <750000>;
 			regulator-max-microvolt = <1000000>;
-			regulator-always-on;
 		};
 
 		dvdd_cpu_p_reg: dvdd_cpu_p {
 			regulator-name = "dvdd_cpu_p";
 			regulator-type = "voltage";
 			regulator-ramp-delay = <100>;
+			regulator-enable-ramp-delay = <2000>;
 			regulator-min-microvolt = <800000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-always-on;
@@ -361,9 +402,9 @@
 			regulator-name = "dvdd_gpu";
 			regulator-type = "voltage";
 			regulator-ramp-delay = <100>;
+			regulator-enable-ramp-delay = <2000>;
 			regulator-min-microvolt = <750000>;
 			regulator-max-microvolt = <800000>;
-			regulator-always-on;
 		};
 
 	};
@@ -400,6 +441,17 @@
 			drive-strength = <7>;
 			input-enable;
 			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	usbc0_int: usbc0-int {
+		usbcc-int-pins {
+			pins = "AOGPIO0_28";
+			function = "aogpio0";
+			bias-pull-up;
+			drive-strength = <13>;
+			input-enable;
+			input-schmitt-enable;  /* 启用施密特触发器以稳定低电平中断信号 */
 			slew-rate = <0>;
 		};
 	};
@@ -459,30 +511,9 @@
 			slew-rate = <0>;
 		};
 	};
-	can0_pins: can0-0 {
-		tx-pins {
-			pins = "GPIO0_25";
-			function = "can0";
-			bias-disable;
-			drive-strength = <5>;
-			input-disable;
-			input-schmitt-disable;
-			slew-rate = <1>;
-		};
-
-		rx-pins {
-			pins = "GPIO0_24";
-			function = "can0";
-			bias-disable;
-			drive-strength = <1>;
-			input-enable;
-			input-schmitt-enable;
-			slew-rate = <0>;
-		};
-	};
 	pcie_x1_pins: pcie_x1-1 {
 		pcie_x1-pins {
-			pins = "GPIO0_18", "GPIO0_19", "GPIO0_20", "GPIO0_21";
+			pins = "GPIO0_25";
 			function = "pcie_x1";
 			bias-disable;
 			drive-strength = <7>;
@@ -493,7 +524,7 @@
 	};
 	pcie_x4_pins: pcie_x4-1 {
 		pcie_x4-pins {
-			pins = "GPIO0_28", "GPIO0_29", "GPIO0_31";
+			pins = "GPIO0_29";
 			function = "pcie_x4";
 			bias-disable;
 			drive-strength = <7>;
@@ -561,17 +592,6 @@
 			drive-strength = <13>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
-		};
-	};
-	usb3_pins: usb3-1 {
-		usb3-pins {
-			pins = "GPIO0_27";
-			function = "gpio0";
-			bias-disable;
-			drive-strength = <13>;
-			input-disable;
-			input-schmitt-disable;
 			slew-rate = <0>;
 		};
 	};
@@ -972,6 +992,65 @@
 		    "USBCON_PWREN_IO8", "USBCON1_PWREN_IO9", "NULL_IO10", "SDIO_3V3_PWREN_IO11",                // index 8..11
 		    "SDIO_1V8_PWREN_IO12","PI6C557_PWREN_IO13","MIPI_DSI_PWREN_IO14","BL_EN_IO15";              // index 12..15
     };
+
+	fusb302: typec-portc@22 {
+		compatible = "fcs,fusb302";
+		reg = <0x22>;
+		interrupt-parent = <&ao_gpio0>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&reg_usb_typec_vbus>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				usbc0_role_sw: endpoint@0 {
+					remote-endpoint = <&dwc3_0_role_switch>;
+				};
+			};
+		};
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			sink-pdos =
+				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+			source-pdos =
+				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+
+			altmodes {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				altmode@0 {
+					reg = <0>;
+					svid = <0xff01>;
+					vdo = <0xffffffff>;
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					usbc0_orien_sw: endpoint {
+						remote-endpoint = <&usbdp_phy0_orientation_switch>;
+					};
+				};
+			};
+		};
+	};
 };
 
 &uart4 {
@@ -992,11 +1071,6 @@
 &rp3x1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_x1_pins>;
-	minipcie-1v5-pwren-gpios = 	<&aw9535_0  6 GPIO_ACTIVE_HIGH>;
-	minipcie-3v3-pwren-gpios = 	<&aw9535_0  7 GPIO_ACTIVE_HIGH>;
-	minipcie-perst-gpios = 	        <&aw9535_0 15 GPIO_ACTIVE_HIGH>;
-	pcie-clk-en-gpios = 		<&aw9535_0 12 GPIO_ACTIVE_HIGH>;
-	pcie-clk-pwren-gpios = 		<&aw9535_1 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -1027,11 +1101,6 @@
 	pinctrl-0 = <&pwm1_pins>;
 };
 
-&can0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&can0_pins>;
-};
-
 &hdmi_tx {
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_pins>;
@@ -1053,7 +1122,6 @@
 	pull_up;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	clk-delay-mmc-hs200 = <60>;
 };
 
 &sdhci0 {
@@ -1073,23 +1141,27 @@
 	wakeup-source;
 };
 
-&usb20_zhihe {
-	usb21-pwren-gpios = <&aw9535_1 8 GPIO_ACTIVE_HIGH>;
-	usb20-pwren-gpios = <&aw9535_1 9 GPIO_ACTIVE_HIGH>;
+&usb20phy0 {
+	pwren-gpios = <&aw9535_1 8 GPIO_ACTIVE_HIGH>;
 };
 
-&usb3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb3_pins>;
-	typec-pwren-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+&usb20phy1 {
+	pwren-gpios = <&aw9535_1 9 GPIO_ACTIVE_HIGH>;
 };
 
 &sata {
-	m2-sata-3v3-pwren-gpios = 	<&aw9535_0 14 GPIO_ACTIVE_HIGH>;
-	m2-sata-en-gpios = 		<&aw9535_0  9 GPIO_ACTIVE_HIGH>;
-	sata-clk-en-gpios = 		<&aw9535_0 12 GPIO_ACTIVE_HIGH>;
-	sata-clk-pwren-gpios = 		<&aw9535_1 13 GPIO_ACTIVE_HIGH>;
-	status = "disabled";
+	status = "okay";
+};
+
+&e16phy {
+	init-seq-select = "pcie_dmx1_rpx1_satax2";
+	base-en-gpios = <&aw9535_0 12 GPIO_ACTIVE_HIGH>, // pcie-clk, sata-clk
+					<&aw9535_1 13 GPIO_ACTIVE_HIGH>; // pcie-clk-pwren, sata-clk-pwren
+	sata-en-gpios = <&aw9535_0 14 GPIO_ACTIVE_HIGH>, // m2-sata-3v3-pwren
+					<&aw9535_0  9 GPIO_ACTIVE_HIGH>; // m2-sata-en
+	pcie-en-gpios = <&aw9535_0  6 GPIO_ACTIVE_HIGH>, // minipcie-1v5-pwren
+					<&aw9535_0  7 GPIO_ACTIVE_HIGH>, // minipcie-3v3-pwren
+					<&aw9535_0 15 GPIO_ACTIVE_HIGH>; // minipcie-perst
 };
 
 &mipi0_csi0 {
@@ -1106,29 +1178,19 @@
 };
 
 //config dsi display: dpu_disp0->dup_enc0->dsi0->lcd_plane
-
-&dpu_enc0 {
-    status = "disabled";
-    ports {
-        /* output */
-        port@1 {
-            reg = <1>;
-            enc0_out: endpoint {
-                remote-endpoint = <&dsi0_in>;
-            };
-        };
-    };
+&dsi_enc_out {
+	remote-endpoint = <&dsi0_in>;
 };
 
-&dhost_0 {
-	status = "disabled";
+&dsi_host0 {
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		port@0 {
 			reg = <0>;
 			dsi0_in: endpoint {
-				remote-endpoint = <&enc0_out>;
+				remote-endpoint = <&dsi_enc_out>;
 			};
 		};
 		port@1 {
@@ -1162,4 +1224,62 @@
 &c908_0 {
 	dvdd-cpu-supply = <&dvdd_cpu_reg>;
 	dvddm-cpu-supply = <&dvddm_cpu_reg>;
+};
+
+&power_gpu {
+	pmic-supply = <&dvdd_gpu_reg>;
+};
+
+&power_npu_wrapper {
+	pmic-supply = <&dvdd_npu_vip_reg>;
+};
+
+&power_vp_wrapper {
+	pmic-supply = <&dvdd_vp_reg>;
+};
+
+&venc {
+	dvdd-supply = <&dvdd_vp_reg>;
+};
+
+&vdec {
+	dvdd-supply = <&dvdd_vp_reg>;
+};
+
+&g2d {
+	dvdd-supply = <&dvdd_vp_reg>;
+};
+
+&gpu {
+	dvdd-supply = <&dvdd_gpu_reg>;
+};
+
+&usb3 {
+	dr_mode = "otg";
+	usb-role-switch;
+
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dwc3_0_role_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
+};
+
+/* USB3.1/DP Combo PHY0 */
+&usb31_c10phy {
+	orientation-switch;
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		usbdp_phy0_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+	};
 };

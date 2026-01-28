@@ -3,8 +3,8 @@
  * Copyright (C) 2025 Zhihe Computing Limited.
  */
 
-#ifndef DT_BINDING_RESET_P100_H
-#define DT_BINDING_RESET_P100_H
+#ifndef DT_BINDING_RESET_A210_H
+#define DT_BINDING_RESET_A210_H
 
 #define RST_SIGNAL_MASK		0xFF
 
@@ -331,6 +331,6 @@
 #define GPU_PWR_WRAP_RGX_HOOD_RST	0xB00
 #define GPU_PWR_WRAP_DFMU_RST	0xB01
 
-#define P100_RESETS_MAX		0xB02
+#define A210_RESETS_MAX		0xB02
 
 #endif

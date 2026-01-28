@@ -347,7 +347,7 @@ static int zhihe_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pr_info("succeed to register p100 pmic watchdog\n");
+	pr_info("succeed to register a210 pmic watchdog\n");
 
 	return 0;
 }
@@ -406,5 +406,5 @@ static struct platform_driver zhihe_wdt_driver = {
 module_platform_driver(zhihe_wdt_driver);
 
 MODULE_AUTHOR("Wei.Liu <lw312886@linux.alibaba.com>");
-MODULE_DESCRIPTION("PMIC Watchdog Driver for p100");
+MODULE_DESCRIPTION("PMIC Watchdog Driver for a210");
 MODULE_LICENSE("GPL");

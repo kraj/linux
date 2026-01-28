@@ -20,7 +20,6 @@
 
 DEFINE_STATIC_KEY_FALSE(use_asid_allocator);
 
-static unsigned long asid_bits;
 static unsigned long num_asids;
 unsigned long asid_mask;
 
@@ -159,7 +158,7 @@ static void set_mm_asid(struct mm_struct *mm, unsigned int cpu)
 	 *
 	 * - We get a zero back from the cmpxchg and end up waiting on the
 	 *   lock. Taking the lock synchronises with the rollover and so
-	 *   we are forced to see the updated verion.
+	 *   we are forced to see the updated version.
 	 *
 	 * - We get a valid context back from the cmpxchg then we continue
 	 *   using old ASID because __flush_context() would have marked ASID
@@ -238,8 +237,7 @@ static inline void set_mm(struct mm_struct *prev,
 
 static int __init asids_init(void)
 {
-#if 0
-	unsigned long old;
+	unsigned long asid_bits, old;
 
 	/* Figure-out number of ASID bits in HW */
 	old = csr_read(CSR_SATP);
@@ -283,7 +281,6 @@ static int __init asids_init(void)
 	} else {
 		pr_info("ASID allocator disabled (%lu bits)\n", asid_bits);
 	}
-#endif
 	return 0;
 }
 early_initcall(asids_init);

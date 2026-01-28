@@ -19,8 +19,6 @@ ifneq ($(CONFIG_DEBUG_FS),)
 	dwc2-y				+= debugfs.o
 endif
 
-obj-$(CONFIG_USB_DWC2_ZHIHE)		+= dwc2-zhihe.o
-
 # NOTE: The previous s3c-hsotg peripheral mode only driver has been moved to
 # this location and renamed gadget.c. When building for dynamically linked
 # modules, dwc2.ko will get built for host mode, peripheral mode, and dual-role

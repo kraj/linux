@@ -10,7 +10,7 @@
 #include <dt-bindings/reset/a210-reset.h>
 
 
-#define P100_RST_NAME_SIZE 20
+#define A210_RST_NAME_SIZE 20
 
 /* reset subsys enumeration */
 enum {
@@ -26,31 +26,31 @@ enum {
 	USB_RST,
 	TEE_RST,
 	GPU_RST,
-	P100_RESET_SUBSYS_MAX,
+	A210_RESET_SUBSYS_MAX,
 };
 
 /* one single reset signal*/
-struct p100_rst_signal {
+struct a210_rst_signal {
 	unsigned int offset, bit;
 };
 
 /* reset info within a subsys */
-struct p100_rst_subsys {
+struct a210_rst_subsys {
 	void __iomem *base;
-	const struct p100_rst_signal *signals;
+	const struct a210_rst_signal *signals;
 	u32 num_signals;
-	char name[P100_RST_NAME_SIZE];
+	char name[A210_RST_NAME_SIZE];
 };
 
-struct p100_reset {
+struct a210_reset {
 	struct device *dev;
 	struct reset_controller_dev reset;
-	struct p100_rst_subsys *subsys;
+	struct a210_rst_subsys *subsys;
 	u32 num_subsys;
 	spinlock_t lock;
 };
 
-static const struct p100_rst_signal vp_rst_signals[] = {
+static const struct a210_rst_signal vp_rst_signals[] = {
 	[VP_VDEC_PRST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[VP_VDEC_CRST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[VP_VDEC_ARST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -76,7 +76,7 @@ static const struct p100_rst_signal vp_rst_signals[] = {
 	[VP_DECOMP_EXTPRST & RST_SIGNAL_MASK] = {0, BIT(23)},
 };
 
-static const struct p100_rst_signal vi_rst_signals[] = {
+static const struct a210_rst_signal vi_rst_signals[] = {
 	[VI_MIPI0_CSI0_PRST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[VI_MIPI0_CSI1_PRST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[VI_MIPI0_FIFO_RST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -109,7 +109,7 @@ static const struct p100_rst_signal vi_rst_signals[] = {
 	[VI_REC_ARST & RST_SIGNAL_MASK] = {0, BIT(30)},
 };
 
-static const struct p100_rst_signal npu_rst_signals[] = {
+static const struct a210_rst_signal npu_rst_signals[] = {
 	[NPU_AAB_MST_RST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[NPU_AFENCE_RST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[NPU_AXI_CCU_PRST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -140,7 +140,7 @@ static const struct p100_rst_signal npu_rst_signals[] = {
 	[NPU_SRAM_RST & RST_SIGNAL_MASK] = {0, BIT(27)},
 };
 
-static const struct p100_rst_signal vo_rst_signals[] = {
+static const struct a210_rst_signal vo_rst_signals[] = {
 	[VO_X2H0_RST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[VO_X2H1_RST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[VO_DPU_HRST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -162,7 +162,7 @@ static const struct p100_rst_signal vo_rst_signals[] = {
 	[VO_DFMU_ARST & RST_SIGNAL_MASK] = {0, BIT(18)},
 };
 
-static const struct p100_rst_signal peri0_rst_signals[] = {
+static const struct a210_rst_signal peri0_rst_signals[] = {
 	[PERI0_TIMER0_CRST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[PERI0_TIMER0_PRST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[PERI0_TIMER1_CRST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -172,7 +172,7 @@ static const struct p100_rst_signal peri0_rst_signals[] = {
 	[PERI0_MBOX1_PRST & RST_SIGNAL_MASK] = {0, BIT(6)},
 };
 
-static const struct p100_rst_signal peri1_rst_signals[] = {
+static const struct a210_rst_signal peri1_rst_signals[] = {
 	[PERI1_GMAC0_ARST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[PERI1_GMAC0_HRST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[PERI1_GMAC1_ARST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -233,7 +233,7 @@ static const struct p100_rst_signal peri1_rst_signals[] = {
 	[PERI1_ZGMAC_X2X_ARST & RST_SIGNAL_MASK] = {0x4, BIT(25)},
 };
 
-static const struct p100_rst_signal peri2_rst_signals[] = {
+static const struct a210_rst_signal peri2_rst_signals[] = {
 	[PERI2_CAN2_IPG_PE_RST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[PERI2_CAN2_IPG_RST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[PERI2_CAN2_IPG_SOFT_RST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -279,7 +279,7 @@ static const struct p100_rst_signal peri2_rst_signals[] = {
 	[PERI2_PWM2_PRST & RST_SIGNAL_MASK] = {0x4, BIT(10)},
 };
 
-static const struct p100_rst_signal peri3_rst_signals[] = {
+static const struct a210_rst_signal peri3_rst_signals[] = {
 	[PERI3_DMAC_ARESET & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[PERI3_DMAC_HRESET & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[PERI3_EMMC_SDIO_CLKGEN_RST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -300,7 +300,7 @@ static const struct p100_rst_signal peri3_rst_signals[] = {
 	[PERI3_PAD_CTRL_PRST & RST_SIGNAL_MASK] = {0, BIT(17)},
 };
 
-static const struct p100_rst_signal pcie_rst_signals[] = {
+static const struct a210_rst_signal pcie_rst_signals[] = {
 	[PCIE_X2X_PERI_SLV_ARST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[PCIE_X2X_PERI_MST_ARST & RST_SIGNAL_MASK] = {0, BIT(4)},
 	[PCIE_AXI4_PCIE_MST_ARST & RST_SIGNAL_MASK] = {0, BIT(8)},
@@ -329,7 +329,7 @@ static const struct p100_rst_signal pcie_rst_signals[] = {
 	[PCIE_RP_MST_AFENCE_ARST & RST_SIGNAL_MASK] = {0x24, BIT(20)},
 };
 
-static const struct p100_rst_signal usb_rst_signals[] = {
+static const struct a210_rst_signal usb_rst_signals[] = {
 	[USB_DFMU_PRST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[USB_DFMU_ARST & RST_SIGNAL_MASK] = {0, BIT(4)},
 	[USB_AXI4_MST_ARST & RST_SIGNAL_MASK] = {0, BIT(8)},
@@ -363,7 +363,7 @@ static const struct p100_rst_signal usb_rst_signals[] = {
 	[USB_PERI2_SLV_AFENCE_ARST & RST_SIGNAL_MASK] = {0x20, BIT(4)},
 };
 
-static const struct p100_rst_signal tee_rst_signals[] = {
+static const struct a210_rst_signal tee_rst_signals[] = {
 	[TEE_KEYRAM_PRST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[TEE_DS_PRST & RST_SIGNAL_MASK] = {0, BIT(1)},
 	[TEE_EFUSE_PRST & RST_SIGNAL_MASK] = {0, BIT(2)},
@@ -388,12 +388,12 @@ static const struct p100_rst_signal tee_rst_signals[] = {
 	[TEE_AHB2_TEESYS_HRST & RST_SIGNAL_MASK] = {0, BIT(29)},
 };
 
-static const struct p100_rst_signal gpu_rst_signals[] = {
+static const struct a210_rst_signal gpu_rst_signals[] = {
 	[GPU_PWR_WRAP_RGX_HOOD_RST & RST_SIGNAL_MASK] = {0, BIT(0)},
 	[GPU_PWR_WRAP_DFMU_RST & RST_SIGNAL_MASK] = {0, BIT(1)},
 };
 
-static struct p100_rst_subsys subsys[] = {
+static struct a210_rst_subsys subsys[] = {
 	[VP_RST] = {
 		.signals = vp_rst_signals,
 		.num_signals = ARRAY_SIZE(vp_rst_signals),
@@ -456,13 +456,13 @@ static struct p100_rst_subsys subsys[] = {
 	},
 };
 
-static int p100_reset_parse_regbase(struct platform_device *pdev)
+static int a210_reset_parse_regbase(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct p100_reset *priv = dev_get_drvdata(dev);
+	struct a210_reset *priv = dev_get_drvdata(dev);
 	int ret = 0;
 
-	for (int i = 0; i < P100_RESET_SUBSYS_MAX; i++) {
+	for (int i = 0; i < A210_RESET_SUBSYS_MAX; i++) {
 		priv->subsys[i].base = devm_platform_ioremap_resource_byname(pdev, priv->subsys[i].name);
 		if (WARN_ON(IS_ERR(priv->subsys[i].base))) {
 			return PTR_ERR(priv->subsys[i].base);
@@ -472,13 +472,13 @@ static int p100_reset_parse_regbase(struct platform_device *pdev)
 	return ret;
 }
 
-static inline struct p100_reset *to_p100_reset(struct reset_controller_dev *rcdev)
+static inline struct a210_reset *to_a210_reset(struct reset_controller_dev *rcdev)
 {
-	return container_of(rcdev, struct p100_reset, reset);
+	return container_of(rcdev, struct a210_reset, reset);
 }
 
-static int p100_reset_subsys_signal_lookup(struct p100_reset *priv, unsigned long id, 
-               struct p100_rst_subsys **subsys, const struct p100_rst_signal **signal)
+static int a210_reset_subsys_signal_lookup(struct a210_reset *priv, unsigned long id,
+               struct a210_rst_subsys **subsys, const struct a210_rst_signal **signal)
 {
 	u32 subsys_id = id >> 8;
 	u32 signal_id = id & RST_SIGNAL_MASK;
@@ -496,17 +496,17 @@ static int p100_reset_subsys_signal_lookup(struct p100_reset *priv, unsigned lon
 	return 0;
 }
 
-static int p100_reset_update(struct reset_controller_dev *rcdev,
+static int a210_reset_update(struct reset_controller_dev *rcdev,
 			     unsigned long id, bool assert)
 {
 	u32 reg;
-	struct p100_reset *priv = to_p100_reset(rcdev);
-	struct p100_rst_subsys *subsys;
-	const struct p100_rst_signal *signal;
+	struct a210_reset *priv = to_a210_reset(rcdev);
+	struct a210_rst_subsys *subsys;
+	const struct a210_rst_signal *signal;
 	unsigned long flags;
 	int ret;
 
-	ret = p100_reset_subsys_signal_lookup(priv, id, &subsys, &signal);
+	ret = a210_reset_subsys_signal_lookup(priv, id, &subsys, &signal);
 	if (ret) {
 		return ret;
 	}
@@ -525,59 +525,59 @@ static int p100_reset_update(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static int p100_reset_assert(struct reset_controller_dev *rcdev,
+static int a210_reset_assert(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
-	return p100_reset_update(rcdev, id, true);
+	return a210_reset_update(rcdev, id, true);
 }
 
-static int p100_reset_deassert(struct reset_controller_dev *rcdev,
+static int a210_reset_deassert(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
-	return p100_reset_update(rcdev, id, false);
+	return a210_reset_update(rcdev, id, false);
 }
 
-static int p100_reset_status(struct reset_controller_dev *rcdev,
+static int a210_reset_status(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
-	struct p100_reset *priv = to_p100_reset(rcdev);
-	struct p100_rst_subsys *subsys;
-	const struct p100_rst_signal *signal;
+	struct a210_reset *priv = to_a210_reset(rcdev);
+	struct a210_rst_subsys *subsys;
+	const struct a210_rst_signal *signal;
 	int ret;
 
-	ret = p100_reset_subsys_signal_lookup(priv, id, &subsys, &signal);
+	ret = a210_reset_subsys_signal_lookup(priv, id, &subsys, &signal);
 	if (ret)
 		return ret;
 
 	return !!(readl(subsys->base + signal->offset) & signal->bit);
 }
 
-static const struct reset_control_ops p100_reset_ops = {
-	.assert = p100_reset_assert,
-	.deassert = p100_reset_deassert,
-	.status = p100_reset_status,
+static const struct reset_control_ops a210_reset_ops = {
+	.assert = a210_reset_assert,
+	.deassert = a210_reset_deassert,
+	.status = a210_reset_status,
 };
 
-static void p100_register_reset(struct platform_device *pdev)
+static void a210_register_reset(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct p100_reset *priv = dev_get_drvdata(dev);
+	struct a210_reset *priv = dev_get_drvdata(dev);
 
-	priv->reset.ops = &p100_reset_ops;
+	priv->reset.ops = &a210_reset_ops;
 	priv->reset.owner = THIS_MODULE;
 	priv->reset.of_node = dev->of_node;
 	priv->reset.of_reset_n_cells = 1;
-	priv->reset.nr_resets = P100_RESETS_MAX;
+	priv->reset.nr_resets = A210_RESETS_MAX;
 
 	spin_lock_init(&priv->lock);
 
 	reset_controller_register(&priv->reset);
 }
 
-static int p100_reset_probe(struct platform_device *pdev)
+static int a210_reset_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct p100_reset *priv;
+	struct a210_reset *priv;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -589,13 +589,13 @@ static int p100_reset_probe(struct platform_device *pdev)
 	priv->num_subsys = ARRAY_SIZE(subsys);
 	priv->dev = dev;
 
-	ret = p100_reset_parse_regbase(pdev);
+	ret = a210_reset_parse_regbase(pdev);
 	if (ret)
 		goto fail;
 
-	p100_register_reset(pdev);
+	a210_register_reset(pdev);
 
-	dev_warn(dev, "succeed to register p100 reset driver\n");
+	dev_info(dev, "succeed to register a210 reset driver\n");
 
 	return ret;
 
@@ -604,25 +604,25 @@ fail:
 	return ret;
 }
 
-static const struct of_device_id p100_reset_of_match[] = {
-	{.compatible = "zhihe,p100-reset-controller"},
+static const struct of_device_id a210_reset_of_match[] = {
+	{.compatible = "zhihe,a210-reset-controller"},
 	{ /* Sentinel */ },
 };
 
-struct platform_driver p100_reset_driver = {
-	.probe = p100_reset_probe,
+struct platform_driver a210_reset_driver = {
+	.probe = a210_reset_probe,
 	.driver = {
-		.name = "p100-reset",
-		.of_match_table = of_match_ptr(p100_reset_of_match),
+		.name = "a210-reset",
+		.of_match_table = of_match_ptr(a210_reset_of_match),
 	},
 };
 
-static int p100_reset_init(void)
+static int a210_reset_init(void)
 {
-	return platform_driver_register(&p100_reset_driver);
+	return platform_driver_register(&a210_reset_driver);
 }
 
-arch_initcall(p100_reset_init);
+arch_initcall(a210_reset_init);
 
 MODULE_AUTHOR("dong.yan <yand@zhcomputing.com>");
 MODULE_DESCRIPTION("Zhihe P100 reset driver");

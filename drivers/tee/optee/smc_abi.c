@@ -1393,7 +1393,7 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	paddr = begin;
 	size = end - begin;
 
-	va = memremap(paddr, size, MEMREMAP_WB);
+	va = memremap(paddr, size, MEMREMAP_WT);
 	if (!va) {
 		pr_err("shared memory ioremap failed\n");
 		return ERR_PTR(-EINVAL);

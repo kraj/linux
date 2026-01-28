@@ -294,11 +294,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		d2d: d2d {
-			compatible = "zhihe,d2d";
-			nr_dies = <2>;
-		};
-/* OPENSBI */
+		/* OPENSBI */
 		reset: reset-sample {
 			compatible = "zhihe,reset-sample";
 			reg = <0x00 0x00 0x00 0x00>;
@@ -353,8 +349,7 @@
 			reg = <0x00 0x1a000000 0x0 0x02000000>;
 			reg-names = "control";
 			riscv,max-priority = <7>;
-			riscv,ndev = <400>;
-			cpu-id = <8>;
+			riscv,ndev = <351>;
 		};
 
 		clocks1 {
@@ -537,9 +532,9 @@
 					  <&clk_die1 TOP_PERI_QSPI_SSI_CLK_MUX1>, <&clk_die1 TOP_PERI_PDM_MCLK_DIV>,
 					  <&clk_die1 TOP_PERI_TDM_SRC_CLK_MUX>, <&clk_die1 TOP_PAD_SENSOR_VCLK0_DIV>,
 					  <&clk_die1 TOP_PAD_SENSOR_VCLK1_DIV>, <&clk_die1 TOP_PERI_HIRES_CLK0_DIV>,
-					  <&clk_die1 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die1 TOP_TEE_CLK_DIV>,
-					  <&clk_die1 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die1 TOP_PERI_MST_ACLK0_DIV>, 
-					  <&clk_die1 TOP_PERI_MST_CLK1_DIV>;
+					  <&clk_die1 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die1 TOP_PERI_EMMC_REF_CLK_DIV>,
+					  <&clk_die1 TOP_PERI_MST_ACLK0_DIV>, <&clk_die1 TOP_PERI_MST_CLK1_DIV>,
+					  <&clk_die1 TOP_TEE_CLK_DIV>;
 			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
 					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */
 					       <316108800>, <421478400>, /* peri2_i2s3_src_clk,peri1_spi_ssi_clk */
@@ -734,7 +729,7 @@
 					  <&clk_die2 TOP_PERI_TDM_SRC_CLK_MUX>, <&clk_die2 TOP_PAD_SENSOR_VCLK0_DIV>,
 					  <&clk_die2 TOP_PAD_SENSOR_VCLK1_DIV>, <&clk_die2 TOP_PERI_HIRES_CLK0_DIV>,
 					  <&clk_die2 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die2 TOP_TEE_CLK_DIV>,
-					  <&clk_die2 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die2 TOP_PERI_MST_ACLK0_DIV>, 
+					  <&clk_die2 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die2 TOP_PERI_MST_ACLK0_DIV>,
 					  <&clk_die2 TOP_PERI_MST_CLK1_DIV>;
 			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
 					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */
@@ -930,7 +925,7 @@
 					  <&clk_die3 TOP_PERI_TDM_SRC_CLK_MUX>, <&clk_die3 TOP_PAD_SENSOR_VCLK0_DIV>,
 					  <&clk_die3 TOP_PAD_SENSOR_VCLK1_DIV>, <&clk_die3 TOP_PERI_HIRES_CLK0_DIV>,
 					  <&clk_die3 TOP_PERI_HIRES_CLK1_DIV>, <&clk_die3 TOP_TEE_CLK_DIV>,
-					  <&clk_die3 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die3 TOP_PERI_MST_ACLK0_DIV>, 
+					  <&clk_die3 TOP_PERI_EMMC_REF_CLK_DIV>, <&clk_die3 TOP_PERI_MST_ACLK0_DIV>,
 					  <&clk_die3 TOP_PERI_MST_CLK1_DIV>;
 			assigned-clock-rates = <24000000>, <316108800>, /* peri0_timer_clk,peri1_i2s0_src_clk */
 					       <316108800>, <316108800>, /* peri2_i2s1_src_clk,peri2_i2s2_src_clk */

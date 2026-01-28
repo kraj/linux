@@ -370,7 +370,7 @@ static bool nvme_dbbuf_update_and_check_event(u16 value, __le32 *dbbuf_db,
 		 * ordering to ensure the envent index is updated before reading
 		 * the doorbell.
 		 */
-		mb();
+		dma_mb();
 
 		event_idx = le32_to_cpu(*dbbuf_ei);
 		if (!nvme_dbbuf_need_event(event_idx, value, old_value))
@@ -858,7 +858,7 @@ static blk_status_t nvme_prep_rq(struct nvme_dev *dev, struct request *req)
 		if (ret)
 			goto out_unmap_data;
 	}
-
+	dma_mb();
 	nvme_start_request(req);
 	return BLK_STS_OK;
 out_unmap_data:

@@ -60,6 +60,9 @@
 		spi3 = &spi1;
 		pcie3x4 = &dm3x4;
 		pcie3x1 = &rp3x1;
+		vi_sensor0 = &mipicsi0_4lane_port;
+		vi_sensor1 = &mipi1csi0_b_port;
+		vi_sensor2 = &mipi1csi1_a_port;
 	};
 
 	/* The actual capacity will be adjusted through SPL */
@@ -122,34 +125,7 @@
 		status = "okay";
 	};
 
-	codec_dummy_i2s_8ch0: codec_dummy_i2s_8ch0 {
-		compatible = "zhihe,dummy-pcm-i2s-8ch";
-		sound-name-prefix = "DUMMY";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_i2s_8ch1: codec_dummy_i2s_8ch1 {
-		compatible = "zhihe,dummy-pcm-i2s-8ch";
-		sound-name-prefix = "DUMMY";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_i2s_8ch2: codec_dummy_i2s_8ch2 {
-		compatible = "zhihe,dummy-pcm-i2s-8ch";
-		sound-name-prefix = "DUMMY";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_i2s_8ch3: codec_dummy_i2s_8ch3 {
+	codec_dummy_i2s_8ch: codec_dummy_i2s_8ch {
 		compatible = "zhihe,dummy-pcm-i2s-8ch";
 		sound-name-prefix = "DUMMY";
 		#address-cells = <0>;
@@ -167,76 +143,10 @@
 		status = "okay";
 	};
 
-	codec_dummy_pdm0: codec_dummy_pdm0 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC0";
-		#address-cells = <0>;
-		#size-cells = <0>;
+	codec_dmic: dmic-codec {
+		compatible = "dmic-codec";
+		num-channels = <8>;
 		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm1: codec_dummy_pdm1 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC1";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm2: codec_dummy_pdm2 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC2";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm3: codec_dummy_pdm3 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC3";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm4: codec_dummy_pdm4 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC4";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm5: codec_dummy_pdm5 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC5";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm6: codec_dummy_pdm6 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC6";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
-	};
-
-	codec_dummy_pdm7: codec_dummy_pdm7 {
-		compatible = "zhihe,dummy-pcm-pdm";
-		sound-name-prefix = "DMIC7";
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#sound-dai-cells = <1>;
-		status = "okay";
 	};
 
 	Sound_Card@0 {
@@ -248,10 +158,10 @@
 
 		simple-audio-card,widgets = "Speaker", "Speaker";
 		simple-audio-card,routing =
-			"Speaker", "AW87565_PA0 VO",
-			"Speaker", "AW87565_PA1 VO",
-			"AW87565_PA0 IN", "ES8156_DAC0 LOUT",
-			"AW87565_PA1 IN", "ES8156_DAC0 ROUT";
+		"Speaker", "AW87565_PA0 VO",
+		"Speaker", "AW87565_PA1 VO",
+		"AW87565_PA0 IN", "ES8156_DAC0 LOUT",
+		"AW87565_PA1 IN", "ES8156_DAC0 ROUT";
 		simple-audio-card,aux-devs = <&audio_aw87565_pa0>, <&audio_aw87565_pa1>;
 		SOUND_CARD_LINK(0, i2s, i2s1, 0, es8156_dac0, 0);  /* I2S1 <-> es8156_dac0 */
 		SOUND_CARD_LINK(1, i2s, i2s1, 0, es7210_adc0, 0);  /* I2S1 <-> es7210_adc0 */
@@ -266,10 +176,10 @@
 
 		simple-audio-card,widgets = "Speaker", "Speaker";
 		simple-audio-card,routing =
-			"Speaker", "AW87565_PA2 VO",
-			"Speaker", "AW87565_PA3 VO",
-			"AW87565_PA2 IN", "ES8156_DAC1 LOUT",
-			"AW87565_PA3 IN", "ES8156_DAC1 ROUT";
+		"Speaker", "AW87565_PA2 VO",
+		"Speaker", "AW87565_PA3 VO",
+		"AW87565_PA2 IN", "ES8156_DAC1 LOUT",
+		"AW87565_PA3 IN", "ES8156_DAC1 ROUT";
 		simple-audio-card,aux-devs = <&audio_aw87565_pa2>, <&audio_aw87565_pa3>;
 		SOUND_CARD_LINK(0, i2s, i2s2, 0, es8156_dac1, 0);  /* I2S2 <-> es8156_dac1 */
 		SOUND_CARD_LINK(1, i2s, i2s2, 0, es7210_adc1, 0);  /* I2S2 <-> es7210_adc1 */
@@ -292,10 +202,10 @@
 		#size-cells = <0>;
 		status = "disabled";
 
-		SOUND_CARD_LINK(0, left_j, i2s_8ch_sd0, 0, dummy_i2s_8ch0, 0);  /* I2S3-SD0 <-> HW-Codec */
-		SOUND_CARD_LINK(1, left_j, i2s_8ch_sd1, 0, dummy_i2s_8ch1, 0);  /* I2S3-SD1 <-> HW-Codec */
-		SOUND_CARD_LINK(2, left_j, i2s_8ch_sd2, 0, dummy_i2s_8ch2, 0);  /* I2S3-SD2 <-> HW-Codec */
-		SOUND_CARD_LINK(3, left_j, i2s_8ch_sd3, 0, dummy_i2s_8ch3, 0);  /* I2S3-SD3 <-> HW-Codec */
+		SOUND_CARD_LINK(0, left_j, i2s_8ch_sd0, 0, dummy_i2s_8ch, 0);  /* I2S3-SD0 <-> HW-Codec */
+		SOUND_CARD_LINK(1, left_j, i2s_8ch_sd1, 0, dummy_i2s_8ch, 0);  /* I2S3-SD1 <-> HW-Codec */
+		SOUND_CARD_LINK(2, left_j, i2s_8ch_sd2, 0, dummy_i2s_8ch, 0);  /* I2S3-SD2 <-> HW-Codec */
+		SOUND_CARD_LINK(3, left_j, i2s_8ch_sd3, 0, dummy_i2s_8ch, 0);  /* I2S3-SD3 <-> HW-Codec */
 	};
 
 	Sound_Card@4 {
@@ -306,13 +216,13 @@
 		status = "okay";
 
 		SOUND_CARD_LINK(0, dsp_b, tdm_slot0, 0, es7210_adc2, 0);  /* TDM_SLOT0 <-> es7210_adc2 */
-		SOUND_CARD_LINK(1, dsp_b, tdm_slot1, 0, es7210_adc2, 0);  /* TDM_SLOT1 <-> es7210_adc2 */
-		SOUND_CARD_LINK(2, dsp_b, tdm_slot2, 0, es7210_adc2, 0);  /* TDM_SLOT2 <-> es7210_adc2 */
-		SOUND_CARD_LINK(3, dsp_b, tdm_slot3, 0, es7210_adc2, 0);  /* TDM_SLOT3 <-> es7210_adc2 */
-		SOUND_CARD_LINK(4, dsp_b, tdm_slot4, 0, es7210_adc3, 0);  /* TDM_SLOT4 <-> es7210_adc3 */
-		SOUND_CARD_LINK(5, dsp_b, tdm_slot5, 0, es7210_adc3, 0);  /* TDM_SLOT5 <-> es7210_adc3 */
-		SOUND_CARD_LINK(6, dsp_b, tdm_slot6, 0, es7210_adc3, 0);  /* TDM_SLOT6 <-> es7210_adc3 */
-		SOUND_CARD_LINK(7, dsp_b, tdm_slot7, 0, es7210_adc3, 0);  /* TDM_SLOT7 <-> es7210_adc3 */
+		SOUND_CARD_LINK(1, dsp_b, tdm_slot1, 0, dummy_tdm, 0);    /* TDM_SLOT1 <-> es7210_adc2 */
+		SOUND_CARD_LINK(2, dsp_b, tdm_slot2, 0, dummy_tdm, 0);    /* TDM_SLOT2 <-> es7210_adc2 */
+		SOUND_CARD_LINK(3, dsp_b, tdm_slot3, 0, dummy_tdm, 0);    /* TDM_SLOT3 <-> es7210_adc2 */
+		SOUND_CARD_LINK(4, dsp_b, tdm_slot4, 0, dummy_tdm, 0);    /* TDM_SLOT4 <-> es7210_adc3 */
+		SOUND_CARD_LINK(5, dsp_b, tdm_slot5, 0, dummy_tdm, 0);    /* TDM_SLOT5 <-> es7210_adc3 */
+		SOUND_CARD_LINK(6, dsp_b, tdm_slot6, 0, dummy_tdm, 0);    /* TDM_SLOT6 <-> es7210_adc3 */
+		SOUND_CARD_LINK(7, dsp_b, tdm_slot7, 0, dummy_tdm, 0);    /* TDM_SLOT7 <-> es7210_adc3 */
 	};
 
 	Sound_Card@5 {
@@ -322,14 +232,48 @@
 		#size-cells = <0>;
 		status = "okay";
 
-		SOUND_CARD_LINK(0, pdm, pdm0, 0, dummy_pdm0, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(1, pdm, pdm1, 1, dummy_pdm1, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(2, pdm, pdm2, 2, dummy_pdm2, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(3, pdm, pdm3, 3, dummy_pdm3, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(4, pdm, pdm4, 4, dummy_pdm4, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(5, pdm, pdm5, 5, dummy_pdm5, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(6, pdm, pdm6, 6, dummy_pdm6, 0);  /* PDM <-> Dmic */
-		SOUND_CARD_LINK(7, pdm, pdm7, 7, dummy_pdm7, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(0, pdm, pdm0, 0, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(1, pdm, pdm1, 1, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(2, pdm, pdm2, 2, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(3, pdm, pdm3, 3, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(4, pdm, pdm4, 4, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(5, pdm, pdm5, 5, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(6, pdm, pdm6, 6, dmic, 0);  /* PDM <-> Dmic */
+		SOUND_CARD_LINK(7, pdm, pdm7, 7, dmic, 0);  /* PDM <-> Dmic */
+	};
+
+	lcd0_backlight: pwm-backlight@0 {
+		compatible = "pwm-backlight";
+		status = "disabled";
+		pwms = <&pwm1 0 100000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+	};
+
+	mipicsi0_4lane_port: mipicsi0_4lane_port@0 {
+		compatible = "zhihe,vi_sensor";
+		clocks = <&clk SW_TOP_PAD_SENSOR_VCLK0_EN>;
+		clock-names = "core_clk";
+		clock-frequency = <24000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sen_vclk_pin0>;
+		status = "okay";
+	};
+
+	mipi1csi0_b_port: mipi1csi0_b_port@0 {
+		compatible = "zhihe,vi_sensor";
+		clock-frequency = <24000000>;
+		status = "okay";
+	};
+
+	mipi1csi1_a_port: mipi1csi1_a_port@0 {
+		compatible = "zhihe,vi_sensor";
+		clocks = <&clk SW_TOP_PAD_SENSOR_VCLK1_EN>;
+		clock-names = "core_clk";
+		clock-frequency = <24000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sen_vclk_pin1>;
+		status = "okay";
 	};
 };
 
@@ -402,14 +346,14 @@
 			pins = "GPIO0_14", "GPIO0_15", "GPIO0_16", "GPIO0_17", "GPIO0_18";
 			function = "i2s0";
 			bias-disable;
-			drive-strength = <13>;
-			input-schmitt-disable;
+			drive-strength = <20>;
+			input-schmitt-enable;
 			slew-rate = <0>;
 		};
 	};
 	sata_p1_pins: sata_p1-0 {
 		sata_p1-pins {
-			pins = "GPIO0_14", "GPIO0_15", "GPIO0_16", "GPIO0_17", "GPIO0_18";
+			pins = "GPIO0_14", "GPIO0_15", "GPIO0_16", "GPIO0_17", "GPIO1_5"; // DEVSLP, MP_SWITCH, CP_DET, CP_POD, ACT_LED
 			function = "sata_p1";
 			bias-disable;
 			drive-strength = <7>;
@@ -452,7 +396,7 @@
 	};
 	sata_p0_pins: sata_p0-0 {
 		sata_p0-pins {
-			pins = "GPIO0_19", "GPIO0_20", "GPIO0_21", "GPIO0_22", "GPIO0_23";
+			pins = "GPIO0_19", "GPIO0_20", "GPIO0_21", "GPIO0_22", "GPIO0_23"; // DEVSLP, MP_SWITCH, CP_DET, CP_POD, ACT_LED
 			function = "sata_p0";
 			bias-disable;
 			drive-strength = <7>;
@@ -477,7 +421,7 @@
 			pins = "GPIO0_19", "GPIO0_20", "GPIO0_21";
 			function = "tdm";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <15>;
 			input-enable;
 			input-schmitt-enable;
 			slew-rate = <0>;
@@ -549,7 +493,7 @@
 	};
 	pcie_x1_pins: pcie_x1-1 {
 		pcie_x1-pins {
-			pins = "GPIO0_24", "GPIO0_25", "GPIO0_26", "GPIO0_27";
+			pins = "GPIO0_24", "GPIO0_25", "GPIO0_26", "GPIO0_27"; // BTN_RSTN, LKREQN, PERSTN, WAKEN
 			function = "pcie_x1";
 			bias-disable;
 			drive-strength = <7>;
@@ -595,7 +539,7 @@
 			pins = "GPIO0_28", "GPIO0_29", "GPIO1_1";
 			function = "spi0";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <13>;
 			input-enable;
 			input-schmitt-enable;
 			slew-rate = <0>;
@@ -675,7 +619,7 @@
 	};
 	pdm_pins: pdm-0 {
 		pdm-pins {
-			pins = "GPIO1_12", "GPIO1_13", "GPIO1_14", "GPIO1_15"; // PDM_SDIN3(GPIO1_8) conflicts with CHIP_DBG_RXD
+			pins = "GPIO1_8", "GPIO1_12", "GPIO1_13", "GPIO1_14", "GPIO1_15"; // PDM_SDIN3(GPIO1_8) conflicts with CHIP_DBG_RXD
 			function = "pdm";
 			bias-disable;
 			drive-strength = <7>;
@@ -778,7 +722,7 @@
 			function = "i2s1";
 			bias-disable;
 			drive-strength = <13>;
-			input-schmitt-disable;
+			input-schmitt-enable;
 			slew-rate = <0>;
 		};
 	};
@@ -852,7 +796,7 @@
 			function = "i2s2";
 			bias-disable;
 			drive-strength = <13>;
-			input-schmitt-disable;
+			input-schmitt-enable;
 			slew-rate = <0>;
 		};
 	};
@@ -893,7 +837,7 @@
 			pins = "GPIO2_17", "GPIO2_21", "GPIO2_22";
 			function = "spi1";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <13>;
 			input-enable;
 			input-schmitt-enable;
 			slew-rate = <0>;
@@ -906,7 +850,7 @@
 			function = "i2s3";
 			bias-disable;
 			drive-strength = <13>;
-			input-schmitt-disable;
+			input-schmitt-enable;
 			slew-rate = <0>;
 		};
 	};
@@ -954,9 +898,20 @@
 			slew-rate = <0>;
 		};
 	};
-	sen_vclk_pins: sen_vclk-1 {
-		sen_vclk-pins {
-			pins = "GPIO3_0", "GPIO3_1";
+	sen_vclk_pin0: sen_vclk0 {
+		sen_vclk0-pins {
+			pins = "GPIO3_0";
+			function = "sen_vclk";
+			bias-disable;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
+	sen_vclk_pin1: sen_vclk1 {
+		sen_vclk1-pins {
+			pins = "GPIO3_1";
 			function = "sen_vclk";
 			bias-disable;
 			drive-strength = <7>;
@@ -1273,7 +1228,7 @@
 		work-mode = "ES7210_TDM_1LRCK_DSPB";
 		channels-max = <8>;
 		sound-name-prefix = "ES7210_ADC2";
-		status = "disabled";
+		status = "okay";
 	};
 
 	codec_es7210_adc3: es7210@43 {
@@ -1283,7 +1238,7 @@
 		work-mode = "ES7210_TDM_1LRCK_DSPB";
 		channels-max = <8>;
 		sound-name-prefix = "ES7210_ADC3";
-		status = "disabled";
+		status = "okay";
 	};
 };
 
@@ -1291,6 +1246,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins>;
 	clock-frequency = <400000>;
+	status = "okay";
+	lt8911i2c: lt8911i2c@29{
+		compatible = "i2c,lt8911";
+		reg = <0x29>;
+	};
 
 	usbc: fusb302@0 {
 		compatible = "fcs,fusb302";
@@ -1345,11 +1305,6 @@
 	clock-frequency = <400000>;
 };
 
-&dm3x4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_x4_pins>;
-};
-
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
@@ -1380,7 +1335,6 @@
 	pinctrl-0 = <&can2_pins>;
 };
 
-
 &audio_i2s2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s2_pins>;
@@ -1405,6 +1359,7 @@
 &sata {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sata_p0_pins>;
+	status = "okay";
 };
 
 &hdmi_tx {
@@ -1424,7 +1379,6 @@
 	pull_up;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	clk-delay-mmc-hs200 = <60>;
 };
 
 &sdhci0 {
@@ -1444,62 +1398,6 @@
 	#io-channel-cells = <1>;
 	sampling-frequency = <1000000>;
 	resolution = <12>;
-};
-
-&vp_dfmu_iommu {
-    status = "disabled";
-};
-
-&vp_dfmu_mt {
-    status = "disabled";
-};
-
-&npu_dfmu_iommu {
-    status = "disabled";
-};
-
-&npu_dfmu_mt {
-    status = "disabled";
-};
-
-&vi_dfmu_iommu {
-    status = "disabled";
-};
-
-&vi_dfmu_mt {
-    status = "disabled";
-};
-
-&vo_dfmu_iommu {
-    status = "disabled";
-};
-
-&vo_dfmu_mt {
-    status = "disabled";
-};
-
-&peri1_dfmu_iommu {
-    status = "okay";
-};
-
-&peri1_dfmu_mt {
-    status = "disabled";
-};
-
-&pcie_dfmu_iommu {
-    status = "disabled";
-};
-
-&pcie_dfmu_mt {
-    status = "disabled";
-};
-
-&usb_dfmu_iommu {
-    status = "okay";
-};
-
-&usb_dfmu_mt {
-    status = "disabled";
 };
 
 /* FIXME: Default EVB board expansion IO configuration */
@@ -1559,10 +1457,22 @@
 	GPMUX_SEL_10 -> 0
 	通过J206跳线切换到pcie x1
 */
-// &rp3x1 {
-// 	pinctrl-names = "default";
-// 	pinctrl-0 = <&pcie_x1_pins>;
-// };
+&rp3x1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_x1_pins>;
+	status = "disabled";
+};
+
+&dm3x4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_x4_pins>;
+	num-lanes = <1>;
+	status = "okay";
+};
+
+&e16phy {
+	init-seq-select = "pcie_dmx1_rpx1_satax2";
+};
 
 /*
  expansion IO: i2c2-0
@@ -1736,29 +1646,20 @@
 	phy_name = "CSI_4LANE"; //combination 4lane
 };
 
-//config dsi display: dpu_disp0->dup_enc0->dsi0->lcd_plane
-&dpu_enc0 {
-    status = "disabled";
-    ports {
-        /* output */
-        port@1 {
-            reg = <1>;
-            enc0_out: endpoint {
-                remote-endpoint = <&dsi0_in>;
-            };
-        };
-    };
+//config dsi display: auxdisp->enc0->dsi0->lcd_lt8819_plane
+&dsi_enc_out {
+	remote-endpoint = <&dsi0_in>;
 };
 
-&dhost_0 {
-	status = "disabled";
+&dsi_host0 {
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		port@0 {
 			reg = <0>;
 			dsi0_in: endpoint {
-				remote-endpoint = <&enc0_out>;
+				remote-endpoint = <&dsi_enc_out>;
 			};
 		};
 		port@1 {
@@ -1768,14 +1669,64 @@
 			};
 		};
 	};
-
-	panel0@0 { //virtual panel0, not yet enabled
-		compatible = "jadard,jd9365da-h3";
+	panel0@0 {
+		compatible = "i2c_dsi,lt8911";
 		reg = <0>;
+		lt8911,rst-delay-ms = <10>;
+		lt8911,edp-lane-cnt = <2>;
+		lt8911,mipi-lane-cnt = <4>;
+		lt8911,edp-depth = <8>; /* 6 or 8 */
+		backlight = <&lcd0_backlight>;
 		port {
 			panel0_in: endpoint {
 				remote-endpoint = <&dsi0_out>;
 			};
 		};
+	};
+};
+
+&aon {
+	cpufreq: a210_cpufreq {
+		compatible = "zhihe,a210-cpufreq";
+		clocks = <&clk TOP_CPUSYS_BUS_CLK_DIV>,
+			 <&clk TOP_CPUSYS_PIC_CLK_DIV>,
+			 <&clk TOP_CPUSYS_CFG_ACLK_DIV>,
+			 <&clk TOP_CPUSYS_COM_APB_CLK_DIV>,
+			 <&clk TOP_CPUSYS_APB_CLK_DIV>;
+		clock-names = "bus_clk", "pic_clk", "cfg_clk", "com_clk", "apb_clk";
+		status = "okay";
+	};
+};
+
+&cluster0_opp {
+	opp0-500000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp0-1200000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp0-1500000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp0-1698000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp0-1896000000 {
+		opp-microvolt = <1000000>;
+	};
+};
+
+&cluster1_opp {
+	opp1-500000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp1-1698000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp1-1896000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp1-2298000000 {
+		opp-microvolt = <1000000>;
 	};
 };

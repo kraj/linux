@@ -108,7 +108,6 @@ static int __init memblk_init(void)
 	// Initialize the memory
 	reserved_memory_node = of_find_node_by_name(NULL, "memblock-memory");
 	if (!reserved_memory_node) {
-		pr_err("Failed to find reserved memory node\n");
 		memblk->size = DEVICE_SIZE;
 		memblk->data = vmalloc(memblk->size);
 		memblk->start = (phys_addr_t)memblk->data;

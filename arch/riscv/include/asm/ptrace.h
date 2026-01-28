@@ -57,7 +57,7 @@ struct pt_regs {
 #define PTRACE_SYSEMU_SINGLESTEP	0x20
 
 #if __riscv_xlen == 64
-#define REG_FMT "%016llx"
+#define REG_FMT "%016lx"
 #else
 #define REG_FMT "%08x"
 #endif

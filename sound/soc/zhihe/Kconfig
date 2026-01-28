@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config SND_SOC_ZHIHE
+
+menu "ASoC support for ZHIHE"
+
+config SND_SOC_ZHIHE_PCM
 	tristate "Zhihe Dummy PCM And PCM DMA Support"
 	default n
 
 config SND_SOC_ZHIHE_I2S
-	tristate "Zhihe 2-Channel I2S Driver Support"
+	tristate "Zhihe I2S Driver Support"
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_SOC_ZHIHE
+	select SND_SOC_ZHIHE_PCM
 	default n
 	help
 	  Say Y or M if you want to add support for codecs or HDMI PCM
@@ -15,7 +18,7 @@ config SND_SOC_ZHIHE_I2S
 config SND_SOC_ZHIHE_TDM
 	tristate "Zhihe TDM Driver Support"
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_SOC_ZHIHE
+	select SND_SOC_ZHIHE_PCM
 	default n
 	help
 	  Say Y or M if you want to add support for codecs
@@ -23,11 +26,14 @@ config SND_SOC_ZHIHE_TDM
 	  Codecs support up to 8 slots of recording.
 
 config SND_SOC_ZHIHE_PDM
-        tristate "Zhihe PDM Driver Support"
-        select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_SOC_ZHIHE
+	tristate "Zhihe PDM Driver Support"
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_ZHIHE_PCM
+	select SND_SOC_DMIC
 	default n
-        help
-          Say Y or M if you want to add support for Digital Mic
-          attached to the SND_SOC_ZHIHE_PDM interface.
-          Codecs support up to 8 channels of recording.
+	help
+	  Say Y or M if you want to add support for Digital Mic
+	  attached to the SND_SOC_ZHIHE_PDM interface.
+	  Codecs support up to 8 channels of recording.
+
+endmenu

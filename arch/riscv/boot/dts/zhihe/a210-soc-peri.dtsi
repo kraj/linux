@@ -8,8 +8,7 @@
 
 	display-subsystem {
 		compatible = "verisilicon,display-subsystem";
-		ports = <&dpu_disp0>, <&dpu_disp1>;
-		status = "okay";
+		ports = <&dpu_disp0>, <&dpu_disp1>, <&auxdisp_out>;
 	};
 
 	dpu-encoders {
@@ -20,36 +19,74 @@
 			/* default encoder is DSI. */
 			compatible = "verisilicon,dsi-encoder";
 			reg = <0>;
-			status = "disabled";
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				/* input */
 				port@0 {
 					reg = <0>;
-					enc0_in: endpoint {
-						remote-endpoint = <&disp0_out>;
+					dsi_enc_in: endpoint {
+						remote-endpoint = <&auxdisp_to_dsi>;
+					};
+				};
+				/* output */
+				port@1 {
+					reg = <1>;
+					dsi_enc_out: endpoint {
+						// remote-endpoint = <&dsi0_in>;
 					};
 				};
 			};
 		};
+	};
 
-		dpu_enc1: dpu-encoder@1 {
-			/* default encoder is DSI */
-			compatible = "verisilicon,dsi-encoder";
-			reg = <1>;
-			status = "disabled";
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				/* input */
-				port@0 {
-					reg = <0>;
-					enc1_in: endpoint {
-						// remote-endpoint = <&disp1_out>;
-					};
-				};
-			};
+	reg_vref_1v8: regulator-adc-verf {
+		compatible = "regulator-fixed";
+		regulator-name = "vref-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdec_opp_table: opp_table_vdec {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <750000 750000 800000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <786432000>;
+			opp-microvolt = <800000 750000 800000>;
+		};
+	};
+
+	venc_opp_table: opp_table_venc {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <750000 750000 800000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <800000 750000 800000>;
+		};
+	};
+
+	g2d_opp_table: opp_table_g2d {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <600000000>;
+			aclk-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <750000 750000 800000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <786432000>;
+			aclk-hz = /bits/ 64 <880000000>;
+			opp-microvolt = <800000 750000 800000>;
 		};
 	};
 
@@ -60,14 +97,13 @@
 		};
 
 		nvmem_controller: efuse@0027410000 {
-			compatible = "zhihe,p100-fm-efuse", "syscon";
+			compatible = "zhihe,a210-fm-efuse", "syscon";
 			reg = <0x00 0x27410000 0x0 0x10000>;
 			zhihe,teesys = <&teesys_syscon>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			clocks = <&clk_peri TEE_EFUSE_CLKEN>;
 			clock-names = "pclk";
-			status = "okay";
 
 			gmac0_mac_address: gmac0-mac-address {
 				reg = <0xb0 6>;
@@ -80,12 +116,11 @@
 		dsi0: dw-mipi-dsi0@6700000{
 			compatible = "simple-bus", "syscon";
 			reg = <0x00 0x6700000 0x0 0x10000>;
-			status = "okay";
+			power-domains = <&power_vo>;
 			dphy_0: dsi0-dphy {
 				compatible = "zhihe,a210-mipi-dphy";
 				regmap = <&dsi0>;
 				vosys-regmap = <&vosys_reg>;
-				status = "okay";
 				clocks = <&osc_24m>,
 						 <&clk_vo VO_MIPI_CFGCLK_EN>,
 						 <&clk_vo VO_MIPI_PCLK_EN>,
@@ -95,11 +130,11 @@
 				#phy-cells = <0>;
 			};
 
-			dhost_0: dsi0-host {
+			dsi_host0: dsi0-host {
 				compatible = "verisilicon,dw-mipi-dsi";
 				regmap = <&dsi0>;
+				interrupt-parent = <&intc>;
 				interrupts = <213>;
-				status = "okay";
 				clocks = <&clk_vo VO_MIPI_CFGCLK_EN>,
 						 <&clk_vo VO_MIPI_PCLK_EN>,
 						 <&clk_vo VO_MIPI_PIXCLK>;
@@ -113,16 +148,11 @@
 		vosys_reg: vosys@6e06000{
 			compatible = "thead,light-vo-subsys", "syscon";
 			reg = <0x00 0x06e06000 0x0 0x1000>;
-			status = "okay";
 		};
 
-		reg_vref_1v8: regulator-adc-verf {
-			compatible = "regulator-fixed";
-			regulator-name = "vref-1v8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-boot-on;
-			regulator-always-on;
+		peri1_sys: syscon@02010000{
+			compatible = "syscon";
+			reg = <0x00 0x02010000 0x0 0x1000>;
 		};
 
 		hdmi_tx: dw-hdmi-tx@6600000 {
@@ -135,15 +165,19 @@
 			         <&clk_vo VO_CEC_CLK_EN>,
 			         <&clk_vo VO_HDMI_PIXCLK>;
 			clock-names = "iahb", "isfr", "cec", "pixclk";
+			power-domains = <&power_vo>;
 			reg-io-width = <4>;
 			phy_version = <301>;
-			status = "okay";
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				port@0 {
 					reg = <0>;
-					hdmi_tx_in: endpoint {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					hdmi_tx_in0: endpoint@0 {
+						reg = <0>;
 						remote-endpoint = <&disp1_out>;
 					};
 				};
@@ -168,18 +202,16 @@
 					 <&clk_usb DPTX_GTC_CLK_EN>,
 					 <&clk_usb DPTX_PCLK_EN>;
 			clock-names = "i2s", "ipi", "aux", "gtc", "pclk";
+			power-domains = <&power_vo>;
 			force-hpd = <1>;
 			#sound-dai-cells = <1>;
-			status = "okay";
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				port@0 {
 					reg = <0>;
-					status = "okay";
 					dp_tx_in: endpoint {
 						remote-endpoint = <&disp0_out>;
-						status = "okay";
 					};
 				};
 			};
@@ -206,7 +238,7 @@
 			clock-names = "core_clk", "axi_clk",  "cfg_clk",
 			              "pixclk0",  "pixclk1",  "dpu0_pll_foutpostdiv", "dpu1_pll_foutpostdiv",
 			              "mipi_pixclk", "hdmi_pixclk", "dptx_pixclk";
-			status = "okay";
+			power-domains = <&power_vo>;
 			vosys-regmap = <&vosys_reg>;
 			zhihe-a210;
 			dpu_disp0: port@0 {
@@ -219,17 +251,47 @@
 			dpu_disp1: port@1 {
 				reg = <1>;
 				disp1_out: endpoint {
-					remote-endpoint = <&hdmi_tx_in>;
-				};
-			};
-
-			dpu_disp2: port@2 { //virtual port, not yet enabled.
-				reg = <2>;
-				disp2_out: endpoint {
-					remote-endpoint = <&enc0_in>;
+					remote-endpoint = <&hdmi_tx_in0>;
 				};
 			};
 		};
+
+		auxdisp: auxdisp@6740000 {
+			compatible = "zhihe,auxdisp";
+			reg = <0x00 0x6740000 0x0 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <228>;
+			clocks = <&clk_vo VO_AUXDISP_ACLK_EN>,
+			         <&clk_vo VO_AUXDISP_PCLK_EN>,
+			         <&clk_vo VO_CH2_PIXCLK_EN>,
+			         <&clk_vo VO_HDMI_PIXCLK>,
+			         <&clk_vo VO_MIPI_PIXCLK>,
+			         <&clk_vo VO_DPTX_PIXCLK>;
+			clock-names = "aclk", "pclk", "pixclk", "hdmi_pixclk", "mipi_pixclk", "dptx_pixclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			auxdisp_out: port@0 {
+				reg = <0>;
+				auxdisp_to_dsi: endpoint@0 {
+					remote-endpoint = <&dsi_enc_in>;
+				};
+			};
+		};
+
+		gpu_opp_table: gpu-opp-table {
+			compatible = "operating-points-v2";
+
+			opp-528000000 {
+				opp-hz = /bits/ 64 <528000000>;
+				opp-microvolt = <750000>;
+			};
+
+			opp-792000000 {
+				opp-hz = /bits/ 64 <792000000>;
+				opp-microvolt = <800000>;
+			};
+		};
+
 		gpu: gpu@6c00000{
 			compatible = "img,gpu";
 			reg = <0x00 0x6c00000 0x0 0x100000>;
@@ -239,7 +301,9 @@
 			power-domains = <&power_gpu>;
 			vosys-regmap = <&vosys_reg>;
 			dma-mask = <0xf 0xffffffff>;
-			status = "okay";
+			clocks = <&clk_gpu SW_PWR_WRAP_GPU_CORE_CLK_EN>;
+			clock-names = "gpu_core_clk ";
+			operating-points-v2 = <&gpu_opp_table>;
 		};
 
 		watchdog0: watchdog@00305000 {
@@ -251,7 +315,10 @@
 			power-domains = <&power_peri0>;
 			clock-names = "tclk";
 			resets = <&rst PERI0_WDT0_PRST>;
-			status = "okay";
+		};
+
+		aon_wdt0: aon_wdt@0 {
+			compatible = "zhihe,aon_wdt";
 		};
 
 		can0: flexcan@2000000 {
@@ -264,7 +331,6 @@
 			clock-names = "ipg", "per";
 			power-domains = <&power_peri1>;
 			/* fsl,stop-mode = <&gpr 0x34 29 0x10 18>; */
-			status = "okay";
 		};
 
 		can1: flexcan@2004000 {
@@ -277,7 +343,6 @@
 			clock-names = "ipg", "per";
 			power-domains = <&power_peri1>;
 			/* fsl,stop-mode = <&gpr 0x34 29 0x10 18>; */
-			status = "okay";
 		};
 
 		can2: flexcan@8420000 {
@@ -290,7 +355,6 @@
 			clock-names = "ipg", "per";
 			power-domains = <&power_peri2>;
 			/* fsl,stop-mode = <&gpr 0x34 29 0x10 18>; */
-			status = "okay";
 		};
 
 		rtc: rtc@30840000 {
@@ -302,18 +366,17 @@
 			clock-names = "osc_32k";
 			wakeup-source;
 			prescaler = <0x8000>;
-			status = "okay";
 		};
 
 		dmac0: dmac@0000520000 {
-			compatible = "zhihe,p100-axi-dma";
+			compatible = "zhihe,a210-axi-dma";
 			reg = <0x00 0x00520000 0x0 0x4000>;
 			interrupt-parent = <&intc>;
 			interrupts = <264>;
 			clocks = <&clk_peri PERI3_DMAC_ACLK_EN>, <&clk_peri PERI3_DMAC_HCLK_EN>;
 			clock-names = "core-clk", "cfgr-clk";
 			power-domains = <&power_peri3>;
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_DMAC_AP>;
+			//iommus = <&iommu DEVID_DIE0_DMAC_AP>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
 			snps,block-size = <65536 65536 65536 65536 65536 65536 65536 65536
@@ -322,11 +385,10 @@
 			snps,dma-masters = <1>;
 			snps,data-width = <4>;
 			snps,axi-max-burst-len = <4>;
-			status = "okay";
 		};
 
 		dmac1: tee_dmac@27540000 {
-			compatible = "zhihe,p100-axi-dma";
+			compatible = "zhihe,a210-axi-dma";
 			reg = <0x00 0x27540000 0x0 0x4000>;
 			interrupt-parent = <&intc>;
 			interrupts = <259>;
@@ -339,8 +401,7 @@
 			snps,dma-masters = <1>;
 			snps,data-width = <4>;
 			snps,axi-max-burst-len = <16>;
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_TEE_DMAC>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_TEE_DMAC>;
 		};
 
 		uart0: serial@02014000 {
@@ -353,7 +414,6 @@
 			power-domains = <&power_peri1>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart1: serial@02015000 {
@@ -366,7 +426,6 @@
 			power-domains = <&power_peri1>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart2: serial@02016000 {
@@ -379,7 +438,6 @@
 			power-domains = <&power_peri1>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart3: serial@02017000 {
@@ -392,7 +450,6 @@
 			power-domains = <&power_peri1>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart4: serial@08401000 {
@@ -406,7 +463,6 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			current-speed = <115200>; /* OpenSBI */
-			status = "okay";
 		};
 
 		uart5: serial@08402000 {
@@ -419,7 +475,6 @@
 			power-domains = <&power_peri2>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart6: serial@08403000 {
@@ -432,7 +487,6 @@
 			power-domains = <&power_peri2>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart7: serial@08404000 {
@@ -445,7 +499,6 @@
 			power-domains = <&power_peri2>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart8: serial@08405000 {
@@ -458,7 +511,6 @@
 			power-domains = <&power_peri2>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		uart9: serial@08406000 {
@@ -471,7 +523,6 @@
 			power-domains = <&power_peri2>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
 		};
 
 		adc: adc@5a0000 {
@@ -482,7 +533,6 @@
 			clocks = <&clk_peri PERI3_ADC_PCLK_EN>;
 			power-domains = <&power_peri3>;
 			clock-names = "adc";
-			status = "okay";
 		};
 
 		spi0: spi@02023000 {
@@ -501,7 +551,6 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		spi1: spi@08413000 {
@@ -520,7 +569,6 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		qspi0: spi@01000000 {
@@ -534,7 +582,6 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		qspi1: spi@08428000 {
@@ -548,7 +595,6 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		emmc: sdhci@00500000 {
@@ -561,8 +607,9 @@
 					 <&clk_peri PERI3_EMMC_HCLK_EN>;
 			clock-names = "core", "bus";
 			power-domains = <&power_peri3>;
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_EMMC>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_EMMC>;
+			clk-delay-mmc-hs200 = <50>;
+			clk-delay-mmc-hs400 = <24>;
 		};
 
 		sdhci0: sd@00510000 {
@@ -575,8 +622,9 @@
 					<&clk_peri PERI3_EMMC_HCLK_EN>;
 			clock-names = "core", "bus";
 			power-domains = <&power_peri3>;
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_SD>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_SD>;
+			clk-delay-default = <46>;
+			clk-delay-uhs-sdr104 = <46>;
 		};
 
 		stmmac_axi_setup: stmmac-axi-config {
@@ -596,7 +644,7 @@
 		};
 
 		gmac0: ethernet@0002100000{
-			compatible = "zhihe,p100-dwmac", "snps,dwmac-5.40a";
+			compatible = "zhihe,a210-dwmac", "snps,dwmac-5.40a";
 			reg = <0x00 0x02100000 0x0 0x10000>;
 			reg-names = "gmac";
 			interrupt-parent = <&intc>;
@@ -611,8 +659,7 @@
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,tso;
 			zhihe,gmacsys = <&gmac0_sys>;
-			// iommus = <&peri1_dfmu_iommu DEVID_DIE0_GMAC_0>;
-			status = "okay";
+			// iommus = <&iommu DEVID_DIE0_GMAC_0>;
 
 			mdio0: mdio {
 				compatible = "snps,dwmac-mdio";
@@ -622,7 +669,7 @@
 		};
 
 		gmac1: ethernet@02110000 {
-			compatible = "zhihe,p100-dwmac", "snps,dwmac-5.40a";
+			compatible = "zhihe,a210-dwmac", "snps,dwmac-5.40a";
 			reg = <0x00 0x02110000 0x0 0x10000>;
 			reg-names = "gmac";
 			interrupt-parent = <&intc>;
@@ -637,9 +684,7 @@
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,tso;
 			zhihe,gmacsys = <&gmac1_sys>;
-			// iommus = <&peri1_dfmu_iommu DEVID_DIE0_GMAC_1>;
-			status = "okay";
-
+			// iommus = <&iommu DEVID_DIE0_GMAC_1>;
 			mdio1: mdio {
 				compatible = "snps,dwmac-mdio";
 				#address-cells = <1>;
@@ -652,7 +697,6 @@
 			reg = <0x00 0x30848000 0x0 0x2000>;
 			clocks = <&aon_110m>;
 			clock-names = "pclk";
-			status = "okay";
 		};
 
 		gpio@30841000 {
@@ -662,7 +706,6 @@
 			#size-cells = <0>;
 			clocks = <&aon_110m>, <&osc_32k>;
 			clock-names = "bus", "db";
-			status = "okay";
 
 			ao_gpio0: ao_gpio0-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -686,7 +729,6 @@
 			#size-cells = <0>;
 			clocks = <&aon_110m>, <&osc_32k>;
 			clock-names = "bus", "db";
-			status = "okay";
 
 			ao_gpio1: ao_gpio1-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -708,7 +750,6 @@
 			reg = <0x00 0x02026000 0x0 0x1000>;
 			clocks = <&clk_peri PERI1_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
-			status = "okay";
 		};
 
 		peri2_padctrl: peri2-padctrl@08411000 {
@@ -716,7 +757,6 @@
 			reg = <0x00 0x08411000 0x0 0x1000>;
 			clocks = <&clk_peri PERI2_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
-			status = "okay";
 		};
 
 		peri3_padctrl: peri3-padctrl@00542000 {
@@ -724,7 +764,6 @@
 			reg = <0x00 0x00542000 0x0 0x1000>;
 			clocks = <&clk_peri PERI3_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
-			status = "okay";
 		};
 
 		gpio@02012000 {
@@ -736,7 +775,6 @@
 					<&clk_peri PERI1_GPIO0_DBCLK_EN>;
 			clock-names = "bus", "db";
 			power-domains = <&power_peri1>;
-			status = "okay";
 
 			gpio0: gpio0-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -762,7 +800,6 @@
 					<&clk_peri PERI1_GPIO1_DBCLK_EN>;
 			clock-names = "bus", "db";
 			power-domains = <&power_peri1>;
-			status = "okay";
 
 			gpio1: gpio1-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -788,7 +825,6 @@
 					<&clk_peri PERI2_GPIO2_DBCLK_EN>;
 			clock-names = "bus", "db";
 			power-domains = <&power_peri2>;
-			status = "okay";
 
 			gpio2: gpio2-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -814,7 +850,6 @@
 					<&clk_peri PERI2_GPIO3_DBCLK_EN>;
 			clock-names = "bus", "db";
 			power-domains = <&power_peri2>;
-			status = "okay";
 
 			gpio3: gpio3-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -840,7 +875,6 @@
 					<&clk_peri PERI3_GPIO4_DBCLK_EN>;
 			clock-names = "bus", "db";
 			power-domains = <&power_peri3>;
-			status = "okay";
 
 			gpio4: gpio4-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -866,7 +900,6 @@
 			power-domains = <&power_peri1>;
 			interrupts = <305>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		pwm1: pwm@0841A000 {
@@ -878,7 +911,6 @@
 			power-domains = <&power_peri2>;
 			interrupts = <306>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		pwm2: pwm@0841B000 {
@@ -890,7 +922,6 @@
 			power-domains = <&power_peri2>;
 			interrupts = <307>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer0: timer0@00303000 {
@@ -900,7 +931,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <313>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer1: timer1@00303014 {
@@ -910,7 +940,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <314>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer2: timer2@00303028 {
@@ -920,7 +949,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <315>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer3: timer3@0030303c {
@@ -930,7 +958,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <316>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer4: timer4@00304000 {
@@ -940,7 +967,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <317>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer5: timer5@00304014 {
@@ -950,7 +976,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <318>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer6: timer6@00304028 {
@@ -960,7 +985,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <319>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		timer7: timer7@0030403c {
@@ -970,7 +994,6 @@
 			clock-names = "pclk", "timer";
 			interrupts = <320>;
 			interrupt-parent = <&intc>;
-			status = "okay";
 		};
 
 		i2c0: i2c@02020000 {
@@ -987,7 +1010,6 @@
 			dma-burst-len = <1>, <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c1: i2c@02021000 {
@@ -1000,7 +1022,6 @@
 			power-domains = <&power_peri1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c2: i2c@02022000{
@@ -1013,7 +1034,6 @@
 			power-domains = <&power_peri1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c3: i2c@08415000{
@@ -1026,7 +1046,6 @@
 			power-domains = <&power_peri2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c4: i2c@08416000{
@@ -1039,7 +1058,6 @@
 			power-domains = <&power_peri2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c5: i2c@08417000{
@@ -1052,7 +1070,6 @@
 			power-domains = <&power_peri2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c6: i2c@08418000{
@@ -1065,7 +1082,6 @@
 			power-domains = <&power_peri2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		i2c7: i2c@08419000{
@@ -1078,7 +1094,6 @@
 			power-domains = <&power_peri2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		aoi2c1: i2c@30891000{
@@ -1091,7 +1106,6 @@
 			//power-domains = <&power_peri2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "okay";
 		};
 
 		vdec: vdec@0006800000 {
@@ -1103,9 +1117,14 @@
 			interrupt-parent = <&intc>;
 			interrupts = <229>, <231>;
 			power-domains = <&power_vdec>;
-			clocks = <&clk_vp VP_VDEC_CCLK_EN>;
-			clock-names = "vdec_cclk";
-			status = "okay";
+			clocks = <&clk_vp VP_VDEC_CCLK_EN>, <&clk_vp VP_VDEC_ACLK_EN>, <&clk_vp VP_VDEC_PCLK_EN>;
+			clock-names = "vdec_cclk", "vp_aclk", "vdec_pclk";
+			operating-points-v2 = <&vdec_opp_table>;
+			aclk-freq-low = <528000000>;
+			aclk-freq-high = <880000000>;
+			cclk-threshold = <600000000>;
+			//iommus = <&iommu DEVID_DIE0_VDEC>;
+			//iommu-group = <IOMMU_GROUP_VIDEO>;
 		};
 
 		venc: venc@0006900000 {
@@ -1117,14 +1136,20 @@
 			interrupt-parent = <&intc>;
 			interrupts = <230>, <350>;
 			power-domains = <&power_venc>;
-			clocks = <&clk_vp VP_VENC_CCLK_EN>;
-			clock-names = "venc_cclk";
-			status = "okay";
+			clocks = <&clk_vp VP_VENC_CCLK_EN>, <&clk_vp VP_VENC_ACLK_EN>, <&clk_vp VP_VENC_PCLK_EN>;
+			clock-names = "venc_cclk", "vp_aclk", "venc_pclk";
+			operating-points-v2 = <&venc_opp_table>;
+			aclk-freq-low = <528000000>;
+			aclk-freq-high = <880000000>;
+			cclk-threshold = <528000000>;
+			//iommus = <&iommu DEVID_DIE0_VENC>;
+			//iommu-group = <IOMMU_GROUP_VIDEO>;
 		};
 
 		vidmem: vidmem@ffecc08000 {
 			compatible = "zhihe,vidmem";
-			status = "okay";
+			//iommus = <&iommu DEVID_VIDEO_MEMORY_DUMMY>;
+			//iommu-group = <IOMMU_GROUP_VIDEO>;
 		};
 
 		audio_i2s0: audio_i2s0@0002029000 {
@@ -1139,7 +1164,6 @@
 			dmas = <&dmac0 3>, <&dmac0 2>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 		};
 
 		audio_i2s1: audio_i2s1@000840a000 {
@@ -1154,7 +1178,6 @@
 			dmas = <&dmac0 38>, <&dmac0 37>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 		};
 
 		audio_i2s2: audio_i2s2@000840b000 {
@@ -1169,7 +1192,6 @@
 			dmas = <&dmac0 36>, <&dmac0 35>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 		};
 
 		audio_i2s_8ch_sd0: audio_i2s_8ch_sd0@000840c000 {
@@ -1186,7 +1208,6 @@
 			dmas = <&dmac0 28>, <&dmac0 27>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1213,7 +1234,6 @@
 			dmas = <&dmac0 30>, <&dmac0 29>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 		};
 
 		audio_i2s_8ch_sd2: audio_i2s_8ch_sd2@000840c000 {
@@ -1229,7 +1249,6 @@
 			dmas = <&dmac0 32>, <&dmac0 31>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 		};
 
 		audio_i2s_8ch_sd3: audio_i2s_8ch_sd3@000840c000 {
@@ -1245,7 +1264,6 @@
 			dmas = <&dmac0 34>, <&dmac0 33>;
 			dma-names = "tx", "rx";
 			snd-soc-zhihe-a210;
-			status = "okay";
 		};
 
 		audio_tdm_slot0: audio_tdm_slot0@200c000 {
@@ -1257,9 +1275,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 4>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot1: audio_tdm_slot1@200c000 {
@@ -1271,9 +1289,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 5>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot2: audio_tdm_slot2@200c000 {
@@ -1285,9 +1303,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 0>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot3: audio_tdm_slot3@200c000 {
@@ -1299,9 +1317,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 1>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot4: audio_tdm_slot4@200c000 {
@@ -1313,9 +1331,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 10>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot5: audio_tdm_slot5@200c000 {
@@ -1327,9 +1345,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 11>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot6: audio_tdm_slot6@200c000 {
@@ -1341,9 +1359,9 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 12>;
 			dma-names = "rx";
-			status = "okay";
 		};
 
 		audio_tdm_slot7: audio_tdm_slot7@200c000 {
@@ -1355,24 +1373,68 @@
 			clock-names = "sclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 13>;
 			dma-names = "rx";
 		};
 
-		usb31_zhihe: usb31_zhihe@8001000 {
-			compatible = "zhihe,usb31";
-			reg = <0x00 0x08001000 0x0 0x1000>,
+		usb31_c10phy: phy@8040000 {
+			compatible = "zhihe,a210-c10phy";
+			reg = <0x00 0x08040000 0x0 0x3C000>,
 			      <0x00 0x0807C000 0x0 0x2000>,
-			      <0x00 0x0807E000 0x0 0x2000>;
-			reg-names = "usb31-sysreg", "c10phy-tca", "c10phy-sysreg";
-			resets = <&rst USB_USB31_SLV_AFENCE_ARST>,
-				 <&rst USB_USB31_PHY_RST>,
-				 <&rst USB_C10PHY_PHY_RST>;
-			reset-names = "usb31-arst", "usb31-phy-rst", "c10phy-rst";
+			      <0x00 0x0807E000 0x0 0x100>,
+			      <0x00 0x08014000 0x0 0x200>;
+			reg-names = "phy_ctrl", "tca", "sysreg", "dptx_sys";
+			resets = <&rst USB_C10PHY_PHY_RST>;
+			reset-names = "phy-rst";
+			#phy-cells = <0>;
+			power-domains = <&power_usb>;
+		};
+
+		usb20phy0: phy@08300000 {
+			compatible = "zhihe,a210-usb2-phy0";
+			reg = <0x00 0x8300000 0x0 0x1000>;
+			reg-names = "usb20-blk-sysreg";
+			resets = <&rst USB_USB20_BLK_USB0_PHY_PON_RESET>;
+			reset-names = "phy-rst";
+			#phy-cells = <0>;
+			power-domains = <&power_usb>;
+			zhihe,init-seq = /bits/ 32 <0x000 0x40b67b5b>;
+		};
+
+		usb20phy1: phy@08301000 {
+			compatible = "zhihe,a210-usb2-phy1";
+			reg = <0x00 0x8301000 0x0 0x1000>;
+			reg-names = "usb20-blk-sysreg";
+			resets = <&rst USB_USB20_BLK_USB1_PHY_PON_RESET>;
+			reset-names = "phy-rst";
+			#phy-cells = <0>;
+			power-domains = <&power_usb>;
+			zhihe,init-seq = /bits/ 32 <0x000 0x40b67b5b>;
+		};
+
+		usb31_syscon: syscon@8000000 {
+			compatible = "syscon";
+			reg = <0x00 0x08000000 0x0 0x1000>;
+		};
+
+		usb20phy2: usb2-phy {
+			compatible = "zhihe,a210-usb2-phy2";
+			syscon = <&usb31_syscon>;
+			resets = <&rst USB_USB31_PHY_RST>;
+			reset-names = "phy-rst";
+			#phy-cells = <0>;
+			zhihe,init-seq = /bits/ 32 <0x0a0 0x1000>;
+		};
+		usb31: usb3@8001000 {
+			compatible = "zhihe,usb31";
+			syscon = <&usb31_syscon>;
 			clocks = <&clk_usb USB31_REF_CLK_EN>,
-				 <&clk_usb USB31_SLV_AFENCE_ACLK_EN>,
-				 <&clk_usb USB_SS_PERI2_CFG_ACLK_EN>;
+				<&clk_usb USB31_SLV_AFENCE_ACLK_EN>,
+				<&clk_usb USB_SS_PERI2_CFG_ACLK_EN>;
 			clock-names = "ref-clk", "slv-aclk", "cfg-aclk";
+			resets = <&rst USB_USB31_SLV_AFENCE_ARST>;
+			reset-names = "usb31-arst";
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -1383,62 +1445,65 @@
 				interrupt-parent = <&intc>;
 				interrupts = <183>;
 				clocks = <&clk_usb USB31_PCLK_EN>,
-					 <&clk_usb USB31_BUS_CLK_EN>,
-					 <&clk_usb USB31_SUSPEND_CLK_EN>;
-				clock-names = "pclk",
-					      "bus_clk",
-					      "suspend_clk";
+					<&clk_usb USB31_BUS_CLK_EN>,
+					<&clk_usb USB31_SUSPEND_CLK_EN>;
+				clock-names = "pclk", "bus_clk", "suspend_clk";
 				reg-shift = <2>;
 				reg-io-width = <4>;
 				dr_mode = "host";
 				power-domains = <&power_usb>;
-				//iommus = <&usb_dfmu_iommu DEVID_DIE0_USB3_0>;
+				phys = <&usb20phy2>, <&usb31_c10phy>;
+				phy-names = "usb2-phy", "usb3-phy";
+				//iommus = <&iommu DEVID_DIE0_USB3_0>;
 				snps,usb3_lpm_capable;
 				snps,usb_sofitpsync;
-				status = "okay";
 			};
 		};
 
-		usb20_zhihe: usb20_zhihe@08300000 {
-			compatible = "zhihe,usb20";
-			reg = <0x00 0x8300000 0x0 0x2000>;
-			reg-names = "usb20-blk-sysreg";
-			resets = <&rst USB_USB20_BLK_USB0_PHY_PON_RESET>,
-				 <&rst USB_USB20_BLK_USB1_PHY_PON_RESET>;
-			reset-names = "usb0-phy-rst", "usb1-phy-rst";
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+		usb2_0: usb2@8200000 {
+			compatible = "zhihe,a210-usb", "snps,dwc2";
+			reg = <0x00 0x8200000 0x0 0x40000>;
+			interrupt-parent = <&intc>;
+			interrupts = <181>;
+			clocks = <&clk_usb USB20_BUS_CLK>;
+			clock-names = "otg";
+			resets = <&rst USB_USB20_BLK_USB2_WRAP0_HRST>;
+			reset-names = "dwc2";
+			phys = <&usb20phy0>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			maximum-speed = "high-speed";
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			g-np-tx-fifo-size = <16>;
+			g-rx-fifo-size = <275>;
+			g-tx-fifo-size = <256 128 128 64 64 32>;
+			power-domains = <&power_usb>;
+			// iommus = <&iommu DEVID_DIE0_USB2_0>;
+			snps,need-phy-for-wake;
+		};
 
-			usb2_0: dwc2@8200000 {
-				compatible = "zhihe,p100-usb";
-				reg = <0x00 0x8200000 0x0 0x40000>;
-				interrupt-parent = <&intc>;
-				interrupts = <181>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
-				maximum-speed = "high-speed";
-				dr_mode = "host";
-				power-domains = <&power_usb>;
-				// iommus = <&usb_dfmu_iommu DEVID_DIE0_USB2_0>;
-				snps,need-phy-for-wake;
-				status = "okay";
-			};
-
-			usb2_1: dwc2@8240000 {
-				compatible = "zhihe,p100-usb";
-				reg = <0x00 0x8240000 0x0 0x40000>;
-				interrupt-parent = <&intc>;
-				interrupts = <182>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
-				maximum-speed = "high-speed";
-				dr_mode = "host";
-				power-domains = <&power_usb>;
-				// iommus = <&usb_dfmu_iommu DEVID_DIE0_USB2_1>;
-				snps,need-phy-for-wake;
-				status = "okay";
-			};
+		usb2_1: usb2@8240000 {
+			compatible = "zhihe,a210-usb", "snps,dwc2";
+			reg = <0x00 0x8240000 0x0 0x40000>;
+			interrupt-parent = <&intc>;
+			interrupts = <182>;
+			clocks = <&clk_usb USB20_BUS_CLK>;
+			clock-names = "otg";
+			resets = <&rst USB_USB20_BLK_USB2_WRAP1_HRST>;
+			reset-names = "dwc2";
+			phys = <&usb20phy1>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			maximum-speed = "high-speed";
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			g-np-tx-fifo-size = <16>;
+			g-rx-fifo-size = <275>;
+			g-tx-fifo-size = <256 128 128 64 64 32>;
+			power-domains = <&power_usb>;
+			// iommus = <&iommu DEVID_DIE0_USB2_1>;
+			snps,need-phy-for-wake;
 		};
 
 		audio_pdm0: audio_pdm0@0002008000 {
@@ -1450,12 +1515,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm0";
 			dmas = <&dmac0 6>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm1: audio_pdm1@0002008000 {
@@ -1467,12 +1531,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm1";
 			dmas = <&dmac0 7>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm2: audio_pdm2@0002008000 {
@@ -1484,12 +1547,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm2";
 			dmas = <&dmac0 12>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm3: audio_pdm3@0002008000 {
@@ -1501,12 +1563,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm3";
 			dmas = <&dmac0 13>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm4: audio_pdm4@0002008000 {
@@ -1518,12 +1579,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm4";
 			dmas = <&dmac0 10>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm5: audio_pdm5@0002008000 {
@@ -1535,12 +1595,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm5";
 			dmas = <&dmac0 11>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm6: audio_pdm6@0002008000 {
@@ -1552,12 +1611,11 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm6";
 			dmas = <&dmac0 0>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
 		};
 
 		audio_pdm7: audio_pdm7@0002008000 {
@@ -1569,21 +1627,54 @@
 			clock-names = "mclk", "pclk";
 			power-domains = <&power_peri1>;
 			#sound-dai-cells = <1>;
+			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
 			zhihe,sel = "audio_pdm7";
 			dmas = <&dmac0 1>;
 			dma-names = "rx";
-			p100-fpga,dma_maxburst = <4>;
-			status = "okay";
+		};
+
+		e16phy: e16phy@a1800000 {
+			compatible = "zhihe,a210-e16phy";
+			reg = <0x00 0xa180000 0x0 0x001000>;
+			#phy-cells = <0>;
+			clocks = <&clk_pcie E16PHY_PCLK_EN>;
+			clock-names = "e16phy_clk";
+			resets = <&rst PCIE_E16PHY_APBS_PRST>,<&rst PCIE_E16PHY_PHY_RST>;
+			reset-names = "apb", "phy";
+			/* PCIE_DMx4 */
+			init-seq-pcie_dmx4 = /bits/ 32 <0x000 0x00110000>,
+							<0x004 0x00000000>,
+							<0x008 0x00000000>,
+							<0x108 0x00000011>,
+							<0x048 0x00010001>;
+			/* PCIE_DMx2,PCIE_RPx1 */
+			init-seq-pcie_dmx2_rpx1 = /bits/ 32 <0x000 0x00110100>,
+							<0x004 0x00000000>,
+							<0x008 0x00000000>,
+							<0x108 0x00000011>,
+							<0x048 0x00010001>;
+			/* PCIE_DMx2,SATA_x2 */
+			init-seq-pcie_dmx2_satax2 = /bits/ 32 <0x000 0x00110001>,
+							<0x004 0x00001100>,
+							<0x008 0x00002200>,
+							<0x108 0x00000011>,
+							<0x048 0x00010001>;
+			/* PCIE_DMx1,PCIE_RPx1,SATA_x2 */
+			init-seq-pcie_dmx1_rpx1_satax2 = /bits/ 32 <0x000 0x00110101>,
+							<0x004 0x00001100>,
+							<0x008 0x00002200>,
+							<0x108 0x00000011>,
+							<0x048 0x00010001>;
+			init-seq-select = "pcie_dmx4";
 		};
 
 		dm3x4: pcie@b000000 {
-			compatible = "zh,p100-pcie";
+			compatible = "zhihe,a210-pcie";
 			reg = <0x00 0x0b000000 0x0 0x800000>,
 				<0x18 0x00000000 0x0 0x200000>,
-				<0x00 0x0A004000 0x0 0x001000>,
-				<0x00 0x0A180000 0x0 0x001000>;
-			reg-names = "apb","config","wrap_sysreg","phy_sysreg";
+				<0x00 0x0A004000 0x0 0x001000>;
+			reg-names = "dbi","config","pcie_sysreg";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -1592,7 +1683,6 @@
 			ranges = <0x81000000 0x18 0x00200000 0x18 0x00200000 0x0 0x600000>,
 				 <0x82000000 0x00 0x40100000 0x00 0x40100000 0x0 0x800000>,
 				 <0xc3000000 0x18 0x00300000 0x18 0x00300000 0x0 0x800000>;
-			num-lanes = <4>;
 			interrupts = <139>,<140>,<141>,<142>,<143>;
 			interrupt-names = "msi","inta","intb","intc","intd";
 			interrupt-parent = <&intc>;
@@ -1601,28 +1691,25 @@
 					<0x0 0x0 0x0 0x2 &intc 141>,
 					<0x0 0x0 0x0 0x3 &intc 142>,
 					<0x0 0x0 0x0 0x4 &intc 143>;
-			zh,max-link-speed = <3>;
-			clocks = <&clk_pcie E16PHY_PCLK_EN>,
-					<&clk_pcie PCIE_DM_GEN3X4_AUX_CLK_EN>,
+			clocks = <&clk_pcie PCIE_DM_GEN3X4_AUX_CLK_EN>,
 					<&clk_pcie PCIE_DM_GEN3X4_SLV_ACLK_EN>,
 					<&clk_pcie PCIE_DM_GEN3X4_MST_ACLK_EN>,
 					<&clk_pcie PCIE_DM_GEN3X4_PCLK_EN>;
-			clock-names = "e16phy_clk","gen3x4_aux_clk","gen3x4_slv_clk","gen3x4_mst_clk","gen3x4_pclk";
+			clock-names = "gen3x4_aux_clk","gen3x4_slv_clk","gen3x4_mst_clk","gen3x4_pclk";
 			power-domains = <&power_pcie0>;
-			resets = <&rst PCIE_E16PHY_PHY_RST>,
-					<&rst PCIE_E16PHY_APBS_PRST>;
-			reset-names = "pcie-rst", "pcie-prst";
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_PCIE_0>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_PCIE_0>;
+			phys = <&e16phy>;
+			phy-names = "pcie-phy";
+			num-lanes = <4>;
+			max-link-speed = <3>;
 		};
 
 		rp3x1: pcie@b800000 {
-			compatible = "zh,p100-pcie";
+			compatible = "zhihe,a210-pcie";
 			reg = <0x00 0x0b800000 0x0 0x800000>,
 				<0x1E 0x00000000 0x0 0x20000>,
-				<0x00 0x0A005000 0x0 0x001000>,
-				<0x00 0x0A180000 0x0 0x001000>;
-			reg-names = "apb","config","wrap_sysreg","phy_sysreg";
+				<0x00 0x0A005000 0x0 0x001000>;
+			reg-names = "dbi","config","pcie_sysreg";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -1631,7 +1718,6 @@
 			ranges = <0x81000000 0x1E 0x00200000 0x1E 0x00200000 0x0 0x600000>,
 				 <0x82000000 0x00 0x50100000 0x00 0x50100000 0x0 0x800000>,
 				 <0xc3000000 0x1E 0x00300000 0x1E 0x00300000 0x0 0x800000>;
-			num-lanes = <1>;
 			interrupts = <158>,<159>,<160>,<161>,<162>;
 			interrupt-names = "msi","inta","intb","intc","intd";
 			interrupt-parent = <&intc>;
@@ -1640,43 +1726,47 @@
 					<0x0 0x0 0x0 0x2 &intc 160>,
 					<0x0 0x0 0x0 0x3 &intc 161>,
 					<0x0 0x0 0x0 0x4 &intc 162>;
-			zh,max-link-speed = <3>;
-			clocks = <&clk_pcie E16PHY_PCLK_EN>,
-					<&clk_pcie PCIE_RP_GEN3X1_AUX_CLK_EN>,
+			clocks = <&clk_pcie PCIE_RP_GEN3X1_AUX_CLK_EN>,
 					<&clk_pcie PCIE_RP_GEN3X1_SLV_ACLK_EN>,
 					<&clk_pcie PCIE_RP_GEN3X1_MST_ACLK_EN>,
 					<&clk_pcie PCIE_RP_GEN3X1_PCLK_EN>;
-			clock-names = "e16phy_clk","gen3x1_aux_clk","gen3x1_slv_clk","gen3x1_mst_clk","gen3x1_pclk";
+			clock-names = "gen3x1_aux_clk","gen3x1_slv_clk","gen3x1_mst_clk","gen3x1_pclk";
 			power-domains = <&power_pcie1>;
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_PCIE_1>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_PCIE_1>;
+			phys = <&e16phy>;
+			phy-names = "pcie-phy";
+			num-lanes = <1>;
+			max-link-speed = <3>;
 		};
 
 		mbox_920: mbox@0000310000 {
 			compatible = "zhihe,mailbox";
 			reg = <0x00 0x00321000 0x0 0x1000>,
-				  <0x00 0x00320000 0x0 0x1000>,
-				  <0x00 0x00311000 0x0 0x1000>;
+			      <0x00 0x00320000 0x0 0x1000>,
+			      <0x00 0x00311000 0x0 0x1000>;
 			reg-names = "interrupt_addr",
-					"local_addr0",
-					"remote_icu0";
+				    "local_addr0",
+				    "remote_icu0";
 			interrupt-parent = <&intc>;
 			interrupts = <336 IRQ_TYPE_LEVEL_HIGH>;
 			icu_cpu_id = <0>;
 			#mbox-cells = <2>;
 			version = <1>;
-			status = "okay";
 		};
-		aon: aon_subsys {
+
+		aon: aon_subsys@308f8000 {
 			compatible = "zhihe,aon";
-			mbox-names = "aon0";
+			reg = <0x00 0x308f8000 0x0 0x10000>,
+			      <0x00 0x30842018 0x0 0x4>,
+			      <0x00 0x30846144 0x0 0x4>;
+			reg-names = "aon_base_addr",
+			            "aon_reset_reg",
+			            "aon_sync_reg";
+			firmware-name = "a210-aon.bin";
 			mboxes = <&mbox_920 1 0>;					 //parent / channel / type
+			mbox-names = "aon0";
 			#mbox-cells = <2>;
 			version = <1>;
-			status = "okay";
-			aon_wdt0: aon_wdt@0 {
-				compatible = "zhihe,aon_wdt";
-			};
 		};
 
 		sata: sata@000a200000 {
@@ -1687,19 +1777,24 @@
 			interrupt-parent = <&intc>;
 			interrupts = <170>;
 			clocks = <&clk_pcie SATA_PMALIVE_CLK_EN>,
-				 <&clk_pcie SATA_RXOOB0_CLK_EN>,
-				 <&clk_pcie SATA_GEN3X2_ACLK_EN>;
-			clock-names = "pmalive", "rxoob", "aclk";
+			         <&clk_pcie SATA_RXOOB0_CLK_EN>,
+			         <&clk_pcie SATA_RXOOB1_CLK_EN>,
+			         <&clk_pcie SATA_GEN3X2_ACLK_EN>;
+			clock-names = "pmalive", "rxoob0", "rxoob1", "aclk";
+			resets = <&rst PCIE_SATA_ARESET>,
+				 <&rst PCIE_SATA_RST_PMALIVE>, <&rst PCIE_SATA_RST_ASIC0>, <&rst PCIE_SATA_RST_ASIC1>,
+				 <&rst PCIE_SATA_RST_RXOOB0>, <&rst PCIE_SATA_RST_RXOOB1>;
 			power-domains = <&power_sata>;
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_SATA_0>;
+			//iommus = <&iommu DEVID_DIE0_SATA_0>;
 			ports-implemented = <3>;
-			status = "okay";
 
 			sata0: sata-port@0 {
 				reg = <0>;
 				hba-port-cap = <HBA_PORT_FBSCP>;
 				snps,tx-ts-max = <16>;
 				snps,rx-ts-max = <16>;
+				phys = <&e16phy>;
+				phy-names = "sata-phy";
 			};
 
 			sata1: sata-port@1 {
@@ -1707,122 +1802,76 @@
 				hba-port-cap = <HBA_PORT_FBSCP>;
 				snps,tx-ts-max = <16>;
 				snps,rx-ts-max = <16>;
+				phys = <&e16phy>;
+				phy-names = "sata-phy";
 			};
 		};
 
-		vi_dfmu_mt: mt@0x06370000 {
+		iommu: iommu@0 {
+			compatible = "zhihe,iommu";
+			reg = <0x0 0x06372000 0x0 0x400>,
+			      <0x0 0x06B12000 0x0 0x400>,
+			      <0x0 0x07102000 0x0 0x400>,
+			      <0x0 0x06712000 0x0 0x400>,
+			      <0x0 0x02032000 0x0 0x400>,
+			      <0x0 0x0a012000 0x0 0x400>,
+			      <0x0 0x08022000 0x0 0x400>;
+			reg-names = "vi", "vp", "npu", "vo", "peri1", "pcie", "usb";
+			clocks = <&clk SW_IOMMU_PTW_330_ACLK_EN>, <&clk_vi VI_PTW_ACLK_EN>,
+			         <&clk_vi VI_DFMU_ACLK_EN>, <&clk_vi VI_DFMU_PCLK_EN>,
+			         <&clk_vp VP_PTW_ACLK_EN>, <&clk_vp VP_DFMU_ACLK_EN>,
+			         <&clk_vp VP_DFMU_PCLK_EN>, <&clk_vo VO_PTW_ACLK_EN>,
+			         <&clk_vo VO_DFMU_PCLK_EN>, <&clk_vo VO_DFMU_ACLK_EN>,
+			         <&clk_peri PERI1_DFMU_PTW_ACLK_EN>, <&clk_peri PERI1_DFMU_PCLK_EN>,
+			         <&clk_peri PERI1_DFMU_ACLK_EN>;
+			interrupt-parent = <&intc>;
+			interrupts = <204>, <235>, <66>, <223>, <344>, <174>, <187>;
+			power-domains = <&power_vi_isp>, <&power_venc>, <&power_vdec>, <&power_npu_ip>,
+					<&power_vo>, <&power_pcie0>, <&power_pcie1>, <&power_usb>,
+					<&power_peri1>;
+			#iommu-cells = <1>;
+		};
+
+		dfmu_mt_vi: mt@0x06370000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x06370000 0x0 0x400>;
-			iommus = <&vi_dfmu_iommu DEVID_DIE0_VI_DFMU>;
-			status = "disabled";
+			iommus = <&iommu DEVID_DIE0_VI_DFMU>;
 		};
 
-		vi_dfmu_iommu: iommu@0x06372000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x06372000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <204>;
-			status = "disabled";
-			#iommu-cells = <1>;
-		};
-
-		vp_dfmu_mt: mt@0x06B10000 {
+		dfmu_mt_vp: mt@0x06B10000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x06B10000 0x0 0x400>;
-			iommus = <&vp_dfmu_iommu DEVID_DIE0_VP_DFMU>;
-			status = "disabled";
+			iommus = <&iommu DEVID_DIE0_VP_DFMU>;
 		};
 
-		vp_dfmu_iommu: iommu@0x06B12000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x06B12000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <235>;
-			status = "disabled";
-			#iommu-cells = <1>;
-		};
-
-		npu_dfmu_mt: mt@0x07100000 {
+		dfmu_mt_npu: mt@0x07100000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x07100000 0x0 0x400>;
-			iommus = <&npu_dfmu_iommu DEVID_DIE0_NPU_DFMU>;
-			status = "disabled";
+			iommus = <&iommu DEVID_DIE0_NPU_DFMU>;
 		};
 
-		npu_dfmu_iommu: iommu@0x07102000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x07102000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <66>;
-			status = "disabled";
-			#iommu-cells = <1>;
-		};
-
-		vo_dfmu_mt: mt@0x06710000 {
+		dfmu_mt_vo: mt@0x06710000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x06710000 0x0 0x400>;
-			iommus = <&vo_dfmu_iommu DEVID_DIE0_VO_DFMU>;
-			status = "disabled";
+			iommus = <&iommu DEVID_DIE0_VO_DFMU>;
 		};
 
-		vo_dfmu_iommu: iommu@0x06712000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x06712000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <223>;
-			status = "disabled";
-			#iommu-cells = <1>;
-		};
-
-		peri1_dfmu_mt: mt@0x02030000 {
+		dfmu_mt_peri1: mt@0x02030000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x02030000 0x0 0x400>;
-			iommus = <&peri1_dfmu_iommu DEVID_DIE0_PERI1_DFMU>;
-			status = "disabled";
+			iommus = <&iommu DEVID_DIE0_PERI1_DFMU>;
 		};
 
-		peri1_dfmu_iommu: iommu@0x02032000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x02032000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <344>;
-			status = "okay";
-			#iommu-cells = <1>;
-			power-domains = <&power_peri1>;
-		};
-
-		pcie_dfmu_mt: mt@0x0a010000 {
+		dfmu_mt_pcie: mt@0x0a010000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x0a010000 0x0 0x400>;
-			iommus = <&pcie_dfmu_iommu DEVID_DIE0_PCIE_DFMU>;
-			status = "disabled";
+			iommus = <&iommu DEVID_DIE0_PCIE_DFMU>;
 		};
 
-		pcie_dfmu_iommu: iommu@0x0a012000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x0a012000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <174>;
-			status = "okay";
-			#iommu-cells = <1>;
-			power-domains = <&power_top>;
-		};
-
-		usb_dfmu_mt: mt@0x08020000 {
+		dfmu_mt_usb: mt@0x08020000 {
 			compatible = "zhihe,memtester";
 			reg = <0x0 0x08020000 0x0 0x400>;
-			iommus = <&usb_dfmu_iommu DEVID_DIE0_USB_DFMU>;
-			status = "disabled";
-		};
-
-		usb_dfmu_iommu: iommu@0x08022000 {
-			compatible = "riscv,iommu";
-			reg = <0x0 0x08022000 0x0 0x400>;
-			interrupt-parent = <&intc>;
-			interrupts = <187>;
-			status = "okay";
-			#iommu-cells = <1>;
-			power-domains = <&power_usb>;
+			iommus = <&iommu DEVID_DIE0_USB_DFMU>;
 		};
 
 		npu0: vipcore@0x07000000 {
@@ -1830,11 +1879,10 @@
 			reg = <0x00 0x7000000 0x00 0x10000>;
 			interrupt-parent = <&intc>;
 			interrupts = <71>;
-			clocks = <&clk TOP_NPU_CCLK_DIV>,
-					<&clk TOP_NPU_ACLK_DIV>;
-			clock-names = "npu_cclk", "npu_aclk";
+			clocks = <&clk_npu SW_NPU_IP_ACLK_EN>, <&clk_npu SW_NPU_IP_CCLK_EN>,
+					 <&clk_npu SW_NPU_IP_HCLK_EN>;
+			clock-names = "npu_aclk", "npu_cclk", "top_cfg_aclk";
 			power-domains = <&power_npu_ip>;
-			status = "okay";
 		};
 
 		g2d: gc620@0006a00000 {
@@ -1843,12 +1891,14 @@
 			interrupt-parent = <&intc>;
 			interrupts = <240>;
 			interrupt-names = "irq_2d";
-			clocks = <&clk_vp VP_G2D_PCLK_EN>,
+			clocks = <&clk_vp VP_G2D_CCLK_EN>,
 				 <&clk_vp VP_G2D_ACLK_EN>,
-				 <&clk_vp VP_G2D_CCLK_EN>;
-			clock-names = "pclk", "aclk", "cclk";
+				 <&clk_vp VP_G2D_PCLK_EN>;
+			clock-names = "cclk", "aclk", "pclk";
+			operating-points-v2 = <&g2d_opp_table>;
 			power-domains = <&power_vp_wrapper>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_G2D>;
+			//iommu-group = <IOMMU_GROUP_VIDEO>;
 		};
 
 		eip_28: eip-28@0027500000 {
@@ -1861,10 +1911,9 @@
 				 <&clk_peri TEE_EIP120SIII_CLKEN>,
 				 <&clk_peri TEE_EIP150B_CLKEN>;
 			clock-names = "120si_clk","120sii_clk","120siii_clk","hclk";
-			//iommus = <&pcie_dfmu_iommu DEVID_DIE0_TEE_EIP120SI>,
-			//	 <&pcie_dfmu_iommu DEVID_DIE0_TEE_EIP120SII>,
-			//	 <&pcie_dfmu_iommu DEVID_DIE0_TEE_EIP120SIII>;
-			status = "okay";
+			//iommus = <&iommu DEVID_DIE0_TEE_EIP120SI>,
+			//	 <&iommu DEVID_DIE0_TEE_EIP120SII>,
+			//	 <&iommu DEVID_DIE0_TEE_EIP120SIII>;
 		};
 
 		mipi0_csi0: csi@0006300000 {
@@ -1875,15 +1924,13 @@
 					0x00 0x063a0028 0x0 0x4>;
 			interrupt-parent = <&intc>;
 			interrupts = <192>;
-			clocks = <&clk_vi VI_MIPI0_PIX_REF_SWITCH_SEL>,
-					 <&clk_vi VI_PRE_MIPI0_PIXCLK_DIV_NUM>,
-					 <&clk_vi VI_MIPI0_CSI0_PIXCLK_EN>,
-					 <&clk_vi VI_MIPI0B_CFGCLK_EN>,
-					 <&clk_vi VI_MIPI0CSI0_PCLK_EN>,
-					 <&clk_vi VI_MIPI0CSI0_FPCLK_EN>;
-			clock-names = "pix_ref_sel", "pixclk_div", "pixclk", "cfg_clk", "pclk", "fpclk";
+			clocks = <&clk_vi VI_MIPI0_CSI0_PIXCLK_EN>,
+				<&clk_vi VI_MIPI0B_CFGCLK_EN>,
+				<&clk_vi VI_MIPI0CSI0_PCLK_EN>,
+				<&clk_vi VI_MIPI0CSI0_FPCLK_EN>;
+			power-domains = <&power_vi_isp>;
+			clock-names =  "pixclk", "cfg_clk", "pclk", "fpclk";
 			phy_name = "CSI_BPHY";
-			status = "okay";
 		};
 
 		mipi0_csi1: csi@0006310000 {
@@ -1894,15 +1941,13 @@
 					0x00 0x063a0028 0x0 0x4>;
 			interrupt-parent = <&intc>;
 			interrupts = <193>;
-			clocks = <&clk_vi VI_MIPI0_PIX_REF_SWITCH_SEL>,
-					 <&clk_vi VI_PRE_MIPI0_PIXCLK_DIV_NUM>,
-					 <&clk_vi VI_MIPI0_CSI1_PIXCLK_EN>,
-					 <&clk_vi VI_MIPI0A_CFGCLK_EN>,
-					 <&clk_vi VI_MIPI0CSI1_PCLK_EN>,
-					 <&clk_vi VI_MIPI0CSI1_FPCLK_EN>;
-			clock-names = "pix_ref_sel", "pixclk_div", "pixclk", "cfg_clk", "pclk", "fpclk";
+			clocks = <&clk_vi VI_MIPI0_CSI1_PIXCLK_EN>,
+				<&clk_vi VI_MIPI0A_CFGCLK_EN>,
+				<&clk_vi VI_MIPI0CSI1_PCLK_EN>,
+				<&clk_vi VI_MIPI0CSI1_FPCLK_EN>;
+			power-domains = <&power_vi_isp>;
+			clock-names = "pixclk", "cfg_clk", "pclk", "fpclk";
 			phy_name = "CSI_APHY";
-			status = "okay";
 		};
 
 		mipi1_csi0: csi@0006320000 {
@@ -1913,15 +1958,13 @@
 					0x00 0x063a0038 0x0 0x4>;
 			interrupt-parent = <&intc>;
 			interrupts = <194>;
-			clocks = <&clk_vi VI_MIPI1_PIX_REF_SWITCH_SEL>,
-					 <&clk_vi VI_PRE_MIPI1_PIXCLK_DIV_NUM>,
-					 <&clk_vi VI_MIPI1_CSI0_PIXCLK_EN>,
-					 <&clk_vi VI_MIPI1B_CFGCLK_EN>,
-					 <&clk_vi VI_MIPI1CSI0_PCLK_EN>,
-					 <&clk_vi VI_MIPI1CSI0_FPCLK_EN>;
-			clock-names = "pix_ref_sel", "pixclk_div", "pixclk", "cfg_clk", "pclk", "fpclk";
+			clocks = <&clk_vi VI_MIPI1_CSI0_PIXCLK_EN>,
+				<&clk_vi VI_MIPI1B_CFGCLK_EN>,
+				<&clk_vi VI_MIPI1CSI0_PCLK_EN>,
+				<&clk_vi VI_MIPI1CSI0_FPCLK_EN>;
+			clock-names = "pixclk", "cfg_clk", "pclk", "fpclk";
+			power-domains = <&power_vi_isp>;
 			phy_name = "CSI_BPHY";
-			status = "okay";
 		};
 
 		mipi1_csi1: csi@0006330000 {
@@ -1932,15 +1975,13 @@
 					0x00 0x063a0038 0x0 0x4>;
 			interrupt-parent = <&intc>;
 			interrupts = <195>;
-			clocks = <&clk_vi VI_MIPI1_PIX_REF_SWITCH_SEL>,
-					 <&clk_vi VI_PRE_MIPI1_PIXCLK_DIV_NUM>,
-					 <&clk_vi VI_MIPI1_CSI1_PIXCLK_EN>,
-					 <&clk_vi VI_MIPI1A_CFGCLK_EN>,
-					 <&clk_vi VI_MIPI1CSI1_PCLK_EN>,
-					 <&clk_vi VI_MIPI1CSI1_FPCLK_EN>;
-			clock-names = "pix_ref_sel", "pixclk_div", "pixclk", "cfg_clk", "pclk", "fpclk";
+			clocks = <&clk_vi VI_MIPI1_CSI1_PIXCLK_EN>,
+				<&clk_vi VI_MIPI1A_CFGCLK_EN>,
+				<&clk_vi VI_MIPI1CSI1_PCLK_EN>,
+				<&clk_vi VI_MIPI1CSI1_FPCLK_EN>;
+			clock-names = "pixclk", "cfg_clk", "pclk", "fpclk";
+			power-domains = <&power_vi_isp>;
 			phy_name = "CSI_APHY";
-			status = "okay";
 		};
 
 		vipre: vipre@0006340000 {
@@ -1948,13 +1989,19 @@
 			reg = <0x00 0x06340000 0x0 0x10000>;
 			interrupt-parent = <&intc>;
 			interrupts = <200>;
-			clocks = <&clk_vi VI_VIPRE_ACLK_EN>,
-				 <&clk_vi VI_VIPRE_SCLK_EN>,
-				 <&clk_vi VI_VIPRE_I0_PIXCLK_EN>,
-				 <&clk_vi VI_VIPRE_I1_PIXCLK_EN>,
-				 <&clk_vi VI_VIPRE_PCLK_EN>;
-			clock-names = "aclk", "sclk", "i0pixclk", "i1pixclk", "pclk";
-			status = "okay";
+			clocks = <&clk_vi VI_ARB_ACLK_EN>,
+				<&clk_vi VI_ARB_PCLK_EN>,
+				<&clk_vi VI_PTW_ACLK_EN>,
+				<&clk_vi VI_DFMU_ACLK_EN>,
+				<&clk_vi VI_DFMU_PCLK_EN>,
+				<&clk_vi VI_VIPRE_ACLK_EN>,
+				<&clk_vi VI_VIPRE_SCLK_EN>,
+				<&clk_vi VI_VIPRE_I0_PIXCLK_EN>,
+				<&clk_vi VI_VIPRE_I1_PIXCLK_EN>,
+				<&clk_vi VI_VIPRE_PCLK_EN>;
+			clock-names = "vi_arb_aclk", "vi_arb_pclk", "vi_ptw_aclk", "vi_dfmu_aclk", "vi_dfmu_pclk",
+				"aclk", "sclk", "i0pixclk", "i1pixclk", "pclk";
+			power-domains = <&power_vi_isp>;
 		};
 
 		dw200_vb: dw200_vb@95000000 {
@@ -1962,7 +2009,6 @@
 			address-cells = <2>;
 			size-cells = <2>;
 			reg = <0x00 0x95000000 0x0 0x8000000>;
-			status = "okay";
 		};
 
 		isp8000: isp8000@06000000 {
@@ -1971,10 +2017,32 @@
 					0x00 0x063A0400 0x0 0x4>;
 			interrupt-parent = <&intc>;
 			interrupts = <196>,<198>,<197>;
-			clocks = <&clk_vi VI_ISPOUT_CLK_EN>,
-				 <&clk_vi VI_ISP_CLK_EN>;
-			clock-names = "isp_out_clk", "isp_clk";
-			status = "okay";
+			clocks = <&clk_vi VI_ARB_ACLK_EN>,
+				<&clk_vi VI_ARB_PCLK_EN>,
+				<&clk_vi VI_PTW_ACLK_EN>,
+				<&clk_vi VI_DFMU_ACLK_EN>,
+				<&clk_vi VI_DFMU_PCLK_EN>,
+				<&clk_vi VI_ISPOUT_CLK_EN>,
+				<&clk_vi VI_ISP_CLK_EN>,
+				<&clk_vi VI_FENCE_ACLK_EN>,
+				<&clk_vi VI_X2H1_CLK_EN>,
+				<&clk_vi VI_X2H0_CLK_EN>,
+				<&clk_vi VI_MISC_CTRL_BUS_CLK_GT_DISABLE>,
+				<&clk_vi VI_MISC_CTRL_ISP_MCM_CLK_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_FLEXA_CLK_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_CORE_CLK_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_SCLK_CLK0_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_SCLK_CLK1_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_SCLK_CLK2_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_SCLK_CLK3_EN>,
+				<&clk_vi VI_MISC_CTRL_ISP_ACLK_CLK_EN>,
+				<&clk_vi VI_MISC_CTRL_H1CLK_CLK_EN>,
+				<&clk_vi VI_MISC_CTRL_H0CLK_CLK_EN>;
+			clock-names = "vi_arb_aclk", "vi_arb_pclk", "vi_ptw_aclk", "vi_dfmu_aclk", "vi_dfmu_pclk",
+				"isp_out_clk", "isp_clk", "fence_aclk", "x2h1_clk", "x2h0_clk", "bus_clk_gt_disabled",
+				"isp_mcm_clk", "isp_flexa_clk", "isp_core_clk", "isp_sclk_slk0", "isp_sclk_slk1",
+				"isp_sclk_slk2", "isp_sclk_slk3","isp_aclk_clk", "isp_h1clk_clk", "isp_h0clk_clk";
+			power-domains = <&power_vi_isp>;
 		};
 
 		dw200_dw: dw200_dw@06200000 {
@@ -1984,115 +2052,118 @@
 				  0x00 0x06350000 0x0 0x10000>;
 			interrupt-parent = <&intc>;
 			interrupts = <209>,<211>,<210>,<199>;
-			clocks = <&clk_vi VI_DW_SCLK_EN>,
-				 <&clk_vi VI_VSE_CLK_EN>,
-				 <&clk_vi VI_DWE_CLK_EN>,
-				 <&clk_vi VI_DW200_ACLK_EN>,
-				 <&clk_vi VI_DW200_HCLK_EN>,
-				 <&clk_vi VI_VSEOUT_CLK_EN>;
-			clock-names = "dw_sclk", "vse_clk", "dwe_clk", "dw200_aclk", "dw200_hclk", "vseout_clk";
-			status = "okay";
+			clocks = <&clk_vi VI_ARB_ACLK_EN>,
+				<&clk_vi VI_ARB_PCLK_EN>,
+				<&clk_vi VI_PTW_ACLK_EN>,
+				<&clk_vi VI_DFMU_ACLK_EN>,
+				<&clk_vi VI_DFMU_PCLK_EN>,
+				<&clk_vi VI_DW_SCLK_EN>,
+				<&clk_vi VI_VSE_CLK_EN>,
+				<&clk_vi VI_DWE_CLK_EN>,
+				<&clk_vi VI_DW200_ACLK_EN>,
+				<&clk_vi VI_DW200_HCLK_EN>,
+				<&clk_vi VI_VSEOUT_CLK_EN>,
+				<&clk_vi VI_DECOUT_CLK_EN>,
+				<&clk_vi VI_X2H2_CLK_EN>;
+			clock-names = "vi_arb_aclk", "vi_arb_pclk", "vi_ptw_aclk", "vi_dfmu_aclk", "vi_dfmu_pclk",
+				"dw_sclk", "vse_clk", "dwe_clk", "dw200_aclk", "dw200_hclk", "vseout_clk", "decout_clk", "x2h2_clk";
+			power-domains = <&power_vi_isp>;
 		};
 
 		bmu0: ddr-bmu@0004850000 {
-			compatible = "zhihe,p100-ddr-bmu";
+			compatible = "zhihe,a210-ddr-bmu";
 			reg = <0x00 0x04850000 0x0 0x10000>,
 				  <0x00 0x05850000 0x0 0x10000>;
 			zhihe,bm-num = <2>;
 			zhihe,bm-name ="bmu_ddr";
 			interrupt-parent = <&intc>;
 			interrupts = <96>,<101>,<115>,<120>;
-			status = "okay";
 		};
 
 		bmu1: gpu-bmu@0006d14000 {
-			compatible = "zhihe,p100-gpu-bmu";
+			compatible = "zhihe,a210-gpu-bmu";
 			reg = <0x00 0x06d14000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_gpu";
 			interrupt-parent = <&intc>;
 			interrupts = <54>;
-			status = "okay";
+			power-domains = <&power_gpu>;
 		};
 
 		bmu2: npu-bmu@0007104000 {
-			compatible = "zhihe,p100-npu-bmu";
+			compatible = "zhihe,a210-npu-bmu";
 			reg = <0x00 0x07104000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_npu";
 			interrupt-parent = <&intc>;
 			interrupts = <65>;
-			status = "okay";
+			power-domains = <&power_npu_ip>;
 		};
 
 		bmu3: pcie-bmu@000a014000 {
-			compatible = "zhihe,p100-pcie-bmu";
+			compatible = "zhihe,a210-pcie-bmu";
 			reg = <0x00 0x0a014000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_pcie";
 			interrupt-parent = <&intc>;
 			interrupts = <173>;
-			status = "okay";
 		};
 
 		bmu4: usb-bmu@0008024000 {
-			compatible = "zhihe,p100-usb-bmu";
+			compatible = "zhihe,a210-usb-bmu";
 			reg = <0x00 0x08024000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_usb";
 			interrupt-parent = <&intc>;
 			interrupts = <186>;
-			status = "okay";
 		};
 
 		bmu5: vo-bmu@0006714000 {
-			compatible = "zhihe,p100-vo-bmu";
+			compatible = "zhihe,a210-vo-bmu";
 			reg = <0x00 0x06714000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_vo";
 			interrupt-parent = <&intc>;
 			interrupts = <222>;
-			status = "okay";
+			power-domains = <&power_vo>;
 		};
 
 		bmu6: vi-bmu@0006374000 {
-			compatible = "zhihe,p100-vi-bmu";
+			compatible = "zhihe,a210-vi-bmu";
 			reg = <0x00 0x06374000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_vi";
 			interrupt-parent = <&intc>;
 			interrupts = <203>;
-			status = "okay";
+			power-domains = <&power_vi_isp>;
 		};
 
 		bmu7: vp-bmu@0006b14000 {
-			compatible = "zhihe,p100-vp-bmu";
+			compatible = "zhihe,a210-vp-bmu";
 			reg = <0x00 0x06b14000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_vp";
 			interrupt-parent = <&intc>;
 			interrupts = <234>;
-			status = "okay";
+			power-domains = <&power_venc>;
 		};
 
 		bmu8: peri-bmu@0002034000 {
-			compatible = "zhihe,p100-peri-bmu";
+			compatible = "zhihe,a210-peri-bmu";
 			reg = <0x00 0x02034000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_peri";
 			interrupt-parent = <&intc>;
 			interrupts = <343>;
-			status = "okay";
 		};
 
 		bmu9: d2d-bmu@0009034000 {
-			compatible = "zhihe,p100-d2d-bmu";
+			compatible = "zhihe,a210-d2d-bmu";
 			reg = <0x00 0x09034000 0x0 0x400>;
 			zhihe,bm-num = <1>;
 			zhihe,bm-name ="bmu_d2d";
 			interrupt-parent = <&intc>;
 			interrupts = <124>;
-			status = "okay";
 		};
 
 	};

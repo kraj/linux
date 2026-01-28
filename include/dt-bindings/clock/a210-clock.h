@@ -1,5 +1,5 @@
-#ifndef _P100_CLK_H
-#define _P100_CLK_H
+#ifndef _A210_CLK_H
+#define _A210_CLK_H
 
 // PLL_WRAP
 #define AUDIO0_PLL_FOUTVCO                                 0
@@ -564,7 +564,7 @@
 #define PERI1_GMAC2_ACLK_EN                                535
 #define PERI1_X2H_GMAC2_HCLK_EN                            536
 #define PERI1_X2H_GMAC2_ACLK_EN                            537
-#define PERI1_CHIP_DBG_PCLK_EN                             538                                      
+#define PERI1_CHIP_DBG_PCLK_EN                             538
 #define PERI1_CHIP_DBG_CCLK_EN                             539
 #define PERI1_CHIP_DBG_ACLK_EN                             540
 #define PERI1_TDM0_SCLK_EN                                 541
@@ -597,6 +597,18 @@
 #define TOP_CPUSYS_COM_APB_CLK_DIV                         565
 #define TOP_CPUSYS_APB_CLK_DIV                             566
 
-#define CLK_END                                            567
+#define VI_MISC_CTRL_H0CLK_CLK_EN                          567
+#define VI_MISC_CTRL_H1CLK_CLK_EN                          568
+#define VI_MISC_CTRL_ISP_ACLK_CLK_EN                       569
+#define VI_MISC_CTRL_ISP_SCLK_CLK0_EN                      570
+#define VI_MISC_CTRL_ISP_SCLK_CLK1_EN                      571
+#define VI_MISC_CTRL_ISP_SCLK_CLK2_EN                      572
+#define VI_MISC_CTRL_ISP_SCLK_CLK3_EN                      573
+#define VI_MISC_CTRL_ISP_CORE_CLK_EN                       574
+#define VI_MISC_CTRL_ISP_FLEXA_CLK_EN                      575
+#define VI_MISC_CTRL_ISP_MCM_CLK_EN                        576
+#define VI_MISC_CTRL_BUS_CLK_GT_DISABLE                    577
+
+#define CLK_END                                            578
 
 #endif

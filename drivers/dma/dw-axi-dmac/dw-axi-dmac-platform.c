@@ -616,7 +616,7 @@ static void set_desc_dest_master(struct axi_dma_hw_desc *hw_desc,
  * dma_burst_len_to_enum - Convert burst length value to AXI DMA burst length enum
  * @burst_len: Burst length value to convert
  *
- * This function maps a numeric burst length value to the corresponding 
+ * This function maps a numeric burst length value to the corresponding
  * DWAXIDMAC_BURST_TRANS_LEN_* enumeration constant used in the DesignWare AXI DMA controller.
  *
  * Return:
@@ -1728,7 +1728,7 @@ static const struct of_device_id dw_dma_of_id_table[] = {
 		.compatible = "xuantie,th1520-axi-dma",
 		.data = (void *)(AXI_DMA_FLAG_USE_CFG2),
 	}, {
-		.compatible = "zhihe,p100-axi-dma",
+		.compatible = "zhihe,a210-axi-dma",
 		.data = (void *)(AXI_DMA_FLAG_USE_CFG2),
 	},
 	{}

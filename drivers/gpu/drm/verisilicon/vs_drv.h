@@ -44,6 +44,13 @@ struct vs_drm_private {
 #endif
 
     unsigned int pitch_alignment;
+
+#ifdef CONFIG_ZHIHE_AUXDISP
+    struct device *dc_dev;              /* DC8200 设备指针 */
+    struct device *auxdisp_dev;         /* AuxDisp 设备指针 */
+    bool dc_clk_held_for_auxdisp;       /* DC8200 时钟是否被 AuxDisp 持有 */
+    bool auxdisp_clk_held_for_dc;       /* AuxDisp 时钟是否被 DC8200 持有 */
+#endif
 };
 
 int vs_drm_iommu_attach_device(struct drm_device *drm_dev,
@@ -68,4 +75,9 @@ static inline bool is_iommu_enabled(struct drm_device *dev)
 
     return priv->domain != NULL ? true : false;
 }
+
+/* Device compatible strings */
+#define VS_DC8200_COMPATIBLE    "verisilicon,dc8200"
+#define ZH_AUXDISP_COMPATIBLE   "zhihe,auxdisp"
+
 #endif /* __VS_DRV_H__ */

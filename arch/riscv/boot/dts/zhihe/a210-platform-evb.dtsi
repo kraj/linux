@@ -1,8 +1,3 @@
-
-&c908_0 {
-// 	status = "disabled";
-};
-
 // &c908_1 {
 // 	status = "disabled";
 // };
@@ -36,6 +31,10 @@
 };
 
 &uart1 {
+	status = "disabled";
+};
+
+&uart2 {
 	status = "disabled";
 };
 
@@ -75,6 +74,10 @@
 	status = "disabled";
 };
 
+&qspi1 {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "disabled";
 };
@@ -87,6 +90,10 @@
 	status = "disabled";
 };
 
+&i2c4 {
+	status = "disabled";
+};
+
 &i2c5 {
 	status = "disabled";
 };
@@ -96,18 +103,6 @@
 };
 
 &i2c7 {
-	status = "disabled";
-};
-
-&pwm0 {
-	status = "disabled";
-};
-
-&pwm2 {
-	status = "disabled";
-};
-
-&audio_i2s2 {
 	status = "disabled";
 };
 
@@ -140,10 +135,6 @@
 	status = "disabled";
 };
 
-&uart2 {
-	status = "disabled";
-};
-
 &timer0 {
 	status = "disabled";
 };
@@ -172,7 +163,23 @@
 	status = "disabled";
 };
 
-&i2c4 {
+&rp3x1 {
+	status = "disabled";
+};
+
+&dm3x4 {
+	status = "disabled";
+};
+
+&sata {
+	status = "disabled";
+};
+
+&auxdisp {
+	status = "disabled";
+};
+
+&dpu_enc0 {
 	status = "disabled";
 };
 
@@ -180,18 +187,47 @@
 	status = "disabled";
 };
 
-&dm3x4 {
+&audio_i2s1 {
 	status = "okay";
 };
 
-&rp3x1 {
+&audio_i2s2 {
 	status = "disabled";
 };
 
-// &usb31_zhihe {
-//	status = "disabled";
-// };
+&pwm0 {
+	status = "disabled";
+};
 
-// &sata {
-//	status = "disabled";
-// };
+&pwm2 {
+	status = "disabled";
+};
+
+
+&dfmu_mt_vp {
+	status = "disabled";
+};
+
+&dfmu_mt_npu {
+	status = "disabled";
+};
+
+&dfmu_mt_vi {
+	status = "disabled";
+};
+
+&dfmu_mt_vo {
+	status = "disabled";
+};
+
+&dfmu_mt_peri1 {
+	status = "disabled";
+};
+
+&dfmu_mt_pcie {
+	status = "disabled";
+};
+
+&dfmu_mt_usb {
+	status = "disabled";
+};

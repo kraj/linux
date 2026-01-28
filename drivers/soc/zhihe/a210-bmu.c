@@ -36,7 +36,7 @@
 #include <asm/cache.h>
 #include "trace.h"
 
-#define P100_100P_V1
+#define A210_100P_V1
 
 #ifndef false
 #define false (0)
@@ -429,7 +429,7 @@
 
 #define to_ddr_pmu(p) container_of(p, struct ddr_pmu, pmu)
 
-#define DDR_PERF_DEV_NAME "p100_ddr"
+#define DDR_PERF_DEV_NAME "a210_ddr"
 #define DDR_CPUHP_CB_NAME DDR_PERF_DEV_NAME "_perf_pmu"
 
 static DEFINE_IDA(ddr_ida);
@@ -556,13 +556,13 @@ static DEFINE_IDA(ddr_ida);
 #define MT_REG_RDATA3 0x4c
 #define MT_REG_RDATA4 0x50
 
-#if defined(P100_95P_V2)
+#if defined(A210_95P_V2)
 #define addr_map_64b_128B_non_half_non_intlv
 #define intlv_offset ddr_intlv_128
-#elif defined(P100_95P_V1)
+#elif defined(A210_95P_V1)
 #define addr_map_32b_128B_half_non_intlv
 #define intlv_offset 0
-#elif defined(P100_100P_V1)
+#elif defined(A210_100P_V1)
 #define addr_map_64b_256B_non_half_intlv
 #define intlv_offset ddr_intlv_256
 #else
@@ -972,45 +972,45 @@ static struct bmu3_para bmu3_para_data[] = {
 					     IORESOURCE_MEM } },
 };
 
-static const struct of_device_id p100_bmu_dt_ids[] = {
+static const struct of_device_id a210_bmu_dt_ids[] = {
 	{
-		.compatible = "zhihe,p100-ddr-bmu",
+		.compatible = "zhihe,a210-ddr-bmu",
 		.data = &bmu3_para_data[BMU_DDR],
 	},
 	{
-		.compatible = "zhihe,p100-gpu-bmu",
+		.compatible = "zhihe,a210-gpu-bmu",
 		.data = &bmu3_para_data[BMU_GPU],
 	},
 	{
-		.compatible = "zhihe,p100-npu-bmu",
+		.compatible = "zhihe,a210-npu-bmu",
 		.data = &bmu3_para_data[BMU_NPU],
 	},
 	{
-		.compatible = "zhihe,p100-pcie-bmu",
+		.compatible = "zhihe,a210-pcie-bmu",
 		.data = &bmu3_para_data[BMU_PCIE],
 	},
 	{
-		.compatible = "zhihe,p100-usb-bmu",
+		.compatible = "zhihe,a210-usb-bmu",
 		.data = &bmu3_para_data[BMU_USB],
 	},
 	{
-		.compatible = "zhihe,p100-vo-bmu",
+		.compatible = "zhihe,a210-vo-bmu",
 		.data = &bmu3_para_data[BMU_VO],
 	},
 	{
-		.compatible = "zhihe,p100-vi-bmu",
+		.compatible = "zhihe,a210-vi-bmu",
 		.data = &bmu3_para_data[BMU_VI],
 	},
 	{
-		.compatible = "zhihe,p100-vp-bmu",
+		.compatible = "zhihe,a210-vp-bmu",
 		.data = &bmu3_para_data[BMU_VP],
 	},
 	{
-		.compatible = "zhihe,p100-peri-bmu",
+		.compatible = "zhihe,a210-peri-bmu",
 		.data = &bmu3_para_data[BMU_PERI],
 	},
 	{
-		.compatible = "zhihe,p100-d2d-bmu",
+		.compatible = "zhihe,a210-d2d-bmu",
 		.data = &bmu3_para_data[BMU_D2D],
 	},
 };
@@ -1053,7 +1053,7 @@ static ssize_t ddr_pmu_event_show(struct device *dev,
 	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
-#define P100_DDR_PMU_EVENT_ATTR(_name, _id)                            \
+#define A210_DDR_PMU_EVENT_ATTR(_name, _id)                            \
 	(&((struct perf_pmu_events_attr[]){ {                          \
 		.attr = __ATTR(_name, 0444, ddr_pmu_event_show, NULL), \
 		.id = _id,                                             \
@@ -1061,58 +1061,58 @@ static ssize_t ddr_pmu_event_show(struct device *dev,
 		  .attr.attr)
 
 static struct attribute *ddr_perf_events_attrs[] = {
-	P100_DDR_PMU_EVENT_ATTR(rd_duration_cnt, DDR_EVENT_READ_DURATION_CNT),
-	P100_DDR_PMU_EVENT_ATTR(rd_trans_cnt, DDR_EVENT_READ_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(rd_byte_cnt, DDR_EVENT_READ_BYTES),
-	P100_DDR_PMU_EVENT_ATTR(rd_duration_cnt_over_threshold,
+	A210_DDR_PMU_EVENT_ATTR(rd_duration_cnt, DDR_EVENT_READ_DURATION_CNT),
+	A210_DDR_PMU_EVENT_ATTR(rd_trans_cnt, DDR_EVENT_READ_TRANS_CNT),
+	A210_DDR_PMU_EVENT_ATTR(rd_byte_cnt, DDR_EVENT_READ_BYTES),
+	A210_DDR_PMU_EVENT_ATTR(rd_duration_cnt_over_threshold,
 				DDR_EVENT_READ_DURATION_OVER_THRESH),
-	P100_DDR_PMU_EVENT_ATTR(wr_duration_cnt, DDR_EVENT_WRITE_DURATION_CNT),
-	P100_DDR_PMU_EVENT_ATTR(wr_trans_cnt, DDR_EVENT_WRITE_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(wr_byte_cnt, DDR_EVENT_WRITE_BYTES),
-	P100_DDR_PMU_EVENT_ATTR(wr_duration_cnt_over_threshold,
+	A210_DDR_PMU_EVENT_ATTR(wr_duration_cnt, DDR_EVENT_WRITE_DURATION_CNT),
+	A210_DDR_PMU_EVENT_ATTR(wr_trans_cnt, DDR_EVENT_WRITE_TRANS_CNT),
+	A210_DDR_PMU_EVENT_ATTR(wr_byte_cnt, DDR_EVENT_WRITE_BYTES),
+	A210_DDR_PMU_EVENT_ATTR(wr_duration_cnt_over_threshold,
 				DDR_EVENT_WRITE_DURATION_OVER_THRESH),
-	P100_DDR_PMU_EVENT_ATTR(vrd0_trans_cnt, DDR_EVENT_VRD0_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(vrd1_trans_cnt, DDR_EVENT_VRD1_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(vwr0_trans_cnt, DDR_EVENT_VWR0_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(vwr1_trans_cnt, DDR_EVENT_VWR1_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(rd_max_ostd, DDR_EVENT_RD_MAX_OSTD),
-	P100_DDR_PMU_EVENT_ATTR(wr_max_ostd, DDR_EVENT_WR_MAX_OSTD),
-	P100_DDR_PMU_EVENT_ATTR(rd_dly_cnt, DDR_EVENT_RD_DLY_CNT),
-	P100_DDR_PMU_EVENT_ATTR(wr_dly_cnt, DDR_EVENT_WR_DLY_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_rd_duration_cnt,
+	A210_DDR_PMU_EVENT_ATTR(vrd0_trans_cnt, DDR_EVENT_VRD0_TRANS_CNT),
+	A210_DDR_PMU_EVENT_ATTR(vrd1_trans_cnt, DDR_EVENT_VRD1_TRANS_CNT),
+	A210_DDR_PMU_EVENT_ATTR(vwr0_trans_cnt, DDR_EVENT_VWR0_TRANS_CNT),
+	A210_DDR_PMU_EVENT_ATTR(vwr1_trans_cnt, DDR_EVENT_VWR1_TRANS_CNT),
+	A210_DDR_PMU_EVENT_ATTR(rd_max_ostd, DDR_EVENT_RD_MAX_OSTD),
+	A210_DDR_PMU_EVENT_ATTR(wr_max_ostd, DDR_EVENT_WR_MAX_OSTD),
+	A210_DDR_PMU_EVENT_ATTR(rd_dly_cnt, DDR_EVENT_RD_DLY_CNT),
+	A210_DDR_PMU_EVENT_ATTR(wr_dly_cnt, DDR_EVENT_WR_DLY_CNT),
+	A210_DDR_PMU_EVENT_ATTR(axid_rd_duration_cnt,
 				DDR_EVENT_AXID_READ_DURATION_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_rd_trans_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_rd_trans_cnt,
 				DDR_EVENT_AXID_READ_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_rd_bytes, DDR_EVENT_AXID_READ_BYTES),
-	P100_DDR_PMU_EVENT_ATTR(axid_rd_duration_cnt_over_threshold,
+	A210_DDR_PMU_EVENT_ATTR(axid_rd_bytes, DDR_EVENT_AXID_READ_BYTES),
+	A210_DDR_PMU_EVENT_ATTR(axid_rd_duration_cnt_over_threshold,
 				DDR_EVENT_AXID_READ_DURATION_OVER_THRESH),
-	P100_DDR_PMU_EVENT_ATTR(axid_wr_duration_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_wr_duration_cnt,
 				DDR_EVENT_AXID_WRITE_DURATION_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_wr_trans_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_wr_trans_cnt,
 				DDR_EVENT_AXID_WRITE_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_wr_bytes, DDR_EVENT_AXID_WRITE_BYTES),
-	P100_DDR_PMU_EVENT_ATTR(axid_wr_duration_cnt_over_threshold,
+	A210_DDR_PMU_EVENT_ATTR(axid_wr_bytes, DDR_EVENT_AXID_WRITE_BYTES),
+	A210_DDR_PMU_EVENT_ATTR(axid_wr_duration_cnt_over_threshold,
 				DDR_EVENT_AXID_WRITE_DURATION_OVER_THRESH),
-	P100_DDR_PMU_EVENT_ATTR(axid_vrd0_trans_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_vrd0_trans_cnt,
 				DDR_EVENT_AXID_VRD0_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_vrd1_trans_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_vrd1_trans_cnt,
 				DDR_EVENT_AXID_VRD1_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_vwr0_trans_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_vwr0_trans_cnt,
 				DDR_EVENT_AXID_VWR0_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_vwr1_trans_cnt,
+	A210_DDR_PMU_EVENT_ATTR(axid_vwr1_trans_cnt,
 				DDR_EVENT_AXID_VWR1_TRANS_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_rd_max_ostd, DDR_EVENT_AXID_RD_MAX_OSTD),
-	P100_DDR_PMU_EVENT_ATTR(axid_wr_max_ostd, DDR_EVENT_AXID_WR_MAX_OSTD),
-	P100_DDR_PMU_EVENT_ATTR(axid_rd_dly_cnt, DDR_EVENT_AXID_RD_DLY_CNT),
-	P100_DDR_PMU_EVENT_ATTR(axid_wr_dly_cnt, DDR_EVENT_AXID_WR_DLY_CNT),
-	P100_DDR_PMU_EVENT_ATTR(pmu_exec_time, DDR_EVENT_PMU_EXEC_TIME),
-	P100_DDR_PMU_EVENT_ATTR(total_bw, DDR_EVENT_QUARY_TOTAL_BW),
-	P100_DDR_PMU_EVENT_ATTR(capture_rdata, DDR_EVENT_CAPTURE_R_DATA),
-	P100_DDR_PMU_EVENT_ATTR(capture_wdata, DDR_EVENT_CAPTURE_W_DATA),
-	P100_DDR_PMU_EVENT_ATTR(capture_addr, DDR_EVENT_CAPTURE_ADDR),
-	P100_DDR_PMU_EVENT_ATTR(capture_error_resp_w,
+	A210_DDR_PMU_EVENT_ATTR(axid_rd_max_ostd, DDR_EVENT_AXID_RD_MAX_OSTD),
+	A210_DDR_PMU_EVENT_ATTR(axid_wr_max_ostd, DDR_EVENT_AXID_WR_MAX_OSTD),
+	A210_DDR_PMU_EVENT_ATTR(axid_rd_dly_cnt, DDR_EVENT_AXID_RD_DLY_CNT),
+	A210_DDR_PMU_EVENT_ATTR(axid_wr_dly_cnt, DDR_EVENT_AXID_WR_DLY_CNT),
+	A210_DDR_PMU_EVENT_ATTR(pmu_exec_time, DDR_EVENT_PMU_EXEC_TIME),
+	A210_DDR_PMU_EVENT_ATTR(total_bw, DDR_EVENT_QUARY_TOTAL_BW),
+	A210_DDR_PMU_EVENT_ATTR(capture_rdata, DDR_EVENT_CAPTURE_R_DATA),
+	A210_DDR_PMU_EVENT_ATTR(capture_wdata, DDR_EVENT_CAPTURE_W_DATA),
+	A210_DDR_PMU_EVENT_ATTR(capture_addr, DDR_EVENT_CAPTURE_ADDR),
+	A210_DDR_PMU_EVENT_ATTR(capture_error_resp_w,
 				DDR_EVENT_CAPTURE_ERROR_RESP_W),
-	P100_DDR_PMU_EVENT_ATTR(capture_error_resp_r,
+	A210_DDR_PMU_EVENT_ATTR(capture_error_resp_r,
 				DDR_EVENT_CAPTURE_ERROR_RESP_R),
 	NULL,
 };
@@ -5221,7 +5221,7 @@ static int bmu_parse_dt(struct platform_device *pdev, struct ddr_pmu *pmu)
 	void *base_axiw[NUM_INST];
 	struct device_node *memnp;
 	const char *bmu_name;
-	char irq_name[30];
+	char *irq_name;
 	phys_addr_t raw_pt;
 	phys_addr_t trace_raw_addr;
 
@@ -5424,7 +5424,14 @@ static int bmu_parse_dt(struct platform_device *pdev, struct ddr_pmu *pmu)
 			ret = irq;
 			return -EINVAL;
 		}
-		sprintf(irq_name, "%s%d_irq\n", bmu_name, i * 2);
+        	irq_name = devm_kmalloc(&pdev->dev, 30, GFP_KERNEL);
+		if (!irq_name) {
+			dev_err(&pdev->dev, "%s, \
+				kmalloc irq_name failed\n", __func__);
+			return -ENOMEM;
+			return -ENOMEM;
+		}
+		sprintf(irq_name, "%s%d", bmu_name, i * 2);
 		ret = devm_request_irq(&pdev->dev, irq, bmu_irq_handler,
 				       IRQF_NO_THREAD, irq_name, pmu);
 		if (ret < 0) {
@@ -5443,7 +5450,13 @@ static int bmu_parse_dt(struct platform_device *pdev, struct ddr_pmu *pmu)
 				ret = irq;
 				return -EINVAL;
 			}
-			sprintf(irq_name, "%s%d_irq\n", bmu_name, i * 2 + 1);
+			irq_name = devm_kmalloc(&pdev->dev, 30, GFP_KERNEL);
+			if (!irq_name) {
+				dev_err(&pdev->dev, "%s, \
+					kmalloc irq_name failed\n", __func__);
+				return -ENOMEM;
+			}
+			sprintf(irq_name, "%s%d", bmu_name, i * 2 + 1);
 			ret = devm_request_irq(&pdev->dev, irq, bmu_irq_handler,
 					       IRQF_NO_THREAD, irq_name, pmu);
 			if (ret < 0) {
@@ -5484,7 +5497,7 @@ static int bmu_perf_probe(struct platform_device *pdev)
 	}
 
 	//match node private data
-	match = of_match_node(p100_bmu_dt_ids, pdev->dev.of_node);
+	match = of_match_node(a210_bmu_dt_ids, pdev->dev.of_node);
 	if (!match) {
 		dev_err(&pdev->dev, "%s, Error: Can't fount match table!\n",
 			__func__);
@@ -5656,10 +5669,10 @@ static int bmu_perf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver p100_bmu_driver = {
+static struct platform_driver a210_bmu_driver = {
   .driver = {
 	     .name = "zhihe-bmu",
-	     .of_match_table = p100_bmu_dt_ids,
+	     .of_match_table = a210_bmu_dt_ids,
 	     },
   .probe = bmu_perf_probe,
   .remove = bmu_perf_remove,
@@ -5680,7 +5693,7 @@ int __init zhihe_bmu_probe(void)
 		}
 	}
 
-	return platform_driver_register(&p100_bmu_driver);
+	return platform_driver_register(&a210_bmu_driver);
 }
 
 device_initcall(zhihe_bmu_probe);

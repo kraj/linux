@@ -339,7 +339,7 @@ void zhihe_clk_fake_pll_fixed_ops(void)
 	return;
 }
 
-struct clk *zhihe_pll(const char *name, const char *parent_name,
+struct clk *zhihe_pll(struct device *dev, const char *name, const char *parent_name,
 			    void __iomem *base,
 			    const struct zhihe_clk_info_pll *pll_clk)
 {
@@ -397,7 +397,7 @@ struct clk *zhihe_pll(const char *name, const char *parent_name,
 	}
 	writel_relaxed(val, pll->base + pll->cfg0_reg_off + ZHIHE_PLL_CFG1);
 
-	clk = clk_register(NULL, &pll->hw);
+	clk = clk_register(dev, &pll->hw);
 	if (IS_ERR(clk)) {
 		pr_err("failed to register pll %s %ld\n",
 			name, PTR_ERR(clk));

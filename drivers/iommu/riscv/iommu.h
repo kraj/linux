@@ -46,9 +46,23 @@ enum riscv_queue_ids {
 	RISCV_IOMMU_PAGE_REQUEST_QUEUE	= 2
 };
 
-struct riscv_iommu_device {
+/* virtual iommu device representing all the real iommu hardware IPs and register to kernel iommu framework */
+struct zh_iommu_device {
 	struct iommu_device iommu;	/* iommu core interface */
 	struct device *dev;		/* iommu hardware */
+	struct list_head groups;	/* struct riscv_iommu_group{} existed */
+	struct list_head iommus;	/* struct riscv_iommu_device{} for individual iommu IPs existed*/
+	struct mutex lock;		/* protect modification of member: groups,iommus */
+	struct device **pd_devs;
+	int num_pds;
+	struct clk_bulk_data *clks;
+	u32 num_clks;
+};
+
+/* real iommu hardware IP */
+struct riscv_iommu_device {
+	struct device *dev;		/* iommu hardware */
+	char *name;
 
 	/* hardware control register space */
 	void __iomem *reg;
@@ -79,7 +93,7 @@ struct riscv_iommu_device {
 	struct rb_root eps;
 	struct mutex eps_mutex;
 
-	struct riscv_iommu_domain *domain;
+	struct list_head list;
 };
 
 struct riscv_iommu_domain {
@@ -90,7 +104,7 @@ struct riscv_iommu_domain {
 	struct list_head notifiers;
 	struct mutex lock;
 	struct mmu_notifier mn;
-	struct riscv_iommu_device *iommu;
+	struct zh_iommu_device *iommus;
 
 	unsigned mode;		/* RIO_ATP_MODE_* enum */
 	unsigned pscid;		/* RISC-V IOMMU PSCID / GSCID */
@@ -104,11 +118,21 @@ struct riscv_iommu_endpoint {
 	unsigned num_ids;
 	unsigned domid;    			/* PCI domain number, segment */
 	struct rb_node node;    		/* device tracking node (lookup by devid) */
-	struct riscv_iommu_device *iommu;	/* parent iommu device */
+	struct zh_iommu_device *iommus;		/* virtual iommu device */
+	struct riscv_iommu_device *iommu;	/* real parent iommu device */
 	struct mutex lock;
 	struct list_head domain;		/* endpoint attached managed domain */
 	struct riscv_iommu_dc **dc;		/* device context pointer entries */
 	u32 *devids;      	/* PCI bus:device:function number */
+	unsigned int group_id;	/* desire to join which iommu_group */
+};
+
+/* include one instance of struct iommu_group and it's managing tools */
+struct riscv_iommu_group {
+	struct list_head list;
+	struct zh_iommu_device *iommus;
+	struct iommu_group *group;
+	unsigned int group_id;
 };
 
 /* Helper functions and macros */
@@ -138,8 +162,9 @@ static inline void riscv_iommu_writeq(struct riscv_iommu_device *iommu,
 }
 
 int riscv_iommu_init(struct riscv_iommu_device *iommu);
-void riscv_iommu_remove(struct riscv_iommu_device *iommu);
+void riscv_iommu_remove(struct zh_iommu_device *iommus);
 
-int riscv_iommu_sysfs_add(struct riscv_iommu_device *iommu);
+int riscv_iommu_sysfs_add(struct zh_iommu_device *iommus);
+int riscv_iommu_register(struct zh_iommu_device *iommus);
 
 #endif

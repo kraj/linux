@@ -128,7 +128,7 @@ static const struct clk_ops clk_zhihediv_ops = {
 	.set_rate = clk_zhihediv_set_rate,
 };
 
-static struct clk *zhihe_clk_divider_internal(const char *name, const char *parent,
+static struct clk *zhihe_clk_divider_internal(struct device *dev, const char *name, const char *parent,
 				       void __iomem *reg, u8 shift, u8 width,
 				       u8 sync, enum zhihe_div_type div_type,
 				       u16 min, u16 max, bool closest)
@@ -169,7 +169,7 @@ static struct clk *zhihe_clk_divider_internal(const char *name, const char *pare
 
 	hw = &zhihe_div->divider.hw;
 
-	ret = clk_hw_register(NULL, hw);
+	ret = clk_hw_register(dev, hw);
 	if (ret) {
 		kfree(zhihe_div);
 		return ERR_PTR(ret);
@@ -178,21 +178,21 @@ static struct clk *zhihe_clk_divider_internal(const char *name, const char *pare
 	return hw->clk;
 }
 
-struct clk *zhihe_clk_divider(const char *name, const char *parent,
+struct clk *zhihe_clk_divider(struct device *dev, const char *name, const char *parent,
 						void __iomem *reg, u8 shift, u8 width,
 						u8 sync, enum zhihe_div_type div_type,
 						u16 min, u16 max)
 {
-	return zhihe_clk_divider_internal(name, parent, reg, shift, width,
+	return zhihe_clk_divider_internal(dev, name, parent, reg, shift, width,
 											sync, div_type, min, max, false);
 }
 
-struct clk *zhihe_clk_divider_closest(const char *name, const char *parent,
+struct clk *zhihe_clk_divider_closest(struct device *dev, const char *name, const char *parent,
 						void __iomem *reg, u8 shift, u8 width,
 						u8 sync, enum zhihe_div_type div_type,
 						u16 min, u16 max)
 {
-	return zhihe_clk_divider_internal(name, parent, reg, shift, width,
+	return zhihe_clk_divider_internal(dev, name, parent, reg, shift, width,
 											sync, div_type, min, max, true);
 }
 
@@ -251,7 +251,7 @@ static const struct clk_ops clk_zhihegate_share_ops = {
 	.is_enabled = clk_zhihe_gate_share_is_enabled,
 };
 
-struct clk *zhihe_clk_register_gate_shared(const char *name, const char *parent,
+struct clk *zhihe_clk_register_gate_shared(struct device *dev, const char *name, const char *parent,
 						 unsigned long flags, void __iomem *reg,
 						 u8 shift, spinlock_t *lock,
 						 unsigned int *share_count)
@@ -281,7 +281,7 @@ struct clk *zhihe_clk_register_gate_shared(const char *name, const char *parent,
 
 	hw = &zhihe_gate->gate.hw;
 
-	ret = clk_hw_register(NULL, hw);
+	ret = clk_hw_register(dev, hw);
 	if (ret) {
 		kfree(zhihe_gate);
 		return ERR_PTR(ret);
@@ -446,35 +446,35 @@ void zhihe_register_clock(struct platform_device *pdev)
 
 		switch (type) {
 			case CLK_TYPE_FIXED:
-				priv->clk_data->clks[id] = zhihe_clk_fixed(name, parent, priv->info[i].fixed.freq);
+				priv->clk_data->clks[id] = zhihe_clk_fixed(dev, name, parent, priv->info[i].fixed.freq);
 				break;
 			case CLK_TYPE_FIXED_FACTOR:
-				priv->clk_data->clks[id] = zhihe_clk_fixed_factor(name, parent,
+				priv->clk_data->clks[id] = zhihe_clk_fixed_factor(dev, name, parent,
 							       priv->info[i].fixed_factor.mult, priv->info[i].fixed_factor.div);
 				break;
 			case CLK_TYPE_PLL:
-				priv->clk_data->clks[id] = zhihe_pll(name, parent, base, priv->info[i].pll);
+				priv->clk_data->clks[id] = zhihe_pll(dev, name, parent, base, priv->info[i].pll);
 				break;
 			case CLK_TYPE_DIVIDER:
-				priv->clk_data->clks[id] = zhihe_clk_divider(name, parent, base, bit_idx, width,
+				priv->clk_data->clks[id] = zhihe_clk_divider(dev, name, parent, base, bit_idx, width,
 						 priv->info[i].divider.sync, priv->info[i].divider.div_type,
 						 priv->info[i].divider.min, priv->info[i].divider.max);
 				break;
 			case CLK_TYPE_DIVIDER_CLOSEST:
-				priv->clk_data->clks[id] = zhihe_clk_divider_closest(name, parent, base, bit_idx, width,
+				priv->clk_data->clks[id] = zhihe_clk_divider_closest(dev, name, parent, base, bit_idx, width,
 						 priv->info[i].divider.sync, priv->info[i].divider.div_type,
 						 priv->info[i].divider.min, priv->info[i].divider.max);
 				break;
 			case CLK_TYPE_GATE:
-				priv->clk_data->clks[id] = zhihe_clk_gate(name, parent, base, bit_idx);
+				priv->clk_data->clks[id] = zhihe_clk_gate(dev, name, parent, base, bit_idx);
 				break;
 			case CLK_TYPE_GATE_SHARED:
-				priv->clk_data->clks[id] = zhihe_clk_gate_shared(name, parent, base, bit_idx,
+				priv->clk_data->clks[id] = zhihe_clk_gate_shared(dev, name, parent, base, bit_idx,
 									    priv->info[i].gate_shared.share_count);
 				break;
 			case CLK_TYPE_MUX:
 				const char * const *parents = zhihe_add_mux_suffix(pdev, i);
-				priv->clk_data->clks[id] = zhihe_clk_mux_flags(name, base, bit_idx, width,
+				priv->clk_data->clks[id] = zhihe_clk_mux_flags(dev, name, base, bit_idx, width,
 						 parents, priv->info[i].mux.num_parents,
 						 priv->info[i].mux.flags);
 				break;

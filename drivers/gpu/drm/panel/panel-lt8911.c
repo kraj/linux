@@ -3,35 +3,35 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 
-#define ILI9881_PAGE(_page)	DSI_DCS_WRITE(dsi, 0xff, 0x98, 0x81, _page)
-#define IILI9881_COMMAND(_cmd, _data...)		DSI_DCS_WRITE(dsi, _cmd, _data)
-#define DCS_CMD_READ_ID1        0xDA
+#define ILI9881_PAGE(_page)               DSI_DCS_WRITE(dsi, 0xff, 0x98, 0x81, _page)
+#define IILI9881_COMMAND(_cmd, _data...)  DSI_DCS_WRITE(dsi, _cmd, _data)
+#define DCS_CMD_READ_ID1      0xDA
 
-#define LT_8911_I2C_ADAPTER	3
-#define LT_8911_I2C_ADDR	0x45
+#define LT_8911_I2C_ADAPTER   3
+#define LT_8911_I2C_ADDR      0x45
 
 static struct i2c_mipi_dsi g_lt8911_mipi_dsi;
 static bool g_is_std_suspend __nosavedata;
 
 static const struct drm_display_mode lt8911_default_mode = {
-	.clock		= 152840,
-	.hdisplay	= 1920,
-	.hsync_start = 1920 + 140,
-	.hsync_end	= 1920 + 140 + 160,
-	.htotal		= 1920 + 140 + 160 + 30,
+	.clock        = 152840,
+	.hdisplay     = 1920,
+	.hsync_start  = 1920 + 140,
+	.hsync_end    = 1920 + 140 + 160,
+	.htotal       = 1920 + 140 + 160 + 30,
 
-	.vdisplay	= 1080,
-	.vsync_start	= 1080 + 18,
-	.vsync_end	= 1080 + 18 + 28,
-	.vtotal		= 1080 + 18 + 28 + 6,
+	.vdisplay     = 1080,
+	.vsync_start  = 1080 + 18,
+	.vsync_end    = 1080 + 18 + 28,
+	.vtotal       = 1080 + 18 + 28 + 6,
 
-	.width_mm	= 110,
-	.height_mm	= 62,
-	.flags      = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	.width_mm     = 110,
+	.height_mm    = 62,
+	.flags        = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
 static struct panel_data lt8911_panel_data = {
-	.display_mode = &lt8911_default_mode,
+	.display_mode = (struct drm_display_mode *)&lt8911_default_mode,
 	.mode_flags   = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO_BURST,
 	.format       = MIPI_DSI_FMT_RGB888,
 	.lanes        = 4,
@@ -65,8 +65,7 @@ static int mipi_timing[] = {
 	15284 /* pixel_clk / 10000 */
 };
 
-static int lt8911_i2c_write(struct i2c_client *client,
-                               uint8_t reg, uint8_t val)
+static int lt8911_i2c_write(struct i2c_client *client, uint8_t reg, uint8_t val)
 {
 	int ret = -1;
 	int retries = 0;
@@ -121,6 +120,9 @@ static int lt8911_i2c_read(struct i2c_client *client, uint8_t reg)
 
 static void lt8911_reset(struct i2c_mipi_dsi *md)
 {
+	if (!gpio_is_valid(md->reset_pin))
+		return;
+
 	gpio_set_value(md->reset_pin, 0);
 	msleep(md->rst_delay_ms);
 	gpio_set_value(md->reset_pin, 1);
@@ -503,24 +505,29 @@ static int panel_prepare(struct drm_panel *panel)
 
 	DBG_FUNC("lt8911exb enter\n");
 
-	if(g_is_std_suspend){
+	if (md->prepared)
+		return 0;
+
+	if (g_is_std_suspend) {
 		DBG_FUNC("lt8911exb prepare under std mode, do not prepare\n");
 		return 0;
 	}
 
-	if(md->client == NULL){
+	if (md->client == NULL) {
 		DBG_FUNC("lt8911exb i2c client still not ready\n");
 		return 0;
 	}
 
-	ret = regulator_enable(md->vspn3v3);
-	if(ret){
-		goto fail;
+	if (md->vspn3v3) {
+		ret = regulator_enable(md->vspn3v3);
+		if (ret)
+			goto fail;
 	}
 
-	ret = regulator_enable(md->hsvcc);
-	if(ret){
-		goto fail;
+	if (md->hsvcc) {
+		ret = regulator_enable(md->hsvcc);
+		if (ret)
+			goto fail;
 	}
 
 	//msleep(200);
@@ -536,12 +543,18 @@ static int panel_prepare(struct drm_panel *panel)
 		lt8911_i2c_read(client, 0x01),
 		lt8911_i2c_read(client, 0x02));
 
+	md->prepared = true;
+
 	return 0;
 
 fail:
-	gpio_set_value(md->reset_pin, 0);
-	regulator_disable(md->hsvcc);
-	regulator_disable(md->vspn3v3);
+	dev_err(&md->client->dev, "lt8911exb prepare failed: %d\n", ret);
+	if (gpio_is_valid(md->reset_pin))
+		gpio_set_value(md->reset_pin, 0);
+	if (md->hsvcc)
+		regulator_disable(md->hsvcc);
+	if (md->vspn3v3)
+		regulator_disable(md->vspn3v3);
 	return ret;
 }
 
@@ -550,12 +563,19 @@ static int panel_unprepare(struct drm_panel *panel)
 	int ret = 0;
 	struct i2c_mipi_dsi *md = panel_to_md(panel);
 
+	if (!md->prepared)
+		return 0;
+
 	DBG_FUNC("panel_unprepare enter\n");
-	gpio_set_value(md->reset_pin, 0);
+	if (gpio_is_valid(md->reset_pin))
+		gpio_set_value(md->reset_pin, 0);
 
-	regulator_disable(md->hsvcc);
-	regulator_disable(md->vspn3v3);
+	if (md->hsvcc)
+		regulator_disable(md->hsvcc);
+	if (md->vspn3v3)
+		regulator_disable(md->vspn3v3);
 
+	md->prepared = false;
 	return ret;
 }
 
@@ -571,7 +591,8 @@ static int panel_enable(struct drm_panel *panel)
 		return 0;
 	}
 
-	gpio_set_value(md->backlight_pin, 1);
+	if (gpio_is_valid(md->backlight_pin))
+		gpio_set_value(md->backlight_pin, 1);
 
 	lt8911exb_cfg_set_mipi_timing(md);
 	lt8911exb_cfg_set_edp_timing(md);
@@ -590,7 +611,8 @@ static int panel_disable(struct drm_panel *panel)
 
 	DBG_FUNC("panel_disable enter\n");
 
-	gpio_set_value(md->backlight_pin, 0);
+	if (gpio_is_valid(md->backlight_pin))
+		gpio_set_value(md->backlight_pin, 0);
 
 	return ret;
 }
@@ -637,6 +659,11 @@ static int backlight_update(struct backlight_device *bd)
 	struct i2c_mipi_dsi *md = bl_get_data(bd);
 	int brightness = bd->props.brightness;
 
+	if (!md->prepared) {
+		dev_dbg(&bd->dev, "lcd not ready yet for setting its backlight!\n");
+		return -ENXIO;
+	}
+
 	if (bd->props.power != FB_BLANK_UNBLANK ||
 		bd->props.fb_blank != FB_BLANK_UNBLANK ||
 		(bd->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))) {
@@ -656,9 +683,6 @@ static const struct backlight_ops backlight_ops = {
 static int lt8911_pm_notify(struct notifier_block *notify_block,
 			     unsigned long mode, void *unused)
 {
-	struct i2c_mipi_dsi *ctx = container_of(
-		notify_block, struct i2c_mipi_dsi, pm_notify);
-
 	DBG_FUNC("pm_notify: mode (%ld)\n", mode);
 
 	switch (mode) {
@@ -706,7 +730,6 @@ static int backlight_init(struct i2c_mipi_dsi *md)
 
 static int i2c_md_probe(struct i2c_client *client)
 {
-	struct device *dev = &client->dev;
 	struct i2c_mipi_dsi *md = &g_lt8911_mipi_dsi;
 
 	DBG_FUNC("start");
@@ -746,51 +769,63 @@ static int lt8911_parse_dt(struct i2c_mipi_dsi *md)
 	struct mipi_dsi_device *dsi = md->dsi;
 	struct device_node *np = dsi->dev.of_node;
 
-	md->hsvcc =  devm_regulator_get(&dsi->dev, "hsvcc");
-	if (IS_ERR(md->hsvcc))
-		return dev_err_probe(&dsi->dev, PTR_ERR(md->hsvcc),
-				"Failed to request hsvcc regulator\n");
+	md->hsvcc =  devm_regulator_get_optional(&dsi->dev, "hsvcc");
+	if (IS_ERR(md->hsvcc)) {
+		if (PTR_ERR(md->hsvcc) == -ENODEV) {
+			DBG_FUNC("%s: hsvcc regulator not defined, continue without it\n", __func__);
+			md->hsvcc = NULL;
+		} else {
+			return dev_err_probe(&dsi->dev, PTR_ERR(md->hsvcc),
+					"Failed to request hsvcc regulator\n");
+		}
+	}
 
-	md->vspn3v3 =  devm_regulator_get(&dsi->dev, "vspn3v3");
-	if (IS_ERR(md->vspn3v3))
-		return dev_err_probe(&dsi->dev, PTR_ERR(md->vspn3v3),
-				"Failed to request vspn3v3 regulator\n");
+	md->vspn3v3 =  devm_regulator_get_optional(&dsi->dev, "vspn3v3");
+	if (IS_ERR(md->vspn3v3)) {
+		if (PTR_ERR(md->vspn3v3) == -ENODEV) {
+			DBG_FUNC("%s: vspn3v3 regulator not defined, continue without it\n", __func__);
+			md->vspn3v3 = NULL;
+		} else {
+			return dev_err_probe(&dsi->dev, PTR_ERR(md->vspn3v3),
+					"Failed to request vspn3v3 regulator\n");
+		}
+	}
 
 	md->backlight_pin = of_get_named_gpio(np,
 	                                 "lt8911,backlight-gpio",
 	                                 0);
 	if (!gpio_is_valid(md->backlight_pin)) {
-		DBG_FUNC("%s: backlight-gpio is invalid\n", __func__);
-		return -EINVAL;
+		DBG_FUNC("%s: backlight-gpio is invalid, continue without it\n", __func__);
+		md->backlight_pin = -EINVAL;
+	} else {
+		ret = devm_gpio_request_one(&dsi->dev,
+		                            md->backlight_pin,
+		                            GPIOF_DIR_OUT, NULL);
+		if (ret) {
+			DBG_FUNC("%s: failed to request backlight gpio\n",
+				__func__);
+			return ret;
+		}
+		gpio_set_value(md->backlight_pin, 0);
+		DBG_FUNC("%s: succeed to init backlight gpio\n", __func__);
 	}
-
-	ret = devm_gpio_request_one(&dsi->dev,
-	                            md->backlight_pin,
-	                            GPIOF_DIR_OUT, NULL);
-	if (ret) {
-		DBG_FUNC("%s: failed to request backlight gpio\n",
-			__func__);
-		return ret;
-	}
-	gpio_set_value(md->backlight_pin, 0);
-	DBG_FUNC("%s: succeed to init backlight gpio\n", __func__);
 
 	md->irq_pin = of_get_named_gpio(np,
 	                           "lt8911,irq-gpio", 0);
 	if (!gpio_is_valid(md->irq_pin)) {
-		DBG_FUNC("%s: irq-gpio is invalid\n", __func__);
-		return -EINVAL;
+		DBG_FUNC("%s: irq-gpio is invalid, continue without it\n", __func__);
+		md->irq_pin = -EINVAL;
+	} else {
+		ret = devm_gpio_request_one(&dsi->dev,
+		                            md->irq_pin,
+		                            GPIOF_DIR_IN, NULL);
+		if (ret) {
+			DBG_FUNC("%s: failed to request irq gpio\n",
+				__func__);
+			return ret;
+		}
+		DBG_FUNC("%s: succeed to init irq gpio\n", __func__);
 	}
-
-	ret = devm_gpio_request_one(&dsi->dev,
-	                            md->irq_pin,
-	                            GPIOF_DIR_IN, NULL);
-	if (ret) {
-		DBG_FUNC("%s: failed to request irq gpio\n",
-			__func__);
-		return ret;
-	}
-	DBG_FUNC("%s: succeed to init irq gpio\n", __func__);
 
 	ret = of_property_read_u32(np, "lt8911,rst-delay-ms",
 	                           &md->rst_delay_ms);
@@ -803,20 +838,20 @@ static int lt8911_parse_dt(struct i2c_mipi_dsi *md)
 	md->reset_pin = of_get_named_gpio(np,
 		                        "lt8911,reset-gpio", 0);
 	if (!gpio_is_valid(md->reset_pin)) {
-		DBG_FUNC("%s: reset-gpio is invalid\n", __func__);
-		return -EINVAL;
+		DBG_FUNC("%s: reset-gpio is invalid, continue without it\n", __func__);
+		md->reset_pin = -EINVAL;
+	} else {
+		ret = devm_gpio_request_one(&dsi->dev,
+		                            md->reset_pin,
+		                            GPIOF_DIR_OUT, NULL);
+		if (ret) {
+			DBG_FUNC("%s: failed to request reset gpio\n",
+				__func__);
+			return ret;
+		}
+		gpio_set_value(md->reset_pin, 0);
+		DBG_FUNC("%s: succeed to init reset gpio\n", __func__);
 	}
-
-	ret = devm_gpio_request_one(&dsi->dev,
-	                            md->reset_pin,
-	                            GPIOF_DIR_OUT, NULL);
-	if (ret) {
-		DBG_FUNC("%s: failed to request reset gpio\n",
-			__func__);
-		return ret;
-	}
-	gpio_set_value(md->reset_pin, 0);
-	DBG_FUNC("%s: succeed to init reset gpio\n", __func__);
 
 	if (of_property_read_u32(np, "lt8911,edp-lane-cnt",
 	                         &md->edp_lane_cnt)) {
@@ -837,20 +872,17 @@ static int lt8911_parse_dt(struct i2c_mipi_dsi *md)
 	 *     6 bit: 262K colors
 	 *     8 bit: 16.7M colors
 	 */
-	if (of_property_read_u32(np, "lt8911,edp-depth",
-	                         &md->edp_depth)) {
+	if (of_property_read_u32(np, "lt8911,edp-depth", &md->edp_depth)) {
 		DBG_FUNC("%s: miss edp-depth property in dts\n",
 			__func__);
 		md->edp_depth = 8;
 	}
-	
+
 	return ret;
 }
 
 static const struct of_device_id i2c_md_of_ids[] = {
-	{
-		.compatible = "i2c,lt8911",
-	},
+	{ .compatible = "i2c,lt8911", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, i2c_md_of_ids);
@@ -868,8 +900,7 @@ static int edpi2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops edpi2c_pm_ops = {
-    SET_LATE_SYSTEM_SLEEP_PM_OPS(edpi2c_suspend,
-				 edpi2c_resume)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(edpi2c_suspend, edpi2c_resume)
 };
 
 #define EDPI2C_PM_OPS &edpi2c_pm_ops
@@ -891,8 +922,6 @@ static struct i2c_driver i2c_md_driver = {
 	.shutdown = i2c_md_shutdown,
 };
 
-module_i2c_driver(i2c_md_driver);
-
 static int lt8911_dsi_probe(struct mipi_dsi_device *dsi)
 {
 	int ret;
@@ -900,21 +929,19 @@ static int lt8911_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx = &g_lt8911_mipi_dsi;
 
-	if(ctx == NULL){
+	if (ctx == NULL)
 		return -ENOMEM;
-	}
 
-	if(ctx->client == NULL){
+	if (ctx->client == NULL)
 		return -EPROBE_DEFER;
-	}
 
 	g_is_std_suspend = false;
-	
+
 	ctx->dsi    = dsi;
 	ctx->desc   = &lt8911_panel_data;
-	ret = lt8911_parse_dt(ctx); 
+	ret = lt8911_parse_dt(ctx);
 	if (ret) {
-		DBG_FUNC("%s: failed to parse device tree\n", __func__);
+		dev_err(&dsi->dev, "%s: failed to parse device tree\n", __func__);
 		return ret;
 	}
 
@@ -927,9 +954,7 @@ static int lt8911_dsi_probe(struct mipi_dsi_device *dsi)
 	//ctx->panel_data->set_dsi(ctx->dsi);
 	drm_panel_init(&ctx->panel, &dsi->dev, &panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_of_backlight(&ctx->panel);
-	if (ret)
-		return ret;
+	drm_panel_of_backlight(&ctx->panel);
 
 	drm_panel_add(&ctx->panel);
 
@@ -940,11 +965,10 @@ static int lt8911_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ret = register_pm_notifier(&ctx->pm_notify);
 	if (ret)
-		DBG_FUNC("register_pm_notifier failed: %d\n", ret);
+		dev_err(&dsi->dev, "register_pm_notifier failed: %d\n", ret);
 
 	ret = mipi_dsi_attach(dsi);
-	if (ret  < 0)
-	{
+	if (ret  < 0) {
 		drm_panel_remove(&ctx->panel);
 	}
 
@@ -959,8 +983,6 @@ static void lt8911_dsi_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	return;
 }
 
 static void lt8911_dsi_shutdown(struct mipi_dsi_device *dsi)
@@ -975,15 +997,47 @@ static const struct of_device_id lt8911_of_match[] = {
 MODULE_DEVICE_TABLE(of, lt8911_of_match);
 
 static struct mipi_dsi_driver lt8911_dsi_driver = {
-	.probe		= lt8911_dsi_probe,
-	.remove		= lt8911_dsi_remove,
-	.shutdown   = lt8911_dsi_shutdown,
-	.driver = {
-		.name		= "panel-lt8911",
+	.probe       = lt8911_dsi_probe,
+	.remove      = lt8911_dsi_remove,
+	.shutdown    = lt8911_dsi_shutdown,
+	.driver      = {
+		.name           = "panel-lt8911",
 		.of_match_table	= lt8911_of_match,
 	},
 };
-module_mipi_dsi_driver(lt8911_dsi_driver);
+
+static int __init lt8911_drivers_init(void)
+{
+	int ret;
+
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI)) {
+		ret = mipi_dsi_driver_register(&lt8911_dsi_driver);
+		if (ret) {
+			pr_err("lt8911: failed to add dsi driver: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = i2c_add_driver(&i2c_md_driver);
+	if (ret) {
+		pr_err("lt8911: failed to add i2c driver: %d\n", ret);
+		if (IS_ENABLED(CONFIG_DRM_MIPI_DSI))
+			mipi_dsi_driver_unregister(&lt8911_dsi_driver);
+	}
+
+	return ret;
+}
+
+static void __exit lt8911_drivers_exit(void)
+{
+	i2c_del_driver(&i2c_md_driver);
+
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI))
+		mipi_dsi_driver_unregister(&lt8911_dsi_driver);
+}
+
+module_init(lt8911_drivers_init);
+module_exit(lt8911_drivers_exit);
 
 MODULE_DESCRIPTION("LT8911 Controller Driver");
 MODULE_LICENSE("GPL v2");

@@ -103,6 +103,7 @@ static int ES7210_CHANNELS_MAX = 1;
 #define RATIO_768  0xC3
 #define RATIO_384  0x03
 #define RATIO_256  0xC1
+#define RATIO_192  0x43
 #define RATIO_128  0x01
 #define RATIO_64  0x41 /* mclk from bclk pin */
 
@@ -291,8 +292,12 @@ static void es7210_tdm_init_ratio(struct es7210_priv *priv)
                                 case SNDRV_PCM_FORMAT_S16_LE:
                                         width = 16;
                                         break;
+                                case SNDRV_PCM_FORMAT_S24_LE:
                                 case SNDRV_PCM_FORMAT_S32_LE:
                                         width = 32;
+                                        break;
+                                default:
+                                        break;
                         }
                         break;
                 case ES7210_NORMAL_I2S:
@@ -312,6 +317,9 @@ static void es7210_tdm_init_ratio(struct es7210_priv *priv)
                         break;
                 case 128:
                         priv->mclk_lrck_ratio = RATIO_128;
+                        break;
+                case 192:
+                        priv->mclk_lrck_ratio = RATIO_192;
                         break;
                 case 256:
                         priv->mclk_lrck_ratio = RATIO_256;
@@ -781,6 +789,11 @@ static int es7210_pcm_hw_params(struct snd_pcm_substream *substream,
                                            i2c_clt1[i]);
                         break;
                 case SNDRV_PCM_FORMAT_S24_LE:
+                        if (priv->tdm_mode == ES7210_TDM_1LRCK_DSPB)
+                                es7210_update_bits(0x11, 0xE0, 0x80, i2c_clt1[i]);
+                        else if (priv->tdm_mode == ES7210_NORMAL_I2S)
+                                es7210_update_bits(0x11, 0xE0, 0x00, i2c_clt1[i]);
+                        break;
                 case SNDRV_PCM_FORMAT_S24_3LE:
                         es7210_update_bits(0x11, 0xE0, 0x00,
                                            i2c_clt1[i]);

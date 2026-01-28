@@ -14,6 +14,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -319,7 +320,7 @@ static void vs_dc_dump_disable(struct device *dev)
 
 static void vs_dc_set_display_path(struct device *dev, struct drm_atomic_state *state, struct vs_dc *dc, struct drm_crtc *crtc)
 {
-    int i = 0;  
+    int i = 0;
     struct drm_connector *connector;
     struct drm_connector_state *conn_state;
     struct clk *clk = dc->pixclk[crtc->index];
@@ -339,7 +340,7 @@ static void vs_dc_set_display_path(struct device *dev, struct drm_atomic_state *
                 clk_set_parent(dc->dptx_pixclk, clk);
                 break;
             default:
-                dev_err(dev, "invalid connector type:%d\n", connector->connector_type);                
+                dev_err(dev, "invalid connector type:%d\n", connector->connector_type);
         }
     }
 }
@@ -347,6 +348,12 @@ static void vs_dc_set_display_path(struct device *dev, struct drm_atomic_state *
 static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
     struct vs_dc *dc = dev_get_drvdata(dev);
+
+#ifdef CONFIG_ZHIHE_AUXDISP
+    struct drm_device *drm_dev = crtc->dev;
+    struct vs_drm_private *priv = drm_dev->dev_private;
+#endif
+
     struct vs_crtc_state *crtc_state = to_vs_crtc_state(crtc->state);
     struct drm_display_mode *mode = &crtc->state->adjusted_mode;
     struct dc_hw_display display;
@@ -380,12 +387,12 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc, struct drm_a
     display.enable = true;
 
     if (dc->pix_clk_rate[display.id] != mode->clock) {
-	    clk_set_rate(dc->pixclk[display.id], mode->clock * 1000);
+        clk_set_rate(dc->pixclk[display.id], mode->clock * 1000);
         dc->pix_clk_rate[display.id] = mode->clock;
     }
 
     if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI ||
-	crtc_state->encoder_type == DRM_MODE_ENCODER_DPI)
+            crtc_state->encoder_type == DRM_MODE_ENCODER_DPI)
         dc_hw_set_out(&dc->hw, OUT_DPI, display.id);
     else
         dc_hw_set_out(&dc->hw, OUT_DP, display.id);
@@ -402,6 +409,12 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc, struct drm_a
     if (dc->is_zhihe_a210)
         vs_dc_set_display_path(dev, state, dc, crtc);
 
+#ifdef CONFIG_ZHIHE_AUXDISP
+    if (priv->auxdisp_clk_held_for_dc && priv->auxdisp_dev) {
+        priv->auxdisp_clk_held_for_dc = false;
+        pm_runtime_put(priv->auxdisp_dev);
+    }
+#endif
 }
 
 static void vs_dc_disable(struct device *dev, struct drm_crtc *crtc)
@@ -425,8 +438,8 @@ static bool vs_dc_mode_fixup(struct device *dev,
     long clk_rate;
 
     if (unlikely(id >= DC_DISPLAY_NUM)) {
-	dev_err(dev, "invalid display id : %d\n", id);
-	return false;
+        dev_err(dev, "invalid display id : %d\n", id);
+        return false;
     }
 
     if (dc->pixclk[id]) {
@@ -438,13 +451,31 @@ static bool vs_dc_mode_fixup(struct device *dev,
     return true;
 }
 
+static bool crtc_is_dsi(struct drm_crtc *crtc)
+{
+    struct drm_device *drm = crtc->dev;
+    struct drm_encoder *encoder;
+
+    drm_for_each_encoder(encoder, drm) {
+        if (!drm_encoder_crtc_ok(encoder, crtc))
+            continue;
+
+        if (encoder->encoder_type == DRM_MODE_ENCODER_DSI)
+            return true;
+    }
+
+    return false;
+}
+
 static enum drm_mode_status vs_dc_mode_valid(struct device *dev,
                      struct drm_crtc *crtc,
                      const struct drm_display_mode *mode)
 {
+    #define PIXCLK_ERR_BP 25 //diff 0.25%
     struct vs_dc *dc = dev_get_drvdata(dev);
     int id = to_vs_display_id(dc, crtc);
-    long clk_rate, request_rate;
+    unsigned long clk_rate, request_rate;
+    unsigned long diff, bp;
 
     if (unlikely(id >= DC_DISPLAY_NUM))
         return MODE_BAD;
@@ -456,11 +487,20 @@ static enum drm_mode_status vs_dc_mode_valid(struct device *dev,
     clk_rate = clk_round_rate(dc->pixclk[id], request_rate);
 
     /*
-     * If the clock rate difference is more than 100, the mode is
+     *Range checking for DSI devices is delegated to the DSI subsystem.
+     */
+    if (crtc_is_dsi(crtc)) {
+        return MODE_OK;
+    }
+
+    /*
+     * If the clock rate difference is more than 0.25%, the mode is
      * considered unsupported by the CRTC hardware.
      * refer to dw_hdmi_tx_phy_gen2_configure() function
      */
-    if (abs(clk_rate - request_rate) > 100)
+    diff = clk_rate > request_rate ? clk_rate - request_rate : request_rate - clk_rate;
+    bp = diff * 10000ULL / request_rate;
+    if (bp > PIXCLK_ERR_BP)
         return MODE_CLOCK_RANGE;
 
     return MODE_OK;
@@ -493,9 +533,7 @@ static void vs_dc_enable_gamma(struct device *dev, struct drm_crtc *crtc,
                  bool enable)
 {
     struct vs_dc *dc = dev_get_drvdata(dev);
-    u8 id;
-
-    id = to_vs_display_id(dc, crtc);
+    u8 id = to_vs_display_id(dc, crtc);
     dc_hw_enable_gamma(&dc->hw, id, enable);
 }
 
@@ -917,9 +955,9 @@ static int vs_dc_check_plane(struct device *dev, struct vs_plane *plane,
 
     /* 90/270 degree rotation requires non-linear fb */
     if ((state->rotation == DRM_MODE_ROTATE_90 ||
-	state->rotation == DRM_MODE_ROTATE_270) &&
-	(fb->modifier & DRM_FORMAT_MOD_LINEAR) == DRM_FORMAT_MOD_LINEAR)
-	return -EINVAL;
+        state->rotation == DRM_MODE_ROTATE_270) &&
+        (fb->modifier & DRM_FORMAT_MOD_LINEAR) == DRM_FORMAT_MOD_LINEAR)
+        return -EINVAL;
 
     return drm_atomic_helper_check_plane_state(state, crtc_state,
                           plane_info->min_scale,
@@ -936,13 +974,13 @@ static irqreturn_t dc_isr(int irq, void *data)
     intr_vec = dc_hw_get_interrupt(&dc->hw);
 
     for (i = 0; i < dc_info->panel_num; i++) {
-	if (intr_vec & BIT(i))
-	    vs_crtc_handle_vblank(&dc->crtc[i]->base,
-			dc_hw_check_underflow(&dc->hw));
+        if (intr_vec & BIT(i))
+            vs_crtc_handle_vblank(&dc->crtc[i]->base,
+                dc_hw_check_underflow(&dc->hw));
     }
 
     if (intr_vec & ~0x3)
-	pr_warn("%s: unhandled interrupt %#x\n", __func__, intr_vec);
+        pr_warn("%s: unhandled interrupt %#x\n", __func__, intr_vec);
 
     return IRQ_HANDLED;
 }
@@ -991,7 +1029,7 @@ static const struct vs_dc_funcs dc_funcs = {
 static int dc_bind(struct device *dev, struct device *master, void *data)
 {
     struct drm_device *drm_dev = data;
-#ifdef CONFIG_VERISILICON_MMU
+#if defined(CONFIG_VERISILICON_MMU) || defined(CONFIG_ZHIHE_AUXDISP)
     struct vs_drm_private *priv = drm_dev->dev_private;
 #endif
     struct vs_dc *dc = dev_get_drvdata(dev);
@@ -1008,6 +1046,12 @@ static int dc_bind(struct device *dev, struct device *master, void *data)
         dev_err(dev, "devices are not created.\n");
         return -ENODEV;
     }
+
+#ifdef CONFIG_ZHIHE_AUXDISP
+    /* 注册 DC8200 设备到共享状态，用于 AuxDisp 切换协调 */
+    priv->dc_dev = dev;
+    dev_info(dev, "DC8200: Registered device for AuxDisp coordination\n");
+#endif
 
     ret = dc_init(dev);
     if (ret < 0) {
@@ -1147,35 +1191,33 @@ const struct component_ops dc_component_ops = {
 };
 
 static const struct of_device_id dc_driver_dt_match[] = {
-    { .compatible = "verisilicon,dc8200", },
+    { .compatible = VS_DC8200_COMPATIBLE },
     {},
 };
 MODULE_DEVICE_TABLE(of, dc_driver_dt_match);
 
 static void dc_get_display_pll(struct device *dev, struct vs_dc *dc)
 {
-	struct device_node *child;
-	u32 reg;
+    struct device_node *child;
+    u32 reg;
 
-	dc->dpu0pll_on = 0;
-	dc->dpu1pll_on = 0;
+    dc->dpu0pll_on = 0;
+    dc->dpu1pll_on = 0;
 
-	for_each_child_of_node(dev->of_node, child) {
-		if (!child->name || strcmp(child->name, "port") != 0)
-			continue;
+    for_each_child_of_node(dev->of_node, child) {
+        if (!child->name || strcmp(child->name, "port") != 0)
+            continue;
 
-		if (of_property_read_u32(child, "reg", &reg)) {
-			continue;
-		}
+        if (of_property_read_u32(child, "reg", &reg))
+            continue;
 
-		if (reg == 0) {
-			dc->dpu0pll_on = of_device_is_available(child);
-		} else if (reg == 1) {
-			dc->dpu1pll_on = of_device_is_available(child);
-		}
-	}
+        if (reg == 0)
+            dc->dpu0pll_on = of_device_is_available(child);
+        else if (reg == 1)
+            dc->dpu1pll_on = of_device_is_available(child);
+    }
 
-	dev_info(dev, "dpu0pll_on:%d dpu1pll_on:%d\n", dc->dpu0pll_on, dc->dpu1pll_on);
+    dev_info(dev, "dpu0pll_on:%d dpu1pll_on:%d\n", dc->dpu0pll_on, dc->dpu1pll_on);
 }
 
 static int dc_probe(struct platform_device *pdev)
@@ -1310,73 +1352,73 @@ static int dc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int dc_runtime_suspend(struct device *dev)
 {
-	int i;
-	struct vs_dc *dc = dev_get_drvdata(dev);
+    int i;
+    struct vs_dc *dc = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "%s\n", __func__);
-	clk_disable_unprepare(dc->axi_clk);
+    dev_dbg(dev, "%s\n", __func__);
+    clk_disable_unprepare(dc->axi_clk);
 
-	for (i = 0; i < DC_DISPLAY_NUM; i++){
-		clk_disable_unprepare(dc->pix_clk[i]);
+    for (i = 0; i < DC_DISPLAY_NUM; i++){
+        clk_disable_unprepare(dc->pix_clk[i]);
         clk_disable_unprepare(dc->pixclk[i]);
     }
 
-	clk_disable_unprepare(dc->core_clk);
+    clk_disable_unprepare(dc->core_clk);
 
-	clk_disable_unprepare(dc->cfg_clk);
+    clk_disable_unprepare(dc->cfg_clk);
 
-	if (dc->dpu0pll_on)
-		clk_disable_unprepare(dc->dpu0pll_clk);
-	if (dc->dpu1pll_on)
-		clk_disable_unprepare(dc->dpu1pll_clk);
+    if (dc->dpu0pll_on)
+        clk_disable_unprepare(dc->dpu0pll_clk);
+    if (dc->dpu1pll_on)
+        clk_disable_unprepare(dc->dpu1pll_clk);
 
-	return 0;
+    return 0;
 }
 
 static int dc_runtime_resume(struct device *dev)
 {
-	int i, ret;
-	struct vs_dc *dc = dev_get_drvdata(dev);
+    int i, ret;
+    struct vs_dc *dc = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "%s\n", __func__);
-	if (dc->dpu0pll_on)
-		clk_prepare_enable(dc->dpu0pll_clk);
-	if (dc->dpu1pll_on)
-		clk_prepare_enable(dc->dpu1pll_clk);
+    dev_dbg(dev, "%s\n", __func__);
+    if (dc->dpu0pll_on)
+        clk_prepare_enable(dc->dpu0pll_clk);
+    if (dc->dpu1pll_on)
+        clk_prepare_enable(dc->dpu1pll_clk);
 
-	ret = clk_prepare_enable(dc->cfg_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to prepare/enable cfg_clk\n");
-		return ret;
-	}
+    ret = clk_prepare_enable(dc->cfg_clk);
+    if (ret < 0) {
+        dev_err(dev, "failed to prepare/enable cfg_clk\n");
+        return ret;
+    }
 
-	ret = clk_prepare_enable(dc->core_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to prepare/enable core_clk\n");
-		return ret;
-	}
+    ret = clk_prepare_enable(dc->core_clk);
+    if (ret < 0) {
+        dev_err(dev, "failed to prepare/enable core_clk\n");
+        return ret;
+    }
 
-	for (i = 0; i < DC_DISPLAY_NUM; i++) {
-		ret = clk_prepare_enable(dc->pix_clk[i]);
+    for (i = 0; i < DC_DISPLAY_NUM; i++) {
+        ret = clk_prepare_enable(dc->pix_clk[i]);
         if (ret < 0) {
-			dev_err(dev, "failed to prepare/enable pix_clk %d\n", i);
-			return ret;
-		}
+            dev_err(dev, "failed to prepare/enable pix_clk %d\n", i);
+            return ret;
+        }
 
         ret = clk_prepare_enable(dc->pixclk[i]);
-		if (ret < 0) {
-			dev_err(dev, "failed to prepare/enable pixclk %d\n", i);
-			return ret;
-		}
-	}
+        if (ret < 0) {
+            dev_err(dev, "failed to prepare/enable pixclk %d\n", i);
+            return ret;
+        }
+    }
 
-	ret = clk_prepare_enable(dc->axi_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to prepare/enable axi_clk\n");
-		return ret;
-	}
+    ret = clk_prepare_enable(dc->axi_clk);
+    if (ret < 0) {
+        dev_err(dev, "failed to prepare/enable axi_clk\n");
+        return ret;
+    }
 
-	return 0;
+    return 0;
 }
 #endif
 #ifdef CONFIG_PM_SLEEP
@@ -1384,7 +1426,7 @@ static int dc_runtime_resume(struct device *dev)
 static int dc_suspend(struct device *dev)
 {
     int i;
-	struct vs_dc *dc = dev_get_drvdata(dev);
+    struct vs_dc *dc = dev_get_drvdata(dev);
 
     for (i = 0; i < DC_DISPLAY_NUM; i++){
         dc->pix_clk_rate[i] = dc->def_pix_clk_rate[i];
@@ -1415,8 +1457,9 @@ static int dc_resume(struct device *dev)
 
 #endif
 static const struct dev_pm_ops dc_pm_ops = {
-    SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				 pm_runtime_force_resume)
+    SET_LATE_SYSTEM_SLEEP_PM_OPS(
+        pm_runtime_force_suspend,
+        pm_runtime_force_resume)
     SET_RUNTIME_PM_OPS(dc_runtime_suspend, dc_runtime_resume, NULL)
     #ifdef CONFIG_PM_SLEEP
         SET_LATE_SYSTEM_SLEEP_PM_OPS(dc_suspend, dc_resume)

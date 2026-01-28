@@ -206,7 +206,7 @@ int zhihe_dwmac_clk_enable(struct platform_device *pdev, void *bsp_priv)
 
 int zhihe_dwmac_clk_init(struct platform_device *pdev, void *bsp_priv)
 {
-	struct zhihe_dwmac_priv_data *zhihe_plat_dat = bsp_priv; 
+	struct zhihe_dwmac_priv_data *zhihe_plat_dat = bsp_priv;
 	struct device *dev = &pdev->dev;
 	int ret = 0;
 	unsigned int reg = 0;
@@ -475,7 +475,7 @@ static struct zhihe_dwmac_ops zhihe_dwmac_data = {
 };
 
 static const struct of_device_id zhihe_dwmac_match[] = {
-	{ .compatible = "zhihe,p100-dwmac", .data = &zhihe_dwmac_data },
+	{ .compatible = "zhihe,a210-dwmac", .data = &zhihe_dwmac_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, zhihe_dwmac_match);
