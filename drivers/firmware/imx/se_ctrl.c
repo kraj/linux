@@ -65,6 +65,7 @@ struct se_fw_load_info {
 	struct se_fw_img_name se_fw_img_nm;
 	bool is_fw_loaded;
 	bool imem_mgmt;
+	struct mutex inprogress;
 	struct se_imem_buf imem;
 };
 
@@ -898,7 +899,12 @@ static int se_load_firmware(struct se_if_priv *priv)
 	u8 *se_fw_buf;
 	int ret;
 
-	if (!load_fw || load_fw->is_fw_loaded)
+	if (!load_fw)
+		return 0;
+
+	guard(mutex)(&load_fw->inprogress);
+
+	if (load_fw->is_fw_loaded)
 		return 0;
 
 	se_img_file_to_load = load_fw->se_fw_img_nm.secn_fw.fw_name;
@@ -2275,6 +2281,7 @@ static int se_if_probe(struct platform_device *pdev)
 		if (load_fw) {
 			load_fw->is_fw_loaded = runtime_fw_status(priv);
 
+			mutex_init(&load_fw->inprogress);
 			if (load_fw->se_fw_img_nm.prim_fw.is_fw_name_valid) {
 				/* allocate buffer where SE store encrypted IMEM */
 				load_fw->imem.buf = dmam_alloc_coherent(priv->dev,
