@@ -959,8 +959,6 @@ static int se_load_firmware(struct se_if_priv *priv)
 		dev_err(priv->dev, "Failed to fetch FW version");
 
 	if (!ret) {
-		load_fw->is_fw_loaded = true;
-
 		/* ELE INIT FW not to be sent for SoC: i.MX8ULP and i.MX8DXL. */
 		if (get_se_soc_id(priv) != SOC_ID_OF_IMX8ULP &&
 		    get_se_soc_id(priv) != SOC_ID_OF_IMX8DXL) {
@@ -970,6 +968,10 @@ static int se_load_firmware(struct se_if_priv *priv)
 				ret = -EPERM;
 			}
 		}
+		/* FW-version API(s) are mandated to be exchanged with FW,
+		 * only after ele-init-fw().
+		 */
+		load_fw->is_fw_loaded = true;
 	}
 exit:
 	return ret;
