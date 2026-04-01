@@ -1895,6 +1895,7 @@
 	#io-channel-cells = <1>;
 	sampling-frequency = <1000000>;
 	resolution = <12>;
+	fclk-div = <2>;
 	status = "okay";
 };
 

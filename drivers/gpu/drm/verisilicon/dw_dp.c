@@ -25,6 +25,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/extcon-provider.h>
+#include <linux/extcon.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
@@ -47,9 +48,6 @@
 #include <sound/hdmi-codec.h>
 
 #include <uapi/linux/videodev2.h>
-#define NO_PHY 1
-#define MAX_FREQ 540000
-#define LANES_NUM 4
 
 #define RK_IF_PROP_COLOR_DEPTH	"color_depth"
 #define RK_IF_PROP_COLOR_FORMAT		"color_format"
@@ -561,7 +559,9 @@ struct dw_dp {
 	bool force_hpd;
 	struct dw_dp_hotplug hotplug;
 	struct mutex irq_lock;
-	struct extcon_dev *extcon;
+	struct extcon_dev *extcon;		/* Extcon provider for audio/userspace */
+	struct extcon_dev *phy_extcon;		/* Extcon consumer from PHY */
+	struct notifier_block phy_extcon_nb;	/* Notifier for PHY extcon events */
 
 	struct drm_bridge bridge;
 	struct drm_connector connector;
@@ -695,15 +695,6 @@ static const struct dw_dp_output_format possible_output_fmts[] = {
 	{ MEDIA_BUS_FMT_RGB666_1X24_CPADHI, DRM_COLOR_FORMAT_RGB444,
 	  DPTX_VM_RGB_6BIT, 6, 18 },
 };
-
-static unsigned long g_init_threshold = 0;
-static unsigned long g_freqs = 0;
-//void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
-//{
-//	mutex_lock(&rockchip_drm_sub_dev_lock);
-//	list_add_tail(&sub_dev->list, &rockchip_drm_sub_dev_list);
-//	mutex_unlock(&rockchip_drm_sub_dev_lock);
-//}
 
 uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 			struct device_node *port)
@@ -884,7 +875,7 @@ static int dw_dp_hdcp2_auth_check(struct dw_dp *dp)
 
 	dp->hdcp.hdcp2_encrypted = true;
 
-	dev_err(dp->dev, "HDCP2 authentication succeed\n");
+	dev_dbg(dp->dev, "HDCP2 authentication succeed\n");
 
 	return ret;
 }
@@ -961,7 +952,7 @@ static int __maybe_unused dw_dp_hdcp_auth_check(struct dw_dp *dp)
 	} else {
 		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_ENGAGED);
 		dp->hdcp.hdcp_encrypted = true;
-		dev_err(dp->dev, "HDCP authentication succeed\n");
+		dev_dbg(dp->dev, "HDCP authentication succeed\n");
 	}
 
 	return ret;
@@ -1611,7 +1602,7 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	dp_old_state = connector_to_dp_state(old_state);
 	dp_new_state = connector_to_dp_state(new_state);
 
-	//dw_dp_hdcp_atomic_check(conn, state);
+	dw_dp_hdcp_atomic_check(conn, state);
 
 	if (!new_state->crtc)
 		return 0;
@@ -1636,7 +1627,7 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	if ((dp_old_state->bpc != dp_new_state->bpc) ||
 	    (dp_old_state->color_format != dp_new_state->color_format)) {
 		if ((dp_old_state->bpc == 0) && (dp_new_state->bpc == 0))
-			dev_err(dp->dev, "still auto set color mode\n");
+			dev_dbg(dp->dev, "still auto set color mode\n");
 		else
 			crtc_state->mode_changed = true;
 	}
@@ -1758,18 +1749,12 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 			!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
 
 	link->revision = link->dpcd[DP_DPCD_REV];
-#if NO_PHY
-	//link->rate = MAX_FREQ;
-	//link->lanes = LANES_NUM;
-	link->rate = drm_dp_max_link_rate(link->dpcd);
-	link->lanes = min_t(u8, LANES_NUM, drm_dp_max_lane_count(link->dpcd));
-#else
 	link->rate = min_t(u32, min(dp->max_link_rate, dp->phy->attrs.max_link_rate * 100),
 			   drm_dp_max_link_rate(link->dpcd));
 
 	link->lanes = min_t(u8, phy_get_bus_width(dp->phy),
 			    drm_dp_max_lane_count(link->dpcd));
-#endif
+
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(link->dpcd);
 	link->caps.tps3_supported = drm_dp_tps3_supported(link->dpcd);
 	link->caps.tps4_supported = drm_dp_tps4_supported(link->dpcd);
@@ -1786,9 +1771,7 @@ static int dw_dphy_set_voltage_pre_level(struct dw_dp *dp, int lane_id, int leve
 static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigned int lanes,
 				    struct drm_dp_link_train_set *train_set)
 {
-#if !NO_PHY
 	union phy_configure_opts phy_cfg;
-#endif
 	unsigned int *vs, *pe;
 	u8 buf[4];
 	int i, ret;
@@ -1796,19 +1779,11 @@ static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigne
 	vs = train_set->voltage_swing;
 	pe = train_set->pre_emphasis;
 
-//	unsigned int phy_ctl_val;
-//	regmap_read(dp->regmap, DPTX_PHYIF_CTRL, &phy_ctl_val);
-//	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
-//			   FIELD_PREP(PHY_POWERDOWN, 0x3));
-//
 	for (i = 0; i < lanes; i++) {
 		dw_dphy_set_voltage_sw_level(dp, i, vs[i]);
 		dw_dphy_set_voltage_pre_level(dp, i, pe[i]);
 	}
 
-//	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
-//			   FIELD_PREP(PHY_POWERDOWN, 0x0));
-#if !NO_PHY
 	for (i = 0; i < lanes; i++) {
 		phy_cfg.dp.voltage[i] = vs[i];
 		phy_cfg.dp.pre[i] = pe[i];
@@ -1821,9 +1796,9 @@ static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigne
 	phy_cfg.dp.set_voltages = true;
 
 	ret = phy_configure(dp->phy, &phy_cfg);
-	if (ret)
+	if (ret) {
 		return ret;
-#endif
+	}
 
 	for (i = 0; i < lanes; i++) {
 		buf[i] = (vs[i] << DP_TRAIN_VOLTAGE_SWING_SHIFT) |
@@ -1866,7 +1841,7 @@ static int dw_dphy_set_rate(struct dw_dp *dp, unsigned int rate)
 		val = 3;
 		break;
 	default:
-		dev_err(dp->dev, "%s, %d, Error, dp unsopport rate %u\n", __func__, __LINE__, rate);
+		dev_err(dp->dev, "Error, dp unsopport rate %u\n", rate);
 		return -1;
 	}
 
@@ -1877,7 +1852,6 @@ static int dw_dphy_set_rate(struct dw_dp *dp, unsigned int rate)
 static int dw_dphy_set_voltage_sw_level(struct dw_dp *dp, int lane_id, int level)
 {
 	if (level < 0 || level > 3) {
-		dev_err(dp->dev, "%s, %d, Error, dp sw unsopport level %d\n", __func__, __LINE__, level);
 		return -1;
 	}
 
@@ -1897,7 +1871,7 @@ static int dw_dphy_set_voltage_sw_level(struct dw_dp *dp, int lane_id, int level
 static int dw_dphy_set_voltage_pre_level(struct dw_dp *dp, int lane_id, int level)
 {
 	if (level < 0 || level > 3) {
-		dev_err(dp->dev, "%s, %d, Error, dp pre unsopport level%d\n", __func__, __LINE__, level);
+		dev_err(dp->dev, "Error, dp pre unsopport level%d\n", level);
 		return -1;
 	}
 
@@ -1918,25 +1892,11 @@ static int dw_dp_phy_configure(struct dw_dp *dp, unsigned int rate,
 			       unsigned int lanes, bool ssc)
 {
 	/* Move PHY to P3 */
-	unsigned int phy_ctl_val = 0, count = 10;
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
 			   FIELD_PREP(PHY_POWERDOWN, 0x3));
 
-	regmap_read(dp->regmap, DPTX_PHYIF_CTRL, &phy_ctl_val);
-	while((PHY_BUSY & phy_ctl_val) && count) {
-		regmap_read(dp->regmap, DPTX_PHYIF_CTRL, &phy_ctl_val);
-		count--;
-		dev_dbg(dp->dev, "dp wait phy busy 0x%lx\n", (PHY_BUSY & phy_ctl_val));
-		udelay(100);
-	}
-
-	if (PHY_BUSY & phy_ctl_val) {
-		dev_err(dp->dev, "%s, %d, Error, phy is busy\n", __func__, __LINE__);
-	}
-
 	dw_dphy_set_rate(dp, rate);
 
-#if !NO_PHY
 	union phy_configure_opts phy_cfg;
 	int ret;
 	phy_cfg.dp.lanes = lanes;
@@ -1948,7 +1908,6 @@ static int dw_dp_phy_configure(struct dw_dp *dp, unsigned int rate,
 	ret = phy_configure(dp->phy, &phy_cfg);
 	if (ret)
 		return ret;
-#endif
 
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_LANES,
 			   FIELD_PREP(PHY_LANES, lanes / 2));
@@ -2065,7 +2024,6 @@ static int dw_dp_link_train_set_pattern(struct dw_dp *dp, u32 pattern)
 	ret = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
 				 buf | pattern);
 	if (ret < 0) {
-		dev_err(dp->dev, "%s, %d, dpct write error %d\n", __func__, __LINE__, ret);
 		return ret;
 	}
 
@@ -2237,6 +2195,7 @@ static int dw_dp_link_downgrade(struct dw_dp *dp)
 {
 	struct dw_dp_link *link = &dp->link;
 	struct dw_dp_video *video = &dp->video;
+	u32 rate = link->rate;
 
 	switch (link->rate) {
 	case 162000:
@@ -2252,9 +2211,11 @@ static int dw_dp_link_downgrade(struct dw_dp *dp)
 		break;
 	}
 
+	/*If the downgrade fails, retry using the previous rate. */
 	if (!dw_dp_bandwidth_ok(dp, &video->mode, video->bpp, link->lanes,
-				link->rate))
-		return -E2BIG;
+				link->rate)) {
+		link->rate = rate;
+	}
 
 	return 0;
 }
@@ -2266,6 +2227,10 @@ static int dw_dp_link_train_full(struct dw_dp *dp)
 
 retry:
 	dw_dp_link_train_init(&link->train);
+
+	dev_dbg(dp->dev, "full-training link: %u lane%s at %u MHz\n",
+		 link->lanes, (link->lanes > 1) ? "s" : "", link->rate / 100);
+
 	ret = dw_dp_link_configure(dp);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to configure DP link: %d\n", ret);
@@ -2279,11 +2244,10 @@ retry:
 	}
 
 	if (!link->train.clock_recovered) {
-		dev_err(dp->dev, "clock recovery failed, downgrading link\n");
+		dev_info(dp->dev, "clock recovery failed, downgrading link, retry\n");
 
 		ret = dw_dp_link_downgrade(dp);
 		if (ret < 0) {
-			dev_err(dp->dev, "downgrade failed, goto out\n");
 			goto out;
 		} else
 			goto retry;
@@ -2317,6 +2281,9 @@ static int dw_dp_link_train_fast(struct dw_dp *dp)
 	int ret;
 
 	dw_dp_link_train_init(&link->train);
+
+	dev_dbg(dp->dev, "fast-training link: %u lane%s at %u MHz\n",
+		 link->lanes, (link->lanes > 1) ? "s" : "", link->rate / 100);
 
 	ret = dw_dp_link_configure(dp);
 	if (ret < 0) {
@@ -2664,12 +2631,11 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	u8 color_format = video->color_format;
 	u8 bpc = video->bpc;
 	u8 pixel_mode = video->pixel_mode;
-	u8 bpp = video->bpp, vic;
-	u32 init_threshold;
+	u8 bpp = video->bpp, init_threshold, vic;
 	u32 hactive, hblank, h_sync_width, h_front_porch;
 	u32 vactive, vblank, v_sync_width, v_front_porch;
-	u32 vstart = mode->vsync_end- mode->vdisplay;
-	u32 hstart = mode->hsync_end- mode->hdisplay;
+	u32 vstart = mode->vtotal - mode->vsync_start;
+	u32 hstart = mode->htotal - mode->hsync_start;
 	u32 peak_stream_bandwidth, link_bandwidth;
 	u32 average_bytes_per_tu, average_bytes_per_tu_frac;
 	u32 ts, hblank_interval;
@@ -2696,7 +2662,6 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	regmap_write(dp->regmap, DPTX_VINPUT_POLARITY_CTRL, value);
 
 	/* Configure DPTX_VIDEO_CONFIG1 register */
-
 	hactive = mode->hdisplay;
 	hblank = mode->htotal - mode->hdisplay;
 	value = FIELD_PREP(HACTIVE, hactive) | FIELD_PREP(HBLANK, hblank);
@@ -2716,7 +2681,6 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	/* Configure DPTX_VIDEO_CONFIG2 register */
 	vblank = mode->vtotal - mode->vdisplay;
 	vactive = mode->vdisplay;
-
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG2,
 		     FIELD_PREP(VBLANK, vblank) | FIELD_PREP(VACTIVE, vactive));
 
@@ -2733,16 +2697,15 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG4,
 		     FIELD_PREP(V_SYNC_WIDTH, v_sync_width) |
 		     FIELD_PREP(V_FRONT_PORCH, v_front_porch));
+
 	/* Configure DPTX_VIDEO_CONFIG5 register */
 	peak_stream_bandwidth = mode->clock * bpp / 8;
 	link_bandwidth = (link->rate / 1000) * link->lanes;
 	ts = peak_stream_bandwidth * 64 / link_bandwidth;
 	average_bytes_per_tu = ts / 1000;
-	average_bytes_per_tu_frac = ts - average_bytes_per_tu * 1000;
-	average_bytes_per_tu_frac = average_bytes_per_tu_frac / 100;
-
+	average_bytes_per_tu_frac = ts / 100 - average_bytes_per_tu * 10;
 	if (pixel_mode == DPTX_MP_SINGLE_PIXEL) {
-		if (average_bytes_per_tu < 16)
+		if (average_bytes_per_tu < 6)
 			init_threshold = 32;
 		else if (hblank <= 80 && color_format != DRM_COLOR_FORMAT_YCBCR420)
 			init_threshold = 12;
@@ -2750,13 +2713,64 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 			init_threshold = 3;
 		else
 			init_threshold = 16;
+	} else {
+		u32 t1 = 0, t2 = 0, t3 = 0;
+
+		switch (bpc) {
+		case 6:
+			t1 = (4 * 1000 / 9) * link->lanes;
+			break;
+		case 8:
+			if (color_format == DRM_COLOR_FORMAT_YCBCR422) {
+				t1 = (1000 / 2) * link->lanes;
+			} else {
+				if (pixel_mode == DPTX_MP_DUAL_PIXEL)
+					t1 = (1000 / 3) * link->lanes;
+				else
+					t1 = (3000 / 16) * link->lanes;
+			}
+			break;
+		case 10:
+			if (color_format == DRM_COLOR_FORMAT_YCBCR422)
+				t1 = (2000 / 5) * link->lanes;
+			else
+				t1 = (4000 / 15) * link->lanes;
+			break;
+		case 12:
+			if (color_format == DRM_COLOR_FORMAT_YCBCR422) {
+				if (pixel_mode == DPTX_MP_DUAL_PIXEL)
+					t1 = (1000 / 6) * link->lanes;
+				else
+					t1 = (1000 / 3) * link->lanes;
+			} else {
+				t1 = (2000 / 9) * link->lanes;
+			}
+			break;
+		case 16:
+			if (color_format != DRM_COLOR_FORMAT_YCBCR422 &&
+			    pixel_mode == DPTX_MP_DUAL_PIXEL)
+				t1 = (1000 / 6) * link->lanes;
+			else
+				t1 = (1000 / 4) * link->lanes;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (color_format == DRM_COLOR_FORMAT_YCBCR420)
+			t2 = (link->rate / 4) * 1000 / (mode->clock / 2);
+		else
+			t2 = (link->rate / 4) * 1000 / mode->clock;
+
+		if (average_bytes_per_tu_frac)
+			t3 = average_bytes_per_tu + 1;
+		else
+			t3 = average_bytes_per_tu;
+		init_threshold = t1 * t2 * t3 / (1000 * 1000);
+		if (init_threshold <= 16 || average_bytes_per_tu < 10)
+			init_threshold = 40;
 	}
 
-	if (g_init_threshold) {
-		init_threshold = g_init_threshold;
-	}
-
-	average_bytes_per_tu_frac &= 0xf;
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG5,
 		     FIELD_PREP(INIT_THRESHOLD_HI, init_threshold >> 6) |
 		     FIELD_PREP(AVERAGE_BYTES_PER_TU_FRAC, average_bytes_per_tu_frac) |
@@ -2766,6 +2780,7 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	/* Configure DPTX_VIDEO_HBLANK_INTERVAL register */
 	hblank_interval = hblank * (link->rate / 4) / mode->clock;
 	regmap_write(dp->regmap, DPTX_VIDEO_HBLANK_INTERVAL,
+		     FIELD_PREP(HBLANK_INTERVAL_EN, 1) |
 		     FIELD_PREP(HBLANK_INTERVAL, hblank_interval));
 
 	/* Video stream enable */
@@ -2807,6 +2822,63 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+/*
+  ┌────────────────────┬───────────┬─────────┬────────────────┐
+  │      Scenario      │ HPD_STATE │ IRQ_HPD │ DP Host Action │
+  ├────────────────────┼───────────┼─────────┼────────────────┤
+  │ Display insertion  │ 0→1       │ 0       │ Long HPD       │
+  ├────────────────────┼───────────┼─────────┼────────────────┤
+  │ Display removal    │ 1→0       │ 0       │ Long HPD       │
+  ├────────────────────┼───────────┼─────────┼────────────────┤
+  │ Link status change │ 1         │ 1       │ Short HPD      │
+  ├────────────────────┼───────────┼─────────┼────────────────┤
+  │ EDID update        │ 1         │ 1       │ Short HPD      │
+  ├────────────────────┼───────────┼─────────┼────────────────┤
+  │ Resolution switch  │ 1         │ 1       │ Short HPD      │
+  └────────────────────┴───────────┴─────────┴────────────────┘
+*/
+static int dw_dp_phy_extcon_notifier(struct notifier_block *nb,
+									unsigned long event, void *ptr)
+{
+	struct dw_dp *dp = container_of(nb, struct dw_dp, phy_extcon_nb);
+	bool hpd_state = !!event;
+	bool current_hpd;
+
+	dev_dbg(dp->dev, "PHY extcon HPD notification: %s (event=%lu)\n",
+	         hpd_state ? "connected" : "disconnected", event);
+
+	mutex_lock(&dp->irq_lock);
+
+	/* Get current HPD status */
+	current_hpd = dp->hotplug.status;
+
+	/*
+	 * Distinguish between long HPD and short HPD:
+	 * - If state changes → long HPD (plug/unplug)
+	 * - If state unchanged and state=true → short HPD (IRQ pulse)
+	 */
+	if (current_hpd == hpd_state && hpd_state) {
+		/* State unchanged → short HPD */
+		dp->hotplug.long_hpd = false;
+		dev_dbg(dp->dev, "Short HPD detected (IRQ pulse)\n");
+		if (!current_hpd)
+			return NOTIFY_OK;
+	} else {
+		/* State changed → long HPD */
+		dp->hotplug.long_hpd = true;
+		dp->hotplug.status = hpd_state;
+		dev_dbg(dp->dev, "Long HPD detected: %s\n",
+		         hpd_state ? "plug" : "unplug");
+	}
+
+	mutex_unlock(&dp->irq_lock);
+
+	/* Schedule HPD work queue */
+	schedule_work(&dp->hpd_work);
+
+	return NOTIFY_OK;
+}
+
 static void dw_dp_hpd_init(struct dw_dp *dp)
 {
 	dp->hotplug.status = dw_dp_detect(dp);
@@ -2841,13 +2913,6 @@ static void dw_dp_init(struct dw_dp *dp)
 	regmap_update_bits(dp->regmap, DPTX_CCTL, DEFAULT_FAST_LINK_TRAIN_EN,
 			   FIELD_PREP(DEFAULT_FAST_LINK_TRAIN_EN, 0));
 
-#if 0
-	regmap_update_bits(dp->regmap, DPTX_GENERAL_INTERRUPT_ENABLE,
-			   VIDEO_FIFO_OVERFLOW_STREAM0, FIELD_PREP(VIDEO_FIFO_OVERFLOW_STREAM0, 1));
-
-	regmap_update_bits(dp->regmap, DPTX_GENERAL_INTERRUPT_ENABLE,
-			   VIDEO_FIFO_UNDERFLOW_STREAM0, FIELD_PREP(VIDEO_FIFO_UNDERFLOW_STREAM0, 1));
-#endif
 	dw_dp_hpd_init(dp);
 	dw_dp_aux_init(dp);
 }
@@ -2991,7 +3056,6 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	case DP_AUX_I2C_READ:
 		break;
 	default: {
-		dev_err(dp->dev, "%s, %d, aux error\n", __func__, __LINE__);
 		return -EINVAL;
 		}
 	}
@@ -3114,13 +3178,9 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 			link->rate = 162000;
 			break;
 		}
-#if !NO_PHY
 		phy_power_on(dp->phy);
-#endif
 	} else {
-#if !NO_PHY
 		phy_power_off(dp->phy);
-#endif
 	}
 }
 
@@ -3350,9 +3410,7 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 
 	dw_dp_phy_xmit_enable(dp, 0);
 
-#if !NO_PHY
 	phy_power_off(dp->phy);
-#endif
 
 	link->train.clock_recovered = false;
 	link->train.channel_equalized = false;
@@ -3362,21 +3420,19 @@ static int dw_dp_link_enable(struct dw_dp *dp)
 {
 	int ret;
 
-#if !NO_PHY
 	ret = phy_power_on(dp->phy);
 	if (ret)
 		return ret;
-#endif
 
 	ret = dw_dp_link_power_up(dp);
 	if (ret < 0) {
-		dev_err(dp->dev, "dw_dp_link_power_up failed: %d\n", ret);
+		dev_info(dp->dev, "dw_dp_link_power_up failed: %d\n", ret);
 		return ret;
 	}
 
 	ret = dw_dp_link_train(dp);
 	if (ret < 0) {
-		dev_err(dp->dev, "link training failed: %d\n", ret);
+		dev_info(dp->dev, "link training failed: %d\n", ret);
 		return ret;
 	}
 
@@ -3409,7 +3465,7 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	ret = dw_dp_link_enable(dp);
 	if (ret < 0) {
-		dev_err(dp->dev, "failed to enable link: %d\n", ret);
+		dev_info(dp->dev, "failed to enable link: %d\n", ret);
 		return;
 	}
 
@@ -3473,11 +3529,9 @@ static bool dw_dp_detect_dpcd(struct dw_dp *dp)
 	u8 value;
 	int ret;
 
-#if !NO_PHY
 	ret = phy_power_on(dp->phy);
 	if (ret)
 		goto fail_power_on;
-#endif
 	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPCD_REV, &value);
 	if (ret < 0) {
 		goto fail_probe;
@@ -3489,17 +3543,13 @@ static bool dw_dp_detect_dpcd(struct dw_dp *dp)
 		goto fail_probe;
 	}
 
-#if !NO_PHY
 	phy_power_off(dp->phy);
-#endif
 
 	return true;
 
 fail_probe:
-#if !NO_PHY
 	phy_power_off(dp->phy);
 fail_power_on:
-#endif
 	return false;
 }
 
@@ -3540,17 +3590,13 @@ static struct edid *dw_dp_bridge_get_edid(struct drm_bridge *bridge,
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct edid *edid;
-#if !NO_PHY
 	int ret;
 
 	ret = phy_power_on(dp->phy);
 	if (ret)
 		return NULL;
-#endif
 	edid = drm_get_edid(connector, &dp->aux.ddc);
-#if !NO_PHY
 	phy_power_off(dp->phy);
-#endif
 
 	return edid;
 }
@@ -3928,7 +3974,8 @@ static void dw_dp_hpd_work(struct work_struct *work)
 		if (ret)
 			dev_warn(dp->dev, "Retrain link failed\n");
 	} else {
-		drm_helper_hpd_irq_event(dp->bridge.dev);
+		if (dp->bridge.dev)
+			drm_helper_hpd_irq_event(dp->bridge.dev);
 	}
 }
 
@@ -3972,18 +4019,6 @@ static irqreturn_t dw_dp_irq_handler(int irq, void *data)
 	if (!value)
 		return IRQ_NONE;
 
-#if 0
-	if (value & VIDEO_FIFO_OVERFLOW_STREAM0) {
-		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
-		     VIDEO_FIFO_OVERFLOW_STREAM0);
-	}
-
-	if (value & VIDEO_FIFO_UNDERFLOW_STREAM0) {
-		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
-			VIDEO_FIFO_UNDERFLOW_STREAM0);
-	}
-#endif
-
 	if (value & HPD_EVENT)
 		dw_dp_handle_hpd_event(dp);
 
@@ -3995,8 +4030,6 @@ static irqreturn_t dw_dp_irq_handler(int irq, void *data)
 
 	if (value & HDCP_EVENT)
 		dw_dp_handle_hdcp_event(dp);
-
-
 
 	return IRQ_HANDLED;
 }
@@ -4355,87 +4388,13 @@ static int dw_dp_parse_dt(struct dw_dp *dp)
 	return 0;
 }
 
-static ssize_t dpinit_store(struct device *dev,
-                            struct device_attribute *attr,
-                            const char *buf,
-                            size_t count)
-{
-    char kbuf[64];
-    char *p, *token;
-    unsigned long val;
-    int ret;
-	struct dw_dp *dp = dev_get_drvdata(dev);
-	struct dw_dp_link *link = &dp->link;
-
-
-    /* 简单的长度检查，避免溢出 */
-    if (count == 0)
-        return -EINVAL;
-    if (count >= sizeof(kbuf))
-        return -EINVAL;
-
-    /* buf 是 sysfs 传入的 kernel 空间缓存（已可读），复制并 null 终止以便分词 */
-    memcpy(kbuf, buf, count);
-    kbuf[count] = '\0';
-
-    p = kbuf;
-
-    /* 以空白字符或逗号分隔（支持 "100 4"、"100,4"、"0x64 0x4" 等格式） */
-    token = strsep(&p, " \t\n,");
-    if (!token || *token == '\0') {
-        dev_err(dev, "%s: missing threshold parameter\n", __func__);
-        return -EINVAL;
-    }
-
-    ret = kstrtoul(token, 0, &val); /* base=0 支持 0x 前缀 */
-    if (ret) {
-        dev_err(dev, "%s: invalid threshold '%s'\n", __func__, token);
-        return ret;
-    }
-    g_init_threshold = (unsigned int)val;
-
-    /* 第二个参数可选：lanes */
-    token = strsep(&p, " \t\n,");
-    if (token && *token != '\0') {
-        ret = kstrtoul(token, 0, &val);
-        if (ret) {
-            dev_err(dev, "%s: invalid lanes '%s'\n", __func__, token);
-            return ret;
-        }
-        g_freqs = (unsigned int)val;
-		link->rate = g_freqs;
-    } else {
-        /* 如果未提供 lanes，则保持原值（或你可以改为返回错误以强制要求两个参数） */
-        dev_info(dev, "%s: freq not provided, keep %u\n", __func__, link->rate);
-    }
-
-
-    dev_err(dev, "%s, %d, g_init_threshold = %lu, g_freq = %u\n",
-            __func__, __LINE__, g_init_threshold, link->rate);
-
-    return count;
-}
-
-static DEVICE_ATTR_WO(dpinit);
-
-int dw_dp_create_capabilities_sysfs(struct platform_device *pdev)
-{
-	device_create_file(&pdev->dev, &dev_attr_dpinit);
-	return 0;
-}
-
-int dw_dp_remove_capabilities_sysfs(struct platform_device *pdev)
-{
-	device_remove_file(&pdev->dev, &dev_attr_dpinit);
-	return 0;
-}
-
 static int dw_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_dp *dp;
 	void __iomem *base;
 	int id, ret;
+
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
 		return -ENOMEM;
@@ -4451,7 +4410,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 	ret = dw_dp_parse_dt(dp);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to parse DT\n");
-	dp->force_hpd = 1;
+
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
 	init_completion(&dp->complete);
@@ -4465,12 +4424,10 @@ static int dw_dp_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(dp->regmap),
 				     "failed to create regmap\n");
 
-#if !NO_PHY
 	dp->phy = devm_of_phy_get(dev, dev->of_node, NULL);
 	if (IS_ERR(dp->phy))
 		return dev_err_probe(dev, PTR_ERR(dp->phy),
 				     "failed to get phy\n");
-#endif
 	dp->i2s_clk = devm_clk_get(dev, "i2s");
 	if (IS_ERR(dp->i2s_clk))
 		return dev_err_probe(dev, PTR_ERR(dp->i2s_clk),
@@ -4554,6 +4511,28 @@ static int dw_dp_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "failed to register extcon device\n");
 
+	/* Try to get PHY's extcon for Type-C HPD notification */
+	dp->phy_extcon = extcon_get_edev_by_phandle(dev, 0);
+	if (IS_ERR(dp->phy_extcon)) {
+		if (PTR_ERR(dp->phy_extcon) == -EPROBE_DEFER) {
+			dev_err(dev, "PHY extcon not ready, deferring probe\n");
+			return -EPROBE_DEFER;
+		}
+		/* PHY extcon not available, will use GPIO or internal HPD */
+		dev_info(dev, "No PHY extcon found, using GPIO/internal HPD detection\n");
+		dp->phy_extcon = NULL;
+	} else {
+		/* Register notifier to listen for PHY HPD events */
+		dp->phy_extcon_nb.notifier_call = dw_dp_phy_extcon_notifier;
+		ret = devm_extcon_register_notifier(dev, dp->phy_extcon,
+						    EXTCON_DISP_DP,
+						    &dp->phy_extcon_nb);
+		if (ret) {
+			dev_err(dev, "Failed to register PHY extcon notifier: ret = %d \n", ret);
+			return ret;
+		}
+	}
+
 	//ret = dw_dp_register_audio_driver(dp);
 	//if (ret)
 	//	return ret;
@@ -4592,7 +4571,6 @@ static int dw_dp_probe(struct platform_device *pdev)
 		secondary->split_mode = true;
 	}
 
-	dw_dp_create_capabilities_sysfs(pdev);
 	//dw_dp_hdcp_init(dp);
 
 	return component_add(dev, &dw_dp_component_ops);
@@ -4604,7 +4582,6 @@ static int dw_dp_remove(struct platform_device *pdev)
 
 	component_del(dp->dev, &dw_dp_component_ops);
 	cancel_work_sync(&dp->hpd_work);
-	dw_dp_remove_capabilities_sysfs(pdev);
 
 	return 0;
 }

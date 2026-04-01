@@ -410,10 +410,10 @@
 			pins = "GPIO0_22", "GPIO0_23";
 			function = "i2c2";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	tdm_pins: tdm-0 {
@@ -421,7 +421,7 @@
 			pins = "GPIO0_19", "GPIO0_20", "GPIO0_21";
 			function = "tdm";
 			bias-disable;
-			drive-strength = <15>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
 			slew-rate = <0>;
@@ -432,10 +432,10 @@
 			pins = "GPIO0_24", "GPIO0_25";
 			function = "i2c0";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	can0_pins: can0-0 {
@@ -464,10 +464,10 @@
 			pins = "GPIO0_26", "GPIO0_27";
 			function = "i2c1";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	can1_pins: can1-0 {
@@ -657,10 +657,10 @@
 			pins = "GPIO2_2", "GPIO2_3";
 			function = "i2c5";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	uart5_pins: uart5-0 {
@@ -689,10 +689,10 @@
 			pins = "GPIO2_4", "GPIO2_5";
 			function = "i2c6";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	uart6_pins: uart6-0 {
@@ -784,10 +784,10 @@
 	// 		pins = "GPIO2_6", "GPIO2_7";
 	// 		function = "i2c4";
 	// 		bias-disable;
-	// 		drive-strength = <7>;
+	// 		drive-strength = <25>;
 	// 		input-enable;
 	// 		input-schmitt-enable;
-	// 		slew-rate = <0>;
+	// 		slew-rate = <1>;
 	// 	};
 	// };
 	i2s2_pins: i2s2-0 {
@@ -826,10 +826,10 @@
 			pins = "GPIO2_10", "GPIO2_11";
 			function = "i2c7";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	spi1_pins: spi1-1 {
@@ -859,10 +859,10 @@
 			pins = "GPIO2_26", "GPIO2_27";
 			function = "i2c4";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	pwm1_pins: pwm1-1 {
@@ -881,10 +881,10 @@
 			pins = "GPIO2_24", "GPIO2_25";
 			function = "i2c3";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	hdmi_pins: hdmi-0 {
@@ -1044,11 +1044,11 @@
 &spi0 {
 	cs-gpios = <&gpio0 30 0>;
 	rx-sample-delay-ns = <4>;
-	spi-max-frequency = <55000000>;
+	spi-max-frequency = <42000000>;
 
 	spi_norflash@0 {
 		compatible = "jedec,spi-nor";
-		spi-max-frequency = <55000000>;
+		spi-max-frequency = <42000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -1059,13 +1059,13 @@
 &spi1 {
 	cs-gpios = <&gpio2 18 0>;
 	rx-sample-delay-ns = <4>;
-	spi-max-frequency = <55000000>;
+	spi-max-frequency = <42000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins>;
 
 	spi_norflash@0 {
 		compatible = "jedec,spi-nor";
-		spi-max-frequency = <55000000>;
+		spi-max-frequency = <42000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -1077,13 +1077,13 @@
 	cs-gpios = <&gpio0 19 0>;
 	rx-sample-dly = <2>;
 	spi-swap-data = <1>;
-	spi-max-frequency = <55000000>;
+	spi-max-frequency = <42000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi0_pins>;
 
 	spi_norflash@0 {
 		compatible = "jedec,spi-nor";
-		spi-max-frequency = <55000000>;
+		spi-max-frequency = <42000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-tx-bus-width = <4>;
@@ -1097,13 +1097,13 @@
 	cs-gpios = <&gpio2 29 0>;
 	rx-sample-dly = <2>;
 	spi-swap-data = <1>;
-	spi-max-frequency = <55000000>;
+	spi-max-frequency = <42000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi1_pins>;
 
 	spi_norflash@0 {
 		compatible = "jedec,spi-nor";
-		spi-max-frequency = <55000000>;
+		spi-max-frequency = <42000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-tx-bus-width = <4>;
@@ -1357,8 +1357,8 @@
 // };
 
 &sata {
-	pinctrl-names = "default";
-	pinctrl-0 = <&sata_p0_pins>;
+	pinctrl-names = "default", "sata1";
+	pinctrl-0 = <&sata_p0_pins>, <&sata_p1_pins>;
 	status = "okay";
 };
 
@@ -1370,6 +1370,7 @@
 &emmc {
 	max-frequency = <196608000>;
 	non-removable;
+	mmc-hs400-enhanced-strobe;
 	mmc-hs400-1_8v;
 	mmc-hs200-1_8v;
 	io_fixed_1v8;
@@ -1398,6 +1399,7 @@
 	#io-channel-cells = <1>;
 	sampling-frequency = <1000000>;
 	resolution = <12>;
+	fclk-div = <6>;
 };
 
 /* FIXME: Default EVB board expansion IO configuration */
@@ -1643,6 +1645,13 @@
 			0x00 0x063a0020 0x0 0x4
 			0x00 0x063a0024 0x0 0x4
 			0x00 0x063a0028 0x0 0x4>;
+	//combination 4lane mode: csi1_pclk, aphy_cfg_clk, bphy_cfg_clk, csi1_pclk, csi1_fpclk
+	clocks = <&clk_vi VI_MIPI0_CSI1_PIXCLK_EN>,
+		<&clk_vi VI_MIPI0A_CFGCLK_EN>,
+		<&clk_vi VI_MIPI0B_CFGCLK_EN>,
+		<&clk_vi VI_MIPI0CSI1_PCLK_EN>,
+		<&clk_vi VI_MIPI0CSI1_FPCLK_EN>;
+	clock-names =  "pixclk", "aphy_cfg_clk", "bphy_cfg_clk", "pclk", "fpclk";
 	phy_name = "CSI_4LANE"; //combination 4lane
 };
 
@@ -1729,4 +1738,8 @@
 	opp1-2298000000 {
 		opp-microvolt = <1000000>;
 	};
+};
+
+&dp0 {
+	force-hpd = <1>;
 };

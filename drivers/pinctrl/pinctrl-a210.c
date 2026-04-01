@@ -1053,12 +1053,26 @@ static const struct pinmux_ops a210_pinmux_ops = {
 	.strict = true,
 };
 
+static const struct a210_pad_group *a210_groups[] = {
+	&a210_group0,	/* aon_padctrl */
+	&a210_group1,	/* peri1_padctrl */
+	&a210_group2,	/* peri2_padctrl */
+	&a210_group3,	/* peri3_padctrl */
+};
+
 static int a210_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct a210_pad_group *group = device_get_match_data(dev);
+	const struct a210_pad_group *group;
 	struct a210_pinctrl *pp;
+	u32 group_id;
 	int ret;
+
+	if (device_property_read_u32(dev, "zhihe,group-id", &group_id))
+		return dev_err_probe(dev, -EINVAL, "missing zhihe,group-id\n");
+	if (group_id >= ARRAY_SIZE(a210_groups))
+		return dev_err_probe(dev, -EINVAL, "invalid group-id %u\n", group_id);
+	group = a210_groups[group_id];
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
@@ -1204,10 +1218,7 @@ static const struct dev_pm_ops a210_pinctrl_dev_pm_ops = {
 };
 
 static const struct of_device_id a210_pinctrl_of_match[] = {
-	{ .compatible = "zhihe,a210-group0-pinctrl", .data = &a210_group0 },	/* aon_padctrl */
-	{ .compatible = "zhihe,a210-group1-pinctrl", .data = &a210_group1 },	/* peri1_padctrl */
-	{ .compatible = "zhihe,a210-group2-pinctrl", .data = &a210_group2 },	/* peri2_padctrl */
-	{ .compatible = "zhihe,a210-group3-pinctrl", .data = &a210_group3 },	/* peri3_padctrl */
+	{ .compatible = "zhihe,a210-pinctrl" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, a210_pinctrl_of_match);

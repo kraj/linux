@@ -97,6 +97,7 @@ struct zhihe_pdm_priv {
 	struct regmap *sys_regmap;
 	struct clk *mclk;
 	struct clk *pclk;
+	struct reset_control *resets;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 
 	char name[16];

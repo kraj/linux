@@ -45,12 +45,12 @@
 /* PHY CTRL register field define */
 #define TH1520_ADC_PHY_CTRL_ENOFFSET_EN			(0x1 << 12)
 #define TH1520_ADC_PHY_CTRL_ENOFFMEAS_EN		(0x1 << 8)
-#define TH1520_ADC_PHY_CTRL_RST_EN			(0x1 << 4)
+#define TH1520_ADC_PHY_CTRL_RST_EN				(0x1 << 4)
 #define TH1520_ADC_PHY_CTRL_ENADC_EN			(0x1 << 0)
 
 /* ADC OP ctrl field define  */
 #define TH1520_ADC_OP_CTRL_CH_EN_ALL			GENMASK(19, 12)
-#define TH1520_ADC_OP_CTRL_CH_EN_0			(12)
+#define TH1520_ADC_OP_CTRL_CH_EN_0				(12)
 #define TH1520_ADC_OP_CTRL_MODE_SINGLE			(0x1 << 0)
 #define TH1520_ADC_OP_CTRL_MODE_CONTINOUS		(0x0 << 0)
 
@@ -59,17 +59,8 @@
 
 /* ADC fclk ctrl */
 #define TH1520_ADC_FCLK_CTRL_FCLLK_DIV			GENMASK(6, 0)
-#define TH1520_ADC_FCLK_CTRL_TYP_1M			(0x10004)
-#define TH1520_ADC_START_TIME_TYP_1M			(0x160)
-#define TH1520_ADC_SAMPLE_TIME_TYP_1M			(0x10)
-#define TH1520_ADC_SAMPLE_TIME_TYP_6BIT			(8)
-#define TH1520_ADC_SAMPLE_TIME_TYP_8BIT			(10)
-#define TH1520_ADC_SAMPLE_TIME_TYP_10BIT		(12)
-#define TH1520_ADC_SAMPLE_TIME_TYP_12BIT		(14)
-
-#define TH1520_ADC_FCLK_CTRL_TYP_2_5M			(0x10006)
-#define TH1520_ADC_START_TIME_TYP_2_5M			(0x113)
-#define TH1520_ADC_SAMPLE_TIME_TYP_2_5M			(0x16)
+#define TH1520_ADC_FCLK_CTRL_PHASE_SEL			GENMASK(21, 16)
+#define TH1520_ADC_FCLK_CTRL_PHASE_SEL_VAL		0x1
 
 /* ADC sample data */
 #define TH1520_ADC_SAMPLE_DATA_CH1			GENMASK(27, 16)
@@ -135,13 +126,6 @@ enum input_mode_sel {
 	TH1520_ADC_DIFFERENTIAL_INPUTS,
 };
 
-enum selres_sel {
-	TH1520_ADC_SELRES_6BIT = 6,
-	TH1520_ADC_SELRES_8BIT = 8,
-	TH1520_ADC_SELRES_10BIT = 10,
-	TH1520_ADC_SELRES_12BIT = 12,
-};
-
 enum offset_mode_sel {
 	TH1520_ADC_OFFSET_DIS = 0,
 	TH1520_ADC_OFFSET_EN,
@@ -150,11 +134,6 @@ enum offset_mode_sel {
 enum conversion_mode_sel {
 	TH1520_ADC_MODE_SINGLE,
 	TH1520_ADC_MODE_CONTINOUS,
-};
-
-enum clk_sel {
-	TH1520_ADC_FCLK_TYP_1M,
-	TH1520_ADC_FCLK_TYP_2_5M,
 };
 
 enum int_actual_mask {
@@ -171,28 +150,29 @@ enum int_delta_mask {
 };
 
 struct th1520_adc_feature {
-	enum selres_sel			selres_sel;
+	u32						resolution; //DTS "resolution"
 	enum input_mode_sel		input_mode;
 	enum vol_ref			vol_ref;
-	enum offset_mode_sel		offset_mode;
 	enum conversion_mode_sel	conv_mode;
-	enum clk_sel			clk_sel;
-	enum int_actual_mask		int_actual;
-	enum int_delta_mask		int_detal;
+	u32						sampling_freq; //DTS "sampling-frequency"
+	u32						fclk_div; //DTS "fclk-div"
+	//enum int_actual_mask		int_actual;
+	//enum int_delta_mask		int_detal;
+	//enum offset_mode_sel		offset_mode;
 };
 
 struct th1520_adc {
 	struct device			*dev;
 	void __iomem			*regs;
 	struct clk			*clk;
-
+	struct reset_control		*reset;
 	u32				vref_uv;
 	u32				value;
 	struct regulator		*vref;
 	struct th1520_adc_feature	adc_feature;
-	u32				current_clk;
-	u32				ch0_offmeas;
-	u32				ch1_offmeas;
+	//u32				current_clk;
+	//u32				ch0_offmeas;
+	//u32				ch1_offmeas;
 
 	struct completion		completion;
 	/* lock to protect against multiple access to the device */

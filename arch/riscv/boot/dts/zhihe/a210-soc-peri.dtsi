@@ -203,8 +203,8 @@
 					 <&clk_usb DPTX_PCLK_EN>;
 			clock-names = "i2s", "ipi", "aux", "gtc", "pclk";
 			power-domains = <&power_vo>;
-			force-hpd = <1>;
 			#sound-dai-cells = <1>;
+			phys = <&usbdp_phy0_dp>;
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -312,7 +312,7 @@
 			interrupt-parent = <&intc>;
 			interrupts = <331>;
 			clocks = <&clk_peri PERI0_WDT0_PCLK_EN>;
-			power-domains = <&power_peri0>;
+			power-domains = <&power_top>;
 			clock-names = "tclk";
 			resets = <&rst PERI0_WDT0_PRST>;
 		};
@@ -329,7 +329,7 @@
 			clocks = <&clk_peri PERI1_CAN0_HIRES_CLK_EN>,
 					<&clk_peri PERI1_CAN0_PCLK_EN>;
 			clock-names = "ipg", "per";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_can>;
 			/* fsl,stop-mode = <&gpr 0x34 29 0x10 18>; */
 		};
 
@@ -341,7 +341,7 @@
 			clocks = <&clk_peri PERI1_CAN1_HIRES_CLK_EN>,
 					<&clk_peri PERI1_CAN1_PCLK_EN>;
 			clock-names = "ipg", "per";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_can>;
 			/* fsl,stop-mode = <&gpr 0x34 29 0x10 18>; */
 		};
 
@@ -353,7 +353,7 @@
 			clocks = <&clk_peri PERI2_CAN2_HIRES_CLK_EN>,
 					<&clk_peri PERI2_CAN2_PCLK_EN>;
 			clock-names = "ipg", "per";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_can>;
 			/* fsl,stop-mode = <&gpr 0x34 29 0x10 18>; */
 		};
 
@@ -375,7 +375,7 @@
 			interrupts = <264>;
 			clocks = <&clk_peri PERI3_DMAC_ACLK_EN>, <&clk_peri PERI3_DMAC_HCLK_EN>;
 			clock-names = "core-clk", "cfgr-clk";
-			power-domains = <&power_peri3>;
+			power-domains = <&power_dmac>;
 			//iommus = <&iommu DEVID_DIE0_DMAC_AP>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
@@ -411,7 +411,8 @@
 			interrupts = <321>;
 			clocks = <&clk_peri PERI1_UART0_PCLK_EN>, <&clk_peri PERI1_UART0_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_UART0_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -423,7 +424,8 @@
 			interrupts = <322>;
 			clocks = <&clk_peri PERI1_UART1_PCLK_EN>, <&clk_peri PERI1_UART1_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_UART1_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -435,7 +437,8 @@
 			interrupts = <323>;
 			clocks = <&clk_peri PERI1_UART2_PCLK_EN>, <&clk_peri PERI1_UART2_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_UART2_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -447,7 +450,8 @@
 			interrupts = <324>;
 			clocks = <&clk_peri PERI1_UART3_PCLK_EN>, <&clk_peri PERI1_UART3_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_UART3_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -459,7 +463,8 @@
 			interrupts = <325>;
 			clocks = <&clk_peri PERI2_UART4_PCLK_EN>, <&clk_peri PERI2_UART4_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_UART4_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			current-speed = <115200>; /* OpenSBI */
@@ -472,7 +477,8 @@
 			interrupts = <326>;
 			clocks = <&clk_peri PERI2_UART5_PCLK_EN>, <&clk_peri PERI2_UART5_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_UART5_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -484,7 +490,8 @@
 			interrupts = <327>;
 			clocks = <&clk_peri PERI2_UART6_PCLK_EN>, <&clk_peri PERI2_UART6_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_UART6_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -496,7 +503,8 @@
 			interrupts = <328>;
 			clocks = <&clk_peri PERI2_UART7_PCLK_EN>, <&clk_peri PERI2_UART7_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_UART7_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -508,7 +516,8 @@
 			interrupts = <329>;
 			clocks = <&clk_peri PERI2_UART8_PCLK_EN>, <&clk_peri PERI2_UART8_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_UART8_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -520,7 +529,8 @@
 			interrupts = <330>;
 			clocks = <&clk_peri PERI2_UART9_PCLK_EN>, <&clk_peri PERI2_UART9_SCLK_EN>;
 			clock-names = "apb_pclk", "baudclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_UART9_PRST>;
+			power-domains = <&power_top>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
@@ -531,7 +541,8 @@
 			interrupt-parent = <&intc>;
 			interrupts = <260>;
 			clocks = <&clk_peri PERI3_ADC_PCLK_EN>;
-			power-domains = <&power_peri3>;
+			resets = <&rst PERI3_ADC_PRST>;
+			power-domains = <&power_top>;
 			clock-names = "adc";
 		};
 
@@ -540,9 +551,11 @@
 			reg = <0x00 0x02023000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <310>;
-			clocks = <&clk_peri PERI1_SPI0_SSI_CLK_EN>;
-			clock-names = "sclk";
-			power-domains = <&power_peri1>;
+			clocks = <&clk_peri PERI1_SPI0_SSI_CLK_EN>, <&clk_peri PERI1_SPI0_PCLK_EN>;
+			clock-names = "sclk", "pclk";
+			resets = <&rst PERI1_SPI0_RST>;
+			reset-names = "spi";
+			power-domains = <&power_top>;
 			dmas = <&dmac0 9>, <&dmac0 8>;
 			dma-names = "tx", "rx";
 			dma-tx-addr-incr;
@@ -558,9 +571,11 @@
 			reg = <0x00 0x08413000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <311>;
-			clocks = <&clk_peri PERI2_SPI1_SSI_CLK_EN>;
-			clock-names = "sclk";
-			power-domains = <&power_peri2>;
+			clocks = <&clk_peri PERI2_SPI1_SSI_CLK_EN>, <&clk_peri PERI2_SPI1_PCLK_EN>;
+			clock-names = "sclk", "pclk";
+			resets = <&rst PERI2_SPI1_RST>;
+			reset-names = "spi";
+			power-domains = <&power_top>;
 			dmas = <&dmac0 62>, <&dmac0 61>;
 			dma-names = "tx", "rx";
 			dma-tx-addr-incr;
@@ -576,9 +591,11 @@
 			reg = <0x00 0x01000000 0x0 0x4000>;
 			interrupt-parent = <&intc>;
 			interrupts = <308>;
-			clocks = <&clk_peri PERI1_QSPI0_SSI_CLK_EN>;
-			clock-names = "sclk";
-			power-domains = <&power_peri1>;
+			clocks = <&clk_peri PERI1_QSPI0_SSI_CLK_EN>, <&clk_peri PERI1_QSPI0_PCLK_EN>;
+			clock-names = "sclk", "pclk";
+			resets = <&rst PERI1_QSPI0_SSI_RST>, <&rst PERI1_QSPI0_PRST>;
+			reset-names = "srst", "prst";
+			power-domains = <&power_top>;
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -589,15 +606,17 @@
 			reg = <0x00 0x08428000 0x0 0x4000>;
 			interrupt-parent = <&intc>;
 			interrupts = <309>;
-			clocks = <&clk_peri PERI2_QSPI1_SSI_CLK_EN>;
-			clock-names = "sclk";
-			power-domains = <&power_peri2>;
+			clocks = <&clk_peri PERI2_QSPI1_SSI_CLK_EN>, <&clk_peri PERI2_QSPI1_PCLK_EN>;
+			clock-names = "sclk", "pclk";
+			resets = <&rst PERI2_QSPI1_SSI_RST>, <&rst PERI2_QSPI1_PRST>;
+			reset-names = "srst", "prst";
+			power-domains = <&power_top>;
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
-		emmc: sdhci@00500000 {
+		emmc: emmc@00500000 {
 			compatible = "zhihe,a210-dwcmshc";
 			reg = <0x0 0x00500000 0x0 0x10000>;
 			interrupt-parent = <&intc>;
@@ -606,7 +625,7 @@
 			clocks = <&clk_peri PERI3_EMMC_SDIO_REF_CLK_CG_EN>,
 					 <&clk_peri PERI3_EMMC_HCLK_EN>;
 			clock-names = "core", "bus";
-			power-domains = <&power_peri3>;
+			power-domains = <&power_emmc>;
 			//iommus = <&iommu DEVID_DIE0_EMMC>;
 			clk-delay-mmc-hs200 = <50>;
 			clk-delay-mmc-hs400 = <24>;
@@ -621,7 +640,7 @@
 			clocks = <&clk_peri PERI3_EMMC_SDIO_REF_CLK_CG_EN>,
 					<&clk_peri PERI3_EMMC_HCLK_EN>;
 			clock-names = "core", "bus";
-			power-domains = <&power_peri3>;
+			power-domains = <&power_sdio>;
 			//iommus = <&iommu DEVID_DIE0_SD>;
 			clk-delay-default = <46>;
 			clk-delay-uhs-sdr104 = <46>;
@@ -651,9 +670,13 @@
 			interrupts = <277>;
 			interrupt-names = "macirq";
 			clocks = <&clk_peri PERI1_GMAC0_ACLK_EN>,
-					 <&clk_peri PERI1_GMAC0_HCLK_EN>;
-			clock-names = "gmac_aclk", "gmac_hclk";
-			power-domains = <&power_peri1>;
+				 <&clk_peri PERI1_GMAC0_HCLK_EN>,
+				 <&clk_peri PERI1_X2H_GMAC0_ACLK_EN>,
+				 <&clk_peri PERI1_X2H_GMAC0_HCLK_EN>;
+			clock-names = "aclk", "hclk", "x2h_aclk", "x2h_hclk";
+			resets = <&rst PERI1_GMAC0_X2H_RST>, <&rst PERI1_GMAC0_RST>;
+			reset-names = "stmmaceth", "ahb";
+			power-domains = <&power_top>;
 			snps,pbl = <32>;
 			snps,fixed-burst;
 			snps,axi-config = <&stmmac_axi_setup>;
@@ -676,9 +699,13 @@
 			interrupts = <288>;
 			interrupt-names = "macirq";
 			clocks = <&clk_peri PERI1_GMAC1_ACLK_EN>,
-					 <&clk_peri PERI1_GMAC1_HCLK_EN>;
-			clock-names = "gmac_aclk", "gmac_hclk";
-			power-domains = <&power_peri1>;
+				 <&clk_peri PERI1_GMAC1_HCLK_EN>,
+				 <&clk_peri PERI1_X2H_GMAC1_ACLK_EN>,
+				 <&clk_peri PERI1_X2H_GMAC1_HCLK_EN>;
+			clock-names = "aclk", "hclk", "x2h_aclk", "x2h_hclk";
+			resets = <&rst PERI1_GMAC1_X2H_RST>, <&rst PERI1_GMAC1_RST>;
+			reset-names = "stmmaceth", "ahb";
+			power-domains = <&power_top>;
 			snps,pbl = <32>;
 			snps,fixed-burst;
 			snps,axi-config = <&stmmac_axi_setup>;
@@ -693,10 +720,11 @@
 		};
 
 		aon_padctrl: aon-padctrl@30848000 {
-			compatible = "zhihe,a210-group0-pinctrl";
+			compatible = "zhihe,a210-pinctrl";
 			reg = <0x00 0x30848000 0x0 0x2000>;
 			clocks = <&aon_110m>;
 			clock-names = "pclk";
+			zhihe,group-id = <0>;
 		};
 
 		gpio@30841000 {
@@ -746,24 +774,27 @@
 		};
 
 		peri1_padctrl: peri1-padctrl@02026000 {
-			compatible = "zhihe,a210-group1-pinctrl";
+			compatible = "zhihe,a210-pinctrl";
 			reg = <0x00 0x02026000 0x0 0x1000>;
 			clocks = <&clk_peri PERI1_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
+			zhihe,group-id = <1>;
 		};
 
 		peri2_padctrl: peri2-padctrl@08411000 {
-			compatible = "zhihe,a210-group2-pinctrl";
+			compatible = "zhihe,a210-pinctrl";
 			reg = <0x00 0x08411000 0x0 0x1000>;
 			clocks = <&clk_peri PERI2_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
+			zhihe,group-id = <2>;
 		};
 
 		peri3_padctrl: peri3-padctrl@00542000 {
-			compatible = "zhihe,a210-group3-pinctrl";
+			compatible = "zhihe,a210-pinctrl";
 			reg = <0x00 0x00542000 0x0 0x1000>;
 			clocks = <&clk_peri PERI3_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
+			zhihe,group-id = <3>;
 		};
 
 		gpio@02012000 {
@@ -774,7 +805,7 @@
 			clocks = <&clk_peri PERI1_GPIO0_PCLK_EN>,
 					<&clk_peri PERI1_GPIO0_DBCLK_EN>;
 			clock-names = "bus", "db";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_top>;
 
 			gpio0: gpio0-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -799,7 +830,7 @@
 			clocks = <&clk_peri PERI1_GPIO1_PCLK_EN>,
 					<&clk_peri PERI1_GPIO1_DBCLK_EN>;
 			clock-names = "bus", "db";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_top>;
 
 			gpio1: gpio1-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -824,7 +855,7 @@
 			clocks = <&clk_peri PERI2_GPIO2_PCLK_EN>,
 					<&clk_peri PERI2_GPIO2_DBCLK_EN>;
 			clock-names = "bus", "db";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_top>;
 
 			gpio2: gpio2-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -849,7 +880,7 @@
 			clocks = <&clk_peri PERI2_GPIO3_PCLK_EN>,
 					<&clk_peri PERI2_GPIO3_DBCLK_EN>;
 			clock-names = "bus", "db";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_top>;
 
 			gpio3: gpio3-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -874,7 +905,7 @@
 			clocks = <&clk_peri PERI3_GPIO4_PCLK_EN>,
 					<&clk_peri PERI3_GPIO4_DBCLK_EN>;
 			clock-names = "bus", "db";
-			power-domains = <&power_peri3>;
+			power-domains = <&power_top>;
 
 			gpio4: gpio4-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
@@ -897,7 +928,7 @@
 			#pwm-cells = <2>;
 			clocks = <&clk_peri PERI1_PWM0_CCLK_EN>;
 			clock-names = "cclk";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_pwm>;
 			interrupts = <305>;
 			interrupt-parent = <&intc>;
 		};
@@ -908,7 +939,7 @@
 			#pwm-cells = <2>;
 			clocks = <&clk_peri PERI2_PWM1_CCLK_EN>;
 			clock-names = "cclk";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_pwm>;
 			interrupts = <306>;
 			interrupt-parent = <&intc>;
 		};
@@ -919,7 +950,7 @@
 			#pwm-cells = <2>;
 			clocks = <&clk_peri PERI2_PWM2_CCLK_EN>;
 			clock-names = "cclk";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_pwm>;
 			interrupts = <307>;
 			interrupt-parent = <&intc>;
 		};
@@ -929,6 +960,7 @@
 			reg = <0x00 0x00303000 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER0_PCLK_EN>, <&clk_peri PERI0_TIMER0_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER0_RST>;
 			interrupts = <313>;
 			interrupt-parent = <&intc>;
 		};
@@ -938,6 +970,7 @@
 			reg = <0x00 0x00303014 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER0_PCLK_EN>, <&clk_peri PERI0_TIMER0_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER0_RST>;
 			interrupts = <314>;
 			interrupt-parent = <&intc>;
 		};
@@ -947,6 +980,7 @@
 			reg = <0x00 0x00303028 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER0_PCLK_EN>, <&clk_peri PERI0_TIMER0_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER0_RST>;
 			interrupts = <315>;
 			interrupt-parent = <&intc>;
 		};
@@ -956,6 +990,7 @@
 			reg = <0x00 0x0030303c 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER0_PCLK_EN>, <&clk_peri PERI0_TIMER0_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER0_RST>;
 			interrupts = <316>;
 			interrupt-parent = <&intc>;
 		};
@@ -965,6 +1000,7 @@
 			reg = <0x00 0x00304000 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER1_PCLK_EN>, <&clk_peri PERI0_TIMER1_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER1_RST>;
 			interrupts = <317>;
 			interrupt-parent = <&intc>;
 		};
@@ -974,6 +1010,7 @@
 			reg = <0x00 0x00304014 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER1_PCLK_EN>, <&clk_peri PERI0_TIMER1_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER1_RST>;
 			interrupts = <318>;
 			interrupt-parent = <&intc>;
 		};
@@ -983,6 +1020,7 @@
 			reg = <0x00 0x00304028 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER1_PCLK_EN>, <&clk_peri PERI0_TIMER1_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER1_RST>;
 			interrupts = <319>;
 			interrupt-parent = <&intc>;
 		};
@@ -992,6 +1030,7 @@
 			reg = <0x00 0x0030403c 0x0 0x14>;
 			clocks = <&clk_peri PERI0_TIMER1_PCLK_EN>, <&clk_peri PERI0_TIMER1_CCLK_EN>;
 			clock-names = "pclk", "timer";
+			resets = <&rst PERI0_TIMER1_RST>;
 			interrupts = <320>;
 			interrupt-parent = <&intc>;
 		};
@@ -1003,7 +1042,8 @@
 			interrupts = <293>;
 			clocks = <&clk_peri PERI1_I2C0_IC_CLK_EN>, <&clk_peri PERI1_I2C0_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_I2C0_RST>;
+			power-domains = <&power_top>;
 			dma-mode;
 			dmas = <&dmac0 21>, <&dmac0 20>;
 			dma-names = "tx", "rx";
@@ -1019,7 +1059,8 @@
 			interrupts = <294>;
 			clocks = <&clk_peri PERI1_I2C1_IC_CLK_EN>, <&clk_peri PERI1_I2C1_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_I2C1_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1031,7 +1072,8 @@
 			interrupts = <295>;
 			clocks = <&clk_peri PERI1_I2C2_IC_CLK_EN>, <&clk_peri PERI1_I2C2_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_I2C2_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1043,7 +1085,8 @@
 			interrupts = <296>;
 			clocks = <&clk_peri PERI2_I2C3_IC_CLK_EN>, <&clk_peri PERI2_I2C3_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2C3_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1055,7 +1098,8 @@
 			interrupts = <297>;
 			clocks = <&clk_peri PERI2_I2C4_IC_CLK_EN>, <&clk_peri PERI2_I2C4_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2C4_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1067,7 +1111,8 @@
 			interrupts = <298>;
 			clocks = <&clk_peri PERI2_I2C5_IC_CLK_EN>, <&clk_peri PERI2_I2C5_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2C5_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1079,7 +1124,8 @@
 			interrupts = <299>;
 			clocks = <&clk_peri PERI2_I2C6_IC_CLK_EN>, <&clk_peri PERI2_I2C6_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2C6_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1091,7 +1137,8 @@
 			interrupts = <300>;
 			clocks = <&clk_peri PERI2_I2C7_IC_CLK_EN>, <&clk_peri PERI2_I2C7_PCLK_EN>;
 			clock-names = "ref", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2C7_RST>;
+			power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1103,7 +1150,7 @@
 			interrupts = <20>;
 			clocks = <&aon_110m>;
 			clock-names = "ref", "pclk";
-			//power-domains = <&power_peri2>;
+			//power-domains = <&power_top>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -1117,8 +1164,19 @@
 			interrupt-parent = <&intc>;
 			interrupts = <229>, <231>;
 			power-domains = <&power_vdec>;
-			clocks = <&clk_vp VP_VDEC_CCLK_EN>, <&clk_vp VP_VDEC_ACLK_EN>, <&clk_vp VP_VDEC_PCLK_EN>;
-			clock-names = "vdec_cclk", "vp_aclk", "vdec_pclk";
+			clocks = <&clk_vp VP_VDEC_CCLK_EN>,
+				<&clk_vp VP_VDEC_ACLK_EN>,
+				<&clk_vp VP_VDEC_PCLK_EN>,
+				<&clk_vp VP_COMP_ACLK_EN>,
+				<&clk_vp VP_COMP_CCLK_EN>,
+				<&clk_vp VP_COMP_PCLK_EN>,
+				<&clk_vp VP_COMP_EXTPCLK_EN>;
+			clock-names = "vdec_cclk",
+				"vp_aclk", "vdec_pclk",
+				"vp_comp_aclk",
+				"vp_comp_cclk",
+				"vp_comp_pclk",
+				"vp_comp_extpclk";
 			operating-points-v2 = <&vdec_opp_table>;
 			aclk-freq-low = <528000000>;
 			aclk-freq-high = <880000000>;
@@ -1136,8 +1194,20 @@
 			interrupt-parent = <&intc>;
 			interrupts = <230>, <350>;
 			power-domains = <&power_venc>;
-			clocks = <&clk_vp VP_VENC_CCLK_EN>, <&clk_vp VP_VENC_ACLK_EN>, <&clk_vp VP_VENC_PCLK_EN>;
-			clock-names = "venc_cclk", "vp_aclk", "venc_pclk";
+			clocks = <&clk_vp VP_VENC_CCLK_EN>,
+				<&clk_vp VP_VENC_ACLK_EN>,
+				<&clk_vp VP_VENC_PCLK_EN>,
+				<&clk_vp VP_DECOMP_ACLK_EN>,
+				<&clk_vp VP_DECOMP_CCLK_EN>,
+				<&clk_vp VP_DECOMP_PCLK_EN>,
+				<&clk_vp VP_DECOMP_EXTPCLK_EN>;
+			clock-names = "venc_cclk",
+				"vp_aclk",
+				"venc_pclk",
+				"vp_decomp_aclk",
+				"vp_decomp_cclk",
+				"vp_decomp_pclk",
+				"vp_decomp_extpclk";
 			operating-points-v2 = <&venc_opp_table>;
 			aclk-freq-low = <528000000>;
 			aclk-freq-high = <880000000>;
@@ -1153,13 +1223,14 @@
 		};
 
 		audio_i2s0: audio_i2s0@0002029000 {
-			compatible = "zhihe,i2s0";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <0>;	/* ZHIHE_I2S0 */
 			reg = <0x0 0x02029000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <301>;
 			clocks = <&clk_peri PERI1_I2S0_SRC_CLK_EN>, <&clk_peri PERI1_I2S0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 3>, <&dmac0 2>;
 			dma-names = "tx", "rx";
@@ -1167,13 +1238,15 @@
 		};
 
 		audio_i2s1: audio_i2s1@000840a000 {
-			compatible = "zhihe,i2s1";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <1>;	/* ZHIHE_I2S1 */
 			reg = <0x0 0x0840a000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <302>;
 			clocks = <&clk_peri PERI2_I2S1_SRC_CLK_EN>, <&clk_peri PERI2_I2S1_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2S1_PRST>;
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 38>, <&dmac0 37>;
 			dma-names = "tx", "rx";
@@ -1181,13 +1254,15 @@
 		};
 
 		audio_i2s2: audio_i2s2@000840b000 {
-			compatible = "zhihe,i2s2";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <2>;	/* ZHIHE_I2S2 */
 			reg = <0x0 0x0840b000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <303>;
 			clocks = <&clk_peri PERI2_I2S2_SRC_CLK_EN>, <&clk_peri PERI2_I2S2_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2S2_PRST>;
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 36>, <&dmac0 35>;
 			dma-names = "tx", "rx";
@@ -1195,14 +1270,16 @@
 		};
 
 		audio_i2s_8ch_sd0: audio_i2s_8ch_sd0@000840c000 {
-			compatible = "zhihe,i2s3-8ch-sd0";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <3>;	/* ZHIHE_I2S3_8CH_SD0 */
 			reg = <0x0 0x0840c000 0x0 0x1000>,
 			      <0x0 0x00240000 0x0 0x4>;
 			interrupt-parent = <&intc>;
 			interrupts = <304>;
 			clocks = <&clk_peri PERI2_I2S3_SRC_CLK_EN>, <&clk_peri PERI2_I2S3_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri2>;
+			resets = <&rst PERI2_I2S3_PRST>;
+			power-domains = <&power_top>;
 			multi-channels = <8>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 28>, <&dmac0 27>;
@@ -1222,13 +1299,14 @@
 		};
 
 		audio_i2s_8ch_sd1: audio_i2s_8ch_sd1@000840c000 {
-			compatible = "zhihe,i2s3-8ch-sd1";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <4>;	/* ZHIHE_I2S3_8CH_SD1 */
 			reg = <0x0 0x0840c000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <304>;
 			clocks = <&clk_peri PERI2_I2S3_SRC_CLK_EN>, <&clk_peri PERI2_I2S3_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_top>;
 			multi-channels = <8>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 30>, <&dmac0 29>;
@@ -1237,13 +1315,14 @@
 		};
 
 		audio_i2s_8ch_sd2: audio_i2s_8ch_sd2@000840c000 {
-			compatible = "zhihe,i2s3-8ch-sd2";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <5>;	/* ZHIHE_I2S3_8CH_SD2 */
 			reg = <0x0 0x0840c000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <304>;
 			clocks = <&clk_peri PERI2_I2S3_SRC_CLK_EN>, <&clk_peri PERI2_I2S3_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_top>;
 			multi-channels = <8>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 32>, <&dmac0 31>;
@@ -1252,13 +1331,14 @@
 		};
 
 		audio_i2s_8ch_sd3: audio_i2s_8ch_sd3@000840c000 {
-			compatible = "zhihe,i2s3-8ch-sd3";
+			compatible = "zhihe,i2s";
+			zhihe,i2s-id = <6>;	/* ZHIHE_I2S3_8CH_SD3 */
 			reg = <0x0 0x0840c000 0x0 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <304>;
 			clocks = <&clk_peri PERI2_I2S3_SRC_CLK_EN>, <&clk_peri PERI2_I2S3_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri2>;
+			power-domains = <&power_top>;
 			multi-channels = <8>;
 			#sound-dai-cells = <1>;
 			dmas = <&dmac0 34>, <&dmac0 33>;
@@ -1273,7 +1353,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 4>;
@@ -1287,7 +1369,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 5>;
@@ -1301,7 +1385,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 0>;
@@ -1315,7 +1401,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 1>;
@@ -1329,7 +1417,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 10>;
@@ -1343,7 +1433,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 11>;
@@ -1357,7 +1449,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			power-domains = <&power_top>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 12>;
@@ -1371,7 +1465,9 @@
 			interrupts = <312>;
 			clocks = <&clk_peri PERI1_TDM0_SCLK_EN>, <&clk_peri PERI1_TDM0_PCLK_EN>;
 			clock-names = "sclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_TDM0_RST>;
+			reset-names = "rst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			dmas = <&dmac0 13>;
@@ -1385,14 +1481,28 @@
 			      <0x00 0x0807E000 0x0 0x100>,
 			      <0x00 0x08014000 0x0 0x200>;
 			reg-names = "phy_ctrl", "tca", "sysreg", "dptx_sys";
-			resets = <&rst USB_C10PHY_PHY_RST>;
-			reset-names = "phy-rst";
+			clocks = <&clk_usb C10PHY_SUSPEND_CLK_EN>,
+				 <&clk_usb C10PHY_PCLK_EN>;
+			resets = <&rst USB_C10PHY_PHY_RST>,
+				 <&rst USB_C10PHY_APBS_PRST>;
+			reset-names = "phy-rst", "apb-rst";
 			#phy-cells = <0>;
 			power-domains = <&power_usb>;
+
+			usbdp_phy0_dp: dp-port {
+				#phy-cells = <0>;
+				status = "okay";
+			};
+
+			usbdp_phy0_u3: u3-port {
+				#phy-cells = <0>;
+				status = "okay";
+			};
 		};
 
 		usb20phy0: phy@08300000 {
-			compatible = "zhihe,a210-usb2-phy0";
+			compatible = "zhihe,a210-usb2-phy";
+			zhihe,phy-id = <0>;
 			reg = <0x00 0x8300000 0x0 0x1000>;
 			reg-names = "usb20-blk-sysreg";
 			resets = <&rst USB_USB20_BLK_USB0_PHY_PON_RESET>;
@@ -1403,7 +1513,8 @@
 		};
 
 		usb20phy1: phy@08301000 {
-			compatible = "zhihe,a210-usb2-phy1";
+			compatible = "zhihe,a210-usb2-phy";
+			zhihe,phy-id = <1>;
 			reg = <0x00 0x8301000 0x0 0x1000>;
 			reg-names = "usb20-blk-sysreg";
 			resets = <&rst USB_USB20_BLK_USB1_PHY_PON_RESET>;
@@ -1413,13 +1524,14 @@
 			zhihe,init-seq = /bits/ 32 <0x000 0x40b67b5b>;
 		};
 
-		usb31_syscon: syscon@8000000 {
+		usb31_syscon: syscon@8001000 {
 			compatible = "syscon";
 			reg = <0x00 0x08000000 0x0 0x1000>;
 		};
 
 		usb20phy2: usb2-phy {
-			compatible = "zhihe,a210-usb2-phy2";
+			compatible = "zhihe,a210-usb2-phy";
+			zhihe,phy-id = <2>;
 			syscon = <&usb31_syscon>;
 			resets = <&rst USB_USB31_PHY_RST>;
 			reset-names = "phy-rst";
@@ -1429,30 +1541,30 @@
 		usb31: usb3@8001000 {
 			compatible = "zhihe,usb31";
 			syscon = <&usb31_syscon>;
-			clocks = <&clk_usb USB31_REF_CLK_EN>,
-				<&clk_usb USB31_SLV_AFENCE_ACLK_EN>,
-				<&clk_usb USB_SS_PERI2_CFG_ACLK_EN>;
-			clock-names = "ref-clk", "slv-aclk", "cfg-aclk";
-			resets = <&rst USB_USB31_SLV_AFENCE_ARST>;
-			reset-names = "usb31-arst";
+			clocks = <&clk_usb USB31_PCLK_EN>,
+				 <&clk_usb USB31_SLV_AFENCE_ACLK_EN>;
+			phys = <&usb31_c10phy>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
-
+			
 			usb3: dwc3@8100000 {
 				compatible = "snps,dwc3";
 				reg = <0x00 0x8100000 0x0 0x100000>;
 				interrupt-parent = <&intc>;
 				interrupts = <183>;
-				clocks = <&clk_usb USB31_PCLK_EN>,
+				clocks = <&clk_usb USB31_REF_CLK_EN>,
 					<&clk_usb USB31_BUS_CLK_EN>,
 					<&clk_usb USB31_SUSPEND_CLK_EN>;
-				clock-names = "pclk", "bus_clk", "suspend_clk";
+				clock-names = "ref_clk", "bus_clk", "suspend_clk";
+				resets = <&rst USB_USB31_SLV_AFENCE_ARST>,
+					 <&rst USB_USB31_VCC_RST>,
+					 <&rst USB_USB31_APBS_PRST>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
 				dr_mode = "host";
 				power-domains = <&power_usb>;
-				phys = <&usb20phy2>, <&usb31_c10phy>;
+				phys = <&usb20phy2>, <&usbdp_phy0_u3>;
 				phy-names = "usb2-phy", "usb3-phy";
 				//iommus = <&iommu DEVID_DIE0_USB3_0>;
 				snps,usb3_lpm_capable;
@@ -1513,7 +1625,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1529,7 +1643,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1545,7 +1661,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1561,7 +1679,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1577,7 +1697,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1593,7 +1715,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1609,7 +1733,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1625,7 +1751,9 @@
 			interrupts = <339>;
 			clocks = <&clk_peri PERI1_PDM0_MCLK_EN>, <&clk_peri PERI1_PDM0_PCLK_EN>;
 			clock-names = "mclk", "pclk";
-			power-domains = <&power_peri1>;
+			resets = <&rst PERI1_PDM0_MRST>, <&rst PERI1_PDM0_PRST>;
+			reset-names = "mrst", "prst";
+			power-domains = <&power_top>;
 			#sound-dai-cells = <1>;
 			zhihe,peri1-sys = <&peri1_sys>;
 			zhihe,mode = "pdm-master";
@@ -1636,36 +1764,56 @@
 
 		e16phy: e16phy@a1800000 {
 			compatible = "zhihe,a210-e16phy";
-			reg = <0x00 0xa180000 0x0 0x001000>;
+			reg = <0x00 0xa180000 0x0 0x001000>, <0x00 0xa100000 0x0 0x040000>, <0x00 0xa140000 0x0 0x040000>;
 			#phy-cells = <0>;
 			clocks = <&clk_pcie E16PHY_PCLK_EN>;
 			clock-names = "e16phy_clk";
 			resets = <&rst PCIE_E16PHY_APBS_PRST>,<&rst PCIE_E16PHY_PHY_RST>;
 			reset-names = "apb", "phy";
 			/* PCIE_DMx4 */
-			init-seq-pcie_dmx4 = /bits/ 32 <0x000 0x00110000>,
-							<0x004 0x00000000>,
-							<0x008 0x00000000>,
-							<0x108 0x00000011>,
-							<0x048 0x00010001>;
+			init-seq-pcie_dmx4 = /bits/ 32
+							<0 0x0000 0x00110000>,
+							<0 0x0004 0x00000000>,
+							<0 0x0008 0x00000000>,
+							<0 0x0108 0x00000011>,
+							<0 0x0048 0x00010001>,
+							<1 0xC020 0x00F>, <1 0xC420 0x00F>,
+							<2 0xC020 0x00F>, <2 0xC420 0x00F>,
+							<1 0x0048 0x350>, <1 0x4c08 0x1f8>, <1 0x4808 0x1f8>, <1 0x4408 0x1f8>, <1 0x4008 0x1f8>,
+							<2 0x0048 0x350>, <2 0x4c08 0x1f8>, <2 0x4808 0x1f8>, <2 0x4408 0x1f8>, <2 0x4008 0x1f8>;
 			/* PCIE_DMx2,PCIE_RPx1 */
-			init-seq-pcie_dmx2_rpx1 = /bits/ 32 <0x000 0x00110100>,
-							<0x004 0x00000000>,
-							<0x008 0x00000000>,
-							<0x108 0x00000011>,
-							<0x048 0x00010001>;
+			init-seq-pcie_dmx2_rpx1 = /bits/ 32
+							<0 0x0000 0x00110100>,
+							<0 0x0004 0x00000000>,
+							<0 0x0008 0x00000000>,
+							<0 0x0108 0x00000011>,
+							<0 0x0048 0x00010001>,
+							<1 0xC020 0x00F>, <1 0xC420 0x00F>,
+							<2 0xC020 0x00F>, <2 0xC420 0x00F>,
+							<1 0x0048 0x350>, <1 0x4c08 0x1f8>, <1 0x4808 0x1f8>, <1 0x4408 0x1f8>, <1 0x4008 0x1f8>,
+							<2 0x0048 0x350>, <2 0x4c08 0x1f8>, <2 0x4808 0x1f8>, <2 0x4408 0x1f8>, <2 0x4008 0x1f8>;
 			/* PCIE_DMx2,SATA_x2 */
-			init-seq-pcie_dmx2_satax2 = /bits/ 32 <0x000 0x00110001>,
-							<0x004 0x00001100>,
-							<0x008 0x00002200>,
-							<0x108 0x00000011>,
-							<0x048 0x00010001>;
+			init-seq-pcie_dmx2_satax2 = /bits/ 32
+							<0 0x0000 0x00110001>,
+							<0 0x0004 0x00001100>,
+							<0 0x0008 0x00002200>,
+							<0 0x0108 0x00000011>,
+							<0 0x0048 0x00010001>,
+							<1 0xC020 0x00F>, <1 0xC420 0x00F>,
+							<2 0xC020 0x00F>, <2 0xC420 0x00F>,
+							<1 0x0048 0x350>, <1 0x4c08 0x1f8>, <1 0x4808 0x1f8>, <1 0x4408 0x1f8>, <1 0x4008 0x1f8>,
+							<2 0x0048 0x350>, <2 0x4c08 0x1f8>, <2 0x4808 0x1f8>, <2 0x4408 0x1f8>, <2 0x4008 0x1f8>;
 			/* PCIE_DMx1,PCIE_RPx1,SATA_x2 */
-			init-seq-pcie_dmx1_rpx1_satax2 = /bits/ 32 <0x000 0x00110101>,
-							<0x004 0x00001100>,
-							<0x008 0x00002200>,
-							<0x108 0x00000011>,
-							<0x048 0x00010001>;
+			init-seq-pcie_dmx1_rpx1_satax2 = /bits/ 32
+							<0 0x0000 0x00110101>,
+							<0 0x0004 0x00001100>,
+							<0 0x0008 0x00002200>,
+							<0 0x0108 0x00000011>,
+							<0 0x0048 0x00010001>,
+							<1 0xC020 0x00F>, <1 0xC420 0x00F>,
+							<2 0xC020 0x00F>, <2 0xC420 0x00F>,
+							<1 0x0048 0x350>, <1 0x4c08 0x1f8>, <1 0x4808 0x1f8>, <1 0x4408 0x1f8>, <1 0x4008 0x1f8>,
+							<2 0x0048 0x350>, <2 0x4c08 0x1f8>, <2 0x4808 0x1f8>, <2 0x4408 0x1f8>, <2 0x4008 0x1f8>;
 			init-seq-select = "pcie_dmx4";
 		};
 
@@ -1747,6 +1895,8 @@
 			reg-names = "interrupt_addr",
 				    "local_addr0",
 				    "remote_icu0";
+			clocks = <&clk_peri PERI0_MBOX0_PCLK_EN>, <&clk_peri PERI0_MBOX1_PCLK_EN>;
+			resets = <&rst PERI0_MBOX0_PRST>, <&rst PERI0_MBOX1_PRST>;
 			interrupt-parent = <&intc>;
 			interrupts = <336 IRQ_TYPE_LEVEL_HIGH>;
 			icu_cpu_id = <0>;
@@ -1817,18 +1967,18 @@
 			      <0x0 0x0a012000 0x0 0x400>,
 			      <0x0 0x08022000 0x0 0x400>;
 			reg-names = "vi", "vp", "npu", "vo", "peri1", "pcie", "usb";
-			clocks = <&clk SW_IOMMU_PTW_330_ACLK_EN>, <&clk_vi VI_PTW_ACLK_EN>,
-			         <&clk_vi VI_DFMU_ACLK_EN>, <&clk_vi VI_DFMU_PCLK_EN>,
-			         <&clk_vp VP_PTW_ACLK_EN>, <&clk_vp VP_DFMU_ACLK_EN>,
-			         <&clk_vp VP_DFMU_PCLK_EN>, <&clk_vo VO_PTW_ACLK_EN>,
-			         <&clk_vo VO_DFMU_PCLK_EN>, <&clk_vo VO_DFMU_ACLK_EN>,
-			         <&clk_peri PERI1_DFMU_PTW_ACLK_EN>, <&clk_peri PERI1_DFMU_PCLK_EN>,
-			         <&clk_peri PERI1_DFMU_ACLK_EN>;
+			clocks = <&clk SW_IOMMU_PTW_330_ACLK_EN>,
+				 <&clk_vi VI_PTW_ACLK_EN>,
+				 <&clk_vi VI_DFMU_ACLK_EN>,
+				 <&clk_vi VI_DFMU_PCLK_EN>,
+				 <&clk_peri PERI1_DFMU_PTW_ACLK_EN>,
+				 <&clk_peri PERI1_DFMU_PCLK_EN>,
+				 <&clk_peri PERI1_DFMU_ACLK_EN>;
 			interrupt-parent = <&intc>;
 			interrupts = <204>, <235>, <66>, <223>, <344>, <174>, <187>;
-			power-domains = <&power_vi_isp>, <&power_venc>, <&power_vdec>, <&power_npu_ip>,
-					<&power_vo>, <&power_pcie0>, <&power_pcie1>, <&power_usb>,
-					<&power_peri1>;
+			power-domains = <&power_vi_wrapper>, <&power_vp_wrapper>, <&power_npu_wrapper>,
+							<&power_vo>, <&power_usb>, <&power_top>;
+			power-domain-names = "vi_iommu", "vp_iommu", "npu_ip_iommu", "vo_iommu", "usb_iommu", "pcie_iommu";
 			#iommu-cells = <1>;
 		};
 
@@ -1892,9 +2042,27 @@
 			interrupts = <240>;
 			interrupt-names = "irq_2d";
 			clocks = <&clk_vp VP_G2D_CCLK_EN>,
-				 <&clk_vp VP_G2D_ACLK_EN>,
-				 <&clk_vp VP_G2D_PCLK_EN>;
-			clock-names = "cclk", "aclk", "pclk";
+				<&clk_vp VP_G2D_ACLK_EN>,
+				<&clk_vp VP_G2D_PCLK_EN>,
+				<&clk_vp VP_COMP_ACLK_EN>,
+				<&clk_vp VP_COMP_CCLK_EN>,
+				<&clk_vp VP_COMP_PCLK_EN>,
+				<&clk_vp VP_COMP_EXTPCLK_EN>,
+				<&clk_vp VP_DECOMP_ACLK_EN>,
+				<&clk_vp VP_DECOMP_CCLK_EN>,
+				<&clk_vp VP_DECOMP_PCLK_EN>,
+				<&clk_vp VP_DECOMP_EXTPCLK_EN>;
+			clock-names = "cclk",
+				"aclk",
+				"pclk",
+				"vp_comp_aclk",
+				"vp_comp_cclk",
+				"vp_comp_pclk",
+				"vp_comp_extpclk",
+				"vp_decomp_aclk",
+				"vp_decomp_cclk",
+				"vp_decomp_pclk",
+				"vp_decomp_extpclk";
 			operating-points-v2 = <&g2d_opp_table>;
 			power-domains = <&power_vp_wrapper>;
 			//iommus = <&iommu DEVID_DIE0_G2D>;
@@ -2064,9 +2232,9 @@
 				<&clk_vi VI_DW200_HCLK_EN>,
 				<&clk_vi VI_VSEOUT_CLK_EN>,
 				<&clk_vi VI_DECOUT_CLK_EN>,
-				<&clk_vi VI_X2H2_CLK_EN>;
-			clock-names = "vi_arb_aclk", "vi_arb_pclk", "vi_ptw_aclk", "vi_dfmu_aclk", "vi_dfmu_pclk",
-				"dw_sclk", "vse_clk", "dwe_clk", "dw200_aclk", "dw200_hclk", "vseout_clk", "decout_clk", "x2h2_clk";
+				<&clk_vi VI_X2H2_CLK_EN>,
+				<&clk_vi VI_COMP_ACLK_EN>,
+				<&clk_vi VI_COMP_PCLK_EN>;
 			power-domains = <&power_vi_isp>;
 		};
 

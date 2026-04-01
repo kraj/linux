@@ -128,6 +128,8 @@ struct zhihe_tdm_priv {
 	void __iomem *regs;
 
 	struct clk *sclk;
+	struct clk *pclk;
+	struct reset_control *reset;
 	struct device *dev;
 	struct regmap *regmap;
 	struct regmap *sys_regmap;

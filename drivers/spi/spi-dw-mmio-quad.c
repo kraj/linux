@@ -19,16 +19,23 @@
 #include <linux/acpi.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
+#include <linux/pm_runtime.h>
+
 #include "spi-dw-quad.h"
 
-#define DRIVER_NAME "dw_qspi_mmio"
+#define DRIVER_NAME "dw_qspi_mmio-quad"
+#define RSTC_COUNT 2
+#define RSTC_ID0 "srst"
+#define RSTC_ID1 "prst"
 
 struct dw_qspi_mmio {
-	struct dw_spi  dws;
+	struct dw_spi	dws;
 	struct clk		*clk;
 	struct clk		*pclk;
-	struct clk		*sclk;
 	void			*priv;
+	struct reset_control_bulk_data resets[RSTC_COUNT];
+	unsigned int nresets;
 };
 
 static int qspi_clk_prepare_enable(struct dw_qspi_mmio *dwsmmio)
@@ -39,7 +46,7 @@ static int qspi_clk_prepare_enable(struct dw_qspi_mmio *dwsmmio)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(dwsmmio->sclk);
+	ret = clk_prepare_enable(dwsmmio->clk);
 	if (ret) {
 		clk_disable_unprepare(dwsmmio->pclk);
 		return ret;
@@ -51,7 +58,28 @@ static int qspi_clk_prepare_enable(struct dw_qspi_mmio *dwsmmio)
 static void qspi_clk_disable_unprepare(struct dw_qspi_mmio *dwsmmio)
 {
 	clk_disable_unprepare(dwsmmio->pclk);
-	clk_disable_unprepare(dwsmmio->sclk);
+	clk_disable_unprepare(dwsmmio->clk);
+}
+
+static int __maybe_unused dw_qspi_runtime_suspend(struct device *dev)
+{
+	struct dw_qspi_mmio *dwsmmio = dev_get_drvdata(dev);
+
+	reset_control_bulk_assert(dwsmmio->nresets, dwsmmio->resets);
+	qspi_clk_disable_unprepare(dwsmmio);
+
+	return 0;
+}
+
+static int __maybe_unused dw_qspi_runtime_resume(struct device *dev)
+{
+	struct dw_qspi_mmio *dwsmmio = dev_get_drvdata(dev);
+	int ret;
+
+	ret = qspi_clk_prepare_enable(dwsmmio);
+	reset_control_bulk_deassert(dwsmmio->nresets, dwsmmio->resets);
+
+	return ret;
 }
 
 static int __maybe_unused dw_qspi_mmio_suspend(struct device *dev)
@@ -61,6 +89,7 @@ static int __maybe_unused dw_qspi_mmio_suspend(struct device *dev)
 
 	ret = dw_qspi_suspend_host(&dwsmmio->dws);
 
+	reset_control_bulk_assert(dwsmmio->nresets, dwsmmio->resets);
 	qspi_clk_disable_unprepare(dwsmmio);
 
 	return ret;
@@ -76,6 +105,7 @@ static int __maybe_unused dw_qspi_mmio_resume(struct device *dev)
 		dev_err(dev, "failed to enable spi clock(%d)\n", ret);
 		return ret;
 	}
+	reset_control_bulk_deassert(dwsmmio->nresets, dwsmmio->resets);
 
 	return dw_qspi_resume_host(&dwsmmio->dws);
 }
@@ -108,6 +138,7 @@ static int dw_qspi_mmio_probe(struct platform_device *pdev)
 	if (dws->irq < 0)
 		return dws->irq; /* -ENXIO */
 
+	/* Main clock */
 	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk))
 		return PTR_ERR(dwsmmio->clk);
@@ -125,14 +156,20 @@ static int dw_qspi_mmio_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_clk;
 
-	dwsmmio->sclk = devm_clk_get_optional(&pdev->dev, "sclk");
-	if (IS_ERR(dwsmmio->sclk)) {
-		ret = PTR_ERR(dwsmmio->sclk);
-		goto out_clk;
+	/* Reset ctrl */
+	dwsmmio->resets[0].id = RSTC_ID0;
+	dwsmmio->resets[1].id = RSTC_ID1;
+	dwsmmio->nresets = ARRAY_SIZE(dwsmmio->resets);
+	ret = devm_reset_control_bulk_get_optional_exclusive(&pdev->dev, dwsmmio->nresets, dwsmmio->resets);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get reset: %d\n", ret);
+		goto out_pclk;
 	}
-	ret = clk_prepare_enable(dwsmmio->sclk);
-	if (ret)
-		goto out_clk;
+	ret = reset_control_bulk_deassert(dwsmmio->nresets, dwsmmio->resets);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to deassert reset: %d\n", ret);
+		goto out_pclk;
+	}
 
 	/* set bus number */
 	dws->bus_num = pdev->id;
@@ -163,21 +200,28 @@ static int dw_qspi_mmio_probe(struct platform_device *pdev)
 	if (init_func) {
 		ret = init_func(pdev, dwsmmio);
 		if (ret)
-			goto out;
+			goto out_resets;
 	}
+	platform_set_drvdata(pdev, dwsmmio);
+
+	/* Enable runtime pm */
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	ret = dw_qspi_add_host(&pdev->dev, dws);
 	if (ret){
 		goto out;
-		dw_drv_log("probe failed \n");
 	}
-	platform_set_drvdata(pdev, dwsmmio);
-	dw_drv_log("dw_qspi_probe success \n");
-	return 0;
 
+	return 0;
 out:
+	pm_runtime_disable(&pdev->dev);
+out_resets:
+	reset_control_bulk_deassert(dwsmmio->nresets, dwsmmio->resets);
+out_pclk:
 	clk_disable_unprepare(dwsmmio->pclk);
-	clk_disable_unprepare(dwsmmio->sclk);
 out_clk:
 	clk_disable_unprepare(dwsmmio->clk);
 	return ret;
@@ -189,7 +233,6 @@ static int dw_qspi_mmio_remove(struct platform_device *pdev)
 
 	dw_qspi_remove_host(&dwsmmio->dws);
 	clk_disable_unprepare(dwsmmio->pclk);
-	clk_disable_unprepare(dwsmmio->sclk);
 	clk_disable_unprepare(dwsmmio->clk);
 
 	return 0;
@@ -203,6 +246,7 @@ MODULE_DEVICE_TABLE(of, dw_qspi_mmio_of_match);
 
 static const struct dev_pm_ops qspi_mmio_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dw_qspi_mmio_suspend, dw_qspi_mmio_resume)
+	SET_RUNTIME_PM_OPS(dw_qspi_runtime_suspend, dw_qspi_runtime_resume, NULL)
 };
 
 static struct platform_driver dw_qspi_mmio_driver = {

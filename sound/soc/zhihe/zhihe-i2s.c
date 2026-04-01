@@ -66,7 +66,7 @@ static int a200_i2s_set_div(struct zhihe_i2s_priv *i2s_priv, unsigned int rate,
 	unsigned int cpr_div = (IIS_SRC_CLK / AUDIO_IIS_SRC0_CLK) - 1;
 	int i;
 
-	if (strcmp(i2s_priv->drvdata->name, AP_I2S)) {
+	if (!zhihe_i2s_is_ap(i2s_priv->id)) {
 		for (i = 0; i < ARRAY_SIZE(a200_special_sample_rates); i++) {
 			if (a200_special_sample_rates[i] == rate) {
 				i2s_src_clk = 1;
@@ -79,7 +79,7 @@ static int a200_i2s_set_div(struct zhihe_i2s_priv *i2s_priv, unsigned int rate,
 		else
 			div = AUDIO_IIS_SRC0_CLK / ratio;	// 48000 fsb
 		/* set audio cpr reg for i2s0/1/2 */
-		if (strstr(i2s_priv->drvdata->name, I2S0)) {
+		if (i2s_priv->id == ZHIHE_I2S0) {
 			if (i2s_src_clk)
 				regmap_update_bits(i2s_priv->audio_cpr_regmap,
 						   CPR_PERI_CLK_SEL_REG,
@@ -90,7 +90,7 @@ static int a200_i2s_set_div(struct zhihe_i2s_priv *i2s_priv, unsigned int rate,
 						   CPR_PERI_CLK_SEL_REG,
 						   CPR_I2S0_SRC_SEL_MSK,
 						   CPR_I2S0_SRC_SEL(0));
-		} else if (strstr(i2s_priv->drvdata->name, I2S1)) {
+		} else if (i2s_priv->id == ZHIHE_I2S1) {
 			if (i2s_src_clk)
 				regmap_update_bits(i2s_priv->audio_cpr_regmap,
 						   CPR_PERI_CLK_SEL_REG,
@@ -101,7 +101,7 @@ static int a200_i2s_set_div(struct zhihe_i2s_priv *i2s_priv, unsigned int rate,
 						   CPR_PERI_CLK_SEL_REG,
 						   CPR_I2S1_SRC_SEL_MSK,
 						   CPR_I2S1_SRC_SEL(0));
-		} else if (strstr(i2s_priv->drvdata->name, I2S2)) {
+		} else if (i2s_priv->id == ZHIHE_I2S2) {
 			if (i2s_src_clk)
 				regmap_update_bits(i2s_priv->audio_cpr_regmap,
 						   CPR_PERI_CLK_SEL_REG,
@@ -118,7 +118,7 @@ static int a200_i2s_set_div(struct zhihe_i2s_priv *i2s_priv, unsigned int rate,
 
 	div0 = (div + div % rate) / rate;
 	regmap_write(i2s_priv->regmap, I2S_DIV0_LEVEL, div0);
-	if (strcmp(i2s_priv->drvdata->name, AP_I2S))
+	if (!zhihe_i2s_is_ap(i2s_priv->id))
 		regmap_update_bits(i2s_priv->audio_cpr_regmap,
 				   CPR_PERI_DIV_SEL_REG, CPR_AUDIO_DIV0_SEL_MSK,
 				   CPR_AUDIO_DIV0_SEL(cpr_div));
@@ -192,9 +192,9 @@ static int i2s_multi_channel_sync(void __iomem *addr, unsigned int channels,
 
 	if (!addr)
 		return -EINVAL;
-	
+
 	int i = MAX_POLL_CNT;
-	
+
 	do {
 		if (tx && tx_fifo_empty(addr, channels))
 			break;
@@ -219,7 +219,7 @@ static int zhihe_snd_ctrl(struct zhihe_i2s_priv *i2s_priv, bool tx, bool on,
 	unsigned long flags;
 	int i;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3)) {
+	if (zhihe_i2s_is_i2s3(i2s_priv->id)) {
 		if (!tx && on)
 			atomic_inc(&rx_device_usage);
 		else if (!tx && !on)
@@ -319,7 +319,7 @@ static int zhihe_i2s_set_fmt_dai(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int cnfout = 0, cnfin = 0;
 	int ret;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
 
 	ret = pm_runtime_resume_and_get(i2s_priv->dev);
@@ -398,7 +398,7 @@ static int zhihe_i2s_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int funcmode;
 	int ret = 0;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
 
 	switch (format) {
@@ -492,7 +492,7 @@ static int zhihe_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int funcmode;
 	int ret = 0;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
 
 	switch (format) {
@@ -546,18 +546,9 @@ static int zhihe_i2s_dai_startup(struct snd_pcm_substream *substream,
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
-	if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+	if (zhihe_i2s_is_i2s3(i2s_priv->id)) {
 		if (tx)
-			i2s3_tx_ch[0] = chan;
-	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd1")) {
-		if (tx)
-			i2s3_tx_ch[1] = chan;
-	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd2")) {
-		if (tx)
-			i2s3_tx_ch[2] = chan;
-	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd3")) {
-		if (tx)
-			i2s3_tx_ch[3] = chan;
+			i2s3_tx_ch[zhihe_i2s3_sd_index(i2s_priv->id)] = chan;
 	}
 
 	return 0;
@@ -569,18 +560,9 @@ static void zhihe_i2s_dai_shutdown(struct snd_pcm_substream *substream,
 	struct zhihe_i2s_priv *i2s_priv = snd_soc_dai_get_drvdata(dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
-	if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+	if (zhihe_i2s_is_i2s3(i2s_priv->id)) {
 		if (tx)
-			i2s3_tx_ch[0] = NULL;
-	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd1")) {
-		if (tx)
-			i2s3_tx_ch[1] = NULL;
-	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd2")) {
-		if (tx)
-			i2s3_tx_ch[2] = NULL;
-	} else if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd3")) {
-		if (tx)
-			i2s3_tx_ch[3] = NULL;
+			i2s3_tx_ch[zhihe_i2s3_sd_index(i2s_priv->id)] = NULL;
 	}
 
 	if (i2s_priv->regmap)
@@ -590,6 +572,12 @@ static void zhihe_i2s_dai_shutdown(struct snd_pcm_substream *substream,
 static int zhihe_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct zhihe_i2s_priv *i2s_priv = snd_soc_dai_get_drvdata(dai);
+
+	if (i2s_priv->board == ZHIHE_A210) {
+		if (i2s_priv->regmap) {
+			regmap_write(i2s_priv->regmap, I2S_DMARDLR, I2S_DMA_RX_WATERMARK);	
+		}
+	}
 
 	snd_soc_dai_init_dma_data(dai, &i2s_priv->dma_params_tx,
 				  &i2s_priv->dma_params_rx);
@@ -613,6 +601,10 @@ static int zhihe_hdmi_dai_probe(struct snd_soc_dai *dai)
 		if (i2s_priv->hdmi_connected)
 			val |= HDMI_AUDIO_EN;
 		writel(val, i2s_priv->sys_csr + SYS_CSR_OFFSET);
+
+		if (i2s_priv->regmap) {
+			regmap_write(i2s_priv->regmap, I2S_DMARDLR, I2S_DMA_RX_WATERMARK);	
+		}
 	}
 
 	snd_soc_dai_init_dma_data(dai, &i2s_priv->dma_params_tx,
@@ -770,12 +762,15 @@ static int __maybe_unused zhihe_i2s_rt_suspend(struct device *dev)
 {
 	struct zhihe_i2s_priv *i2s_priv = dev_get_drvdata(dev);
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
 
 	regcache_cache_only(i2s_priv->regmap, true);
 	if (i2s_priv->board == ZHIHE_A210)
 		clk_disable_unprepare(i2s_priv->sclk);
+	clk_disable_unprepare(i2s_priv->pclk);
+
+	reset_control_assert(i2s_priv->rst);
 
 	return 0;
 }
@@ -785,8 +780,10 @@ static int __maybe_unused zhihe_i2s_rt_resume(struct device *dev)
 	struct zhihe_i2s_priv *i2s_priv = dev_get_drvdata(dev);
 	int ret;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
+
+	reset_control_deassert(i2s_priv->rst);
 
 	if (i2s_priv->board == ZHIHE_A210) {
 		ret = clk_prepare_enable(i2s_priv->sclk);
@@ -795,27 +792,23 @@ static int __maybe_unused zhihe_i2s_rt_resume(struct device *dev)
 			return ret;
 		}
 	}
-
+	clk_prepare_enable(i2s_priv->pclk);
 	regcache_cache_only(i2s_priv->regmap, false);
 	regcache_mark_dirty(i2s_priv->regmap);
 
-	ret = regcache_sync(i2s_priv->regmap);
-	if (i2s_priv->board == ZHIHE_A210 && ret)
-		clk_disable_unprepare(i2s_priv->sclk);
-
-	return ret;
+	return regcache_sync(i2s_priv->regmap);
 }
 
 static int __maybe_unused zhihe_i2s_suspend(struct device *dev)
 {
 	struct zhihe_i2s_priv *i2s_priv = dev_get_drvdata(dev);
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
 
 	regcache_mark_dirty(i2s_priv->regmap);
 	if (i2s_priv->board == ZHIHE_A200) {
-		if (strcmp(i2s_priv->drvdata->name, AP_I2S))
+		if (!zhihe_i2s_is_ap(i2s_priv->id))
 			regcache_mark_dirty(i2s_priv->audio_cpr_regmap);
 	}
 
@@ -827,7 +820,7 @@ static int __maybe_unused zhihe_i2s_resume(struct device *dev)
 	struct zhihe_i2s_priv *i2s_priv = dev_get_drvdata(dev);
 	int ret;
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && !i2s_priv->regmap)
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && !i2s_priv->regmap)
 		return 0;
 
 	ret = pm_runtime_resume_and_get(dev);
@@ -836,7 +829,7 @@ static int __maybe_unused zhihe_i2s_resume(struct device *dev)
 
 	ret = regcache_sync(i2s_priv->regmap);
 	if (i2s_priv->board == ZHIHE_A200) {
-		if (strcmp(i2s_priv->drvdata->name, AP_I2S))
+		if (!zhihe_i2s_is_ap(i2s_priv->id))
 			ret |= regcache_sync(i2s_priv->audio_cpr_regmap);
 	}
 	pm_runtime_put_sync(dev);
@@ -844,82 +837,50 @@ static int __maybe_unused zhihe_i2s_resume(struct device *dev)
 	return ret;
 }
 
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s0_data = {
-	.name		= "i2s0",
-	.i2s_dai_name	= "pcm-i2s0-dai",
-	.hdmi_dai_name	= "pcm-i2s0-hdmi-dai",
-	.tx_dr		= I2S_DR0,
-	.rx_dr		= I2S_DR0,
+static const char * const zhihe_i2s_names[] = {
+	[ZHIHE_I2S0]		= "i2s0",
+	[ZHIHE_I2S1]		= "i2s1",
+	[ZHIHE_I2S2]		= "i2s2",
+	[ZHIHE_I2S3_8CH_SD0]	= "i2s3-8ch-sd0",
+	[ZHIHE_I2S3_8CH_SD1]	= "i2s3-8ch-sd1",
+	[ZHIHE_I2S3_8CH_SD2]	= "i2s3-8ch-sd2",
+	[ZHIHE_I2S3_8CH_SD3]	= "i2s3-8ch-sd3",
+	[ZHIHE_AP_I2S]		= "ap-i2s",
 };
 
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s1_data = {
-	.name		= "i2s1",
-	.i2s_dai_name	= "pcm-i2s1-dai",
-	.hdmi_dai_name	= "pcm-i2s1-hdmi-dai",
-	.tx_dr		= I2S_DR0,
-	.rx_dr		= I2S_DR0,
+static const unsigned int zhihe_i2s_dr[] = {
+	[ZHIHE_I2S0]		= I2S_DR0,
+	[ZHIHE_I2S1]		= I2S_DR0,
+	[ZHIHE_I2S2]		= I2S_DR0,
+	[ZHIHE_I2S3_8CH_SD0]	= I2S_DR0,
+	[ZHIHE_I2S3_8CH_SD1]	= I2S_DR1,
+	[ZHIHE_I2S3_8CH_SD2]	= I2S_DR2,
+	[ZHIHE_I2S3_8CH_SD3]	= I2S_DR3,
+	[ZHIHE_AP_I2S]		= I2S_DR0,
 };
 
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s2_data = {
-	.name		= "i2s2",
-	.i2s_dai_name	= "pcm-i2s2-dai",
-	.hdmi_dai_name	= "pcm-i2s2-hdmi-dai",
-	.tx_dr		= I2S_DR0,
-	.rx_dr		= I2S_DR0,
-};
+static int zhihe_i2s_init_drvdata(struct zhihe_i2s_priv *i2s_priv,
+				  enum zhihe_i2s_id id)
+{
+	if (id >= ZHIHE_I2S_MAX) {
+		dev_err(i2s_priv->dev, "invalid i2s id: %d\n", id);
+		return -EINVAL;
+	}
 
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s3_8ch_sd0_data = {
-	.name		= "i2s3-8ch-sd0",
-	.i2s_dai_name	= "pcm-i2s3-8ch-sd0-dai",
-	.hdmi_dai_name	= "pcm-i2s3-8ch-sd0-hdmi-dai",
-	.tx_dr		= I2S_DR0,
-	.rx_dr		= I2S_DR0,
-};
-
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s3_8ch_sd1_data = {
-	.name		= "i2s3-8ch-sd1",
-	.i2s_dai_name	= "pcm-i2s3-8ch-sd1-dai",
-	.hdmi_dai_name	= "pcm-i2s3-8ch-sd1-hdmi-dai",
-	.tx_dr		= I2S_DR1,
-	.rx_dr		= I2S_DR1,
-};
-
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s3_8ch_sd2_data = {
-	.name		= "i2s3-8ch-sd2",
-	.i2s_dai_name	= "pcm-i2s3-8ch-sd2-dai",
-	.hdmi_dai_name	= "pcm-i2s3-8ch-sd2-hdmi-dai",
-	.tx_dr		= I2S_DR2,
-	.rx_dr		= I2S_DR2,
-};
-
-static const struct zhihe_i2s_soc_drvdata zhihe_i2s3_8ch_sd3_data = {
-	.name		= "i2s3-8ch-sd3",
-	.i2s_dai_name	= "pcm-i2s3-8ch-sd3-dai",
-	.hdmi_dai_name	= "pcm-i2s3-8ch-sd3-hdmi-dai",
-	.tx_dr		= I2S_DR3,
-	.rx_dr		= I2S_DR3,
-};
-
-static const struct zhihe_i2s_soc_drvdata zhihe_ap_i2s_data = {
-	.name		= AP_I2S,
-	.i2s_dai_name	= "pcm-ap-i2s-dai",
-	.hdmi_dai_name	= "pcm-ap-hdmi-dai",
-	.tx_dr		= I2S_DR0,
-	.rx_dr		= I2S_DR0,
-};
+	i2s_priv->id = id;
+	i2s_priv->tx_dr = zhihe_i2s_dr[id];
+	i2s_priv->rx_dr = zhihe_i2s_dr[id];
+	snprintf(i2s_priv->name, sizeof(i2s_priv->name), "%s", zhihe_i2s_names[id]);
+	snprintf(i2s_priv->i2s_dai_name, sizeof(i2s_priv->i2s_dai_name),
+		 "pcm-%s-dai", zhihe_i2s_names[id]);
+	snprintf(i2s_priv->hdmi_dai_name, sizeof(i2s_priv->hdmi_dai_name),
+		 "pcm-%s-hdmi-dai", zhihe_i2s_names[id]);
+	return 0;
+}
 
 static const struct of_device_id zhihe_i2s_of_match[] = {
-	/* a210: i2s-2ch */
-	{ .compatible = "zhihe,i2s0", .data = &zhihe_i2s0_data },
-	{ .compatible = "zhihe,i2s1", .data = &zhihe_i2s1_data },
-	{ .compatible = "zhihe,i2s2", .data = &zhihe_i2s2_data },
-	/* a210: i2s3-8ch-sdX */
-	{ .compatible = "zhihe,i2s3-8ch-sd0", .data = &zhihe_i2s3_8ch_sd0_data },
-	{ .compatible = "zhihe,i2s3-8ch-sd1", .data = &zhihe_i2s3_8ch_sd1_data },
-	{ .compatible = "zhihe,i2s3-8ch-sd2", .data = &zhihe_i2s3_8ch_sd2_data },
-	{ .compatible = "zhihe,i2s3-8ch-sd3", .data = &zhihe_i2s3_8ch_sd3_data },
-	/* a200: i2s-2ch */
-	{ .compatible = "xuantie,th1520-i2s", .data = NULL},
+	{ .compatible = "zhihe,i2s" },
+	{ .compatible = "xuantie,th1520-i2s" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, zhihe_i2s_of_match);
@@ -935,7 +896,7 @@ static ssize_t zhihe_i2s_show(struct device *dev, struct device_attribute *attr,
 		printk("i2s reg[0x%x]=0x%x\n", reg, value);
 	}
 
-	if (strcmp(i2s_priv->drvdata->name, AP_I2S)) {
+	if (!zhihe_i2s_is_ap(i2s_priv->id)) {
 		for (reg = 0; reg <= 0xfc; reg += 0x4) {
 			regmap_read(i2s_priv->audio_cpr_regmap, reg, &value);
 			printk("cpr reg[0x%x]=0x%x\n", reg, value);
@@ -945,10 +906,68 @@ static ssize_t zhihe_i2s_show(struct device *dev, struct device_attribute *attr,
 	return 0;
 }
 
-static DEVICE_ATTR(registers, 0644, zhihe_i2s_show, NULL);
+static ssize_t zhihe_i2s_overflow_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct zhihe_i2s_priv *i2s_priv = dev_get_drvdata(dev);
+	unsigned int sr, rxflr, risr, isr;
+	unsigned int icr_val = 0;
+	int len = 0;
+	int n;
+
+	if (!i2s_priv->regmap)
+		return sysfs_emit(buf, "regmap is NULL\n");
+
+	regmap_read(i2s_priv->regmap, I2S_SR, &sr);
+	regmap_read(i2s_priv->regmap, I2S_RXFLR, &rxflr);
+	regmap_read(i2s_priv->regmap, I2S_RISR, &risr);
+	regmap_read(i2s_priv->regmap, I2S_ISR, &isr);
+
+	len += sysfs_emit_at(buf, len, "---- RX FIFO Status ----\n");
+	len += sysfs_emit_at(buf, len,
+		"FIFO (Full-NotEmpty): F0=(%d-%d) F1=(%d-%d) F2=(%d-%d) F3=(%d-%d)\n",
+		!!(sr & SR_RFF0_Msk), !!(sr & SR_RFNE0_Msk),
+		!!(sr & SR_RFF1_Msk), !!(sr & SR_RFNE1_Msk),
+		!!(sr & SR_RFF2_Msk), !!(sr & SR_RFNE2_Msk),
+		!!(sr & SR_RFF3_Msk), !!(sr & SR_RFNE3_Msk));
+	len += sysfs_emit_at(buf, len,
+		"FIFO Level: CH0=%u CH1=%u CH2=%u CH3=%u\n",
+		RXFLR_CH_LEVEL(rxflr, 0), RXFLR_CH_LEVEL(rxflr, 1),
+		RXFLR_CH_LEVEL(rxflr, 2), RXFLR_CH_LEVEL(rxflr, 3));
+	len += sysfs_emit_at(buf, len, "RX Busy: %d\n", !!(sr & SR_RXBUSY_Msk));
+
+	len += sysfs_emit_at(buf, len, "---- RX Overflow ----\n");
+	len += sysfs_emit_at(buf, len,
+		"Raw:    CH0=%d CH1=%d CH2=%d CH3=%d\n",
+		!!(risr & (1 << RXOIR_CH_BIT(0))),
+		!!(risr & (1 << RXOIR_CH_BIT(1))),
+		!!(risr & (1 << RXOIR_CH_BIT(2))),
+		!!(risr & (1 << RXOIR_CH_BIT(3))));
+	len += sysfs_emit_at(buf, len,
+		"Masked: CH0=%d CH1=%d CH2=%d CH3=%d\n",
+		!!(isr & (1 << RXOIR_CH_BIT(0))),
+		!!(isr & (1 << RXOIR_CH_BIT(1))),
+		!!(isr & (1 << RXOIR_CH_BIT(2))),
+		!!(isr & (1 << RXOIR_CH_BIT(3))));
+
+	/* Accumulate overflow count from raw status and clear per-channel */
+	for (n = 0; n < 4; n++) {
+		if (risr & (1 << RXOIR_CH_BIT(n))) {
+			icr_val |= (1 << RXOIC_CH_BIT(n));
+		}
+	}
+	if (icr_val)
+		regmap_write(i2s_priv->regmap, I2S_ICR, icr_val);
+
+	return len;
+}
+
+static DEVICE_ATTR(registers, 0444, zhihe_i2s_show, NULL);
+static DEVICE_ATTR(overflow_status, 0444, zhihe_i2s_overflow_show, NULL);
 
 static struct attribute *zhihe_i2s_debug_attrs[] = {
 	&dev_attr_registers.attr,
+	&dev_attr_overflow_status.attr,
 	NULL,
 };
 
@@ -965,6 +984,7 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct axi_dma_peripheral_config *dma_pcfg;
 	unsigned int val;
+	int id;
 	int ret;
 
 	i2s_priv = devm_kzalloc(&pdev->dev, sizeof(*i2s_priv), GFP_KERNEL);
@@ -975,7 +995,6 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 
 	spin_lock_init(&i2s_priv->zhihe_i2s_lock);
 	i2s_priv->dev = &pdev->dev;
-	i2s_priv->drvdata = of_device_get_match_data(&pdev->dev);
 
 	/* Choose board by dts. */
 	if (of_property_read_bool(np, "snd-soc-zhihe-a210"))
@@ -985,21 +1004,16 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 	else
 		i2s_priv->board = ZHIHE_BOARD_DEFAULT;
 
-	if (i2s_priv->board == ZHIHE_A200) {
-		if (strstr(pdev->name, AP_I2S))
-			i2s_priv->drvdata = &zhihe_ap_i2s_data;
-		else if (strstr(pdev->name, AUDIO_I2S0))
-			i2s_priv->drvdata = &zhihe_i2s0_data;	// use zhihe i2s0 data
-		else if (strstr(pdev->name, AUDIO_I2S1))
-			i2s_priv->drvdata = &zhihe_i2s1_data;	// use zhihe i2s1 data
-		else if (strstr(pdev->name, AUDIO_I2S2))
-			i2s_priv->drvdata = &zhihe_i2s2_data;	// use zhihe i2s2 data
-		else {
-			dev_err(&pdev->dev,
-				"unsupport audio dev name: %s\n", pdev->name);
-			return -EINVAL;
-		}
+	/* Read i2s id from DTS */
+	ret = of_property_read_u32(np, "zhihe,i2s-id", &id);
+	if (ret) {
+		dev_err(&pdev->dev, "missing zhihe,i2s-id property\n");
+		return ret;
 	}
+
+	ret = zhihe_i2s_init_drvdata(i2s_priv, id);
+	if (ret)
+		return ret;
 
 	/* Choose active level of left/right channel. */
 	if (of_property_read_bool(np, "alolrc-high"))
@@ -1022,7 +1036,7 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	if (strstr(i2s_priv->drvdata->name, I2S3) && strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+	if (zhihe_i2s_is_i2s3(i2s_priv->id) && i2s_priv->id != ZHIHE_I2S3_8CH_SD0) {
 		i2s_priv->regs = NULL;
 		i2s_priv->regmap = NULL;
 	} else {
@@ -1040,7 +1054,7 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 
 		if (i2s_priv->board == ZHIHE_A200) {
 			/* set audio-cpr regmap without ap_i2s */
-			if (strcmp(i2s_priv->drvdata->name, AP_I2S)) {
+			if (!zhihe_i2s_is_ap(i2s_priv->id)) {
 				i2s_priv->audio_cpr_regmap =
 					syscon_regmap_lookup_by_phandle(np, "audio-cpr-regmap");
 				if (IS_ERR(i2s_priv->audio_cpr_regmap)) {
@@ -1059,24 +1073,18 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 						   CPR_I2S_SYNC_EN);
 			} else
 				i2s_priv->audio_cpr_regmap = NULL;
-
-			/* set reset */
-			i2s_priv->rst = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
-			if (IS_ERR(i2s_priv->rst))
-				return PTR_ERR(i2s_priv->rst);
-			reset_control_deassert(i2s_priv->rst);
 		}
+
+		/* set reset */
+		i2s_priv->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(i2s_priv->rst))
+			return PTR_ERR(i2s_priv->rst);
 
 		/* prepare APB clocks */
 		i2s_priv->pclk = devm_clk_get(&pdev->dev, "pclk");
 		if (IS_ERR(i2s_priv->pclk)) {
 			dev_err(&pdev->dev, "Can't retrieve i2s bus clock\n");
 			return PTR_ERR(i2s_priv->pclk);
-		}
-		ret = clk_prepare_enable(i2s_priv->pclk);
-		if (ret) {
-			dev_err(&pdev->dev, "pclk enable failed %d\n", ret);
-			return ret;
 		}
 
 		if (i2s_priv->board == ZHIHE_A210) {
@@ -1097,28 +1105,22 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 		}
 
 		pm_runtime_enable(&pdev->dev);
-		if (i2s_priv->board == ZHIHE_A210) {
-			if (!pm_runtime_enabled(&pdev->dev)) {
-				ret = zhihe_i2s_rt_resume(&pdev->dev);
-				if (ret)
-					goto err_pm_disable;
-			}
-		} else if (i2s_priv->board == ZHIHE_A200) {
+		if (i2s_priv->board == ZHIHE_A200) {
 			/* clk gate is enabled by hardware as default register value */
 			pm_runtime_resume_and_get(&pdev->dev);
 			pm_runtime_put_sync(&pdev->dev);
+		}
 
-			/* create sysfs interface */
-			ret = sysfs_create_group(&pdev->dev.kobj,
-						&zhihe_i2s_debug_attr_group);
-			if (ret) {
-				dev_err(&pdev->dev, "failed to create attr group\n");
-				goto err_suspend;
-			}
+		/* create sysfs interface */
+		ret = sysfs_create_group(&pdev->dev.kobj,
+					&zhihe_i2s_debug_attr_group);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to create attr group\n");
+			goto err_pm_disable;
 		}
 
 		/* CSR transmit channel config, only i2s3 on A210 is supported */
-		if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0")) {
+		if (i2s_priv->id == ZHIHE_I2S3_8CH_SD0) {
 			i2s_priv->sys_csr = devm_platform_ioremap_resource(pdev, 1);
 			if (!i2s_priv->sys_csr)
 				dev_warn(&pdev->dev, "failed to map sys_csr\n");
@@ -1132,13 +1134,13 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 	i2s_priv->dma_params_rx.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s_priv->dma_params_tx.maxburst = ZHIHE_I2S_DMA_MAX_BURST;
 	i2s_priv->dma_params_rx.maxburst = ZHIHE_I2S_DMA_MAX_BURST;
-	i2s_priv->dma_params_tx.addr = res->start + i2s_priv->drvdata->tx_dr;
-	i2s_priv->dma_params_rx.addr = res->start + i2s_priv->drvdata->rx_dr;
+	i2s_priv->dma_params_tx.addr = res->start + i2s_priv->tx_dr;
+	i2s_priv->dma_params_rx.addr = res->start + i2s_priv->rx_dr;
 	if (i2s_priv->board == ZHIHE_A210) {
 		dma_pcfg = devm_kzalloc(&pdev->dev, sizeof(*dma_pcfg), GFP_KERNEL);
 		if (!dma_pcfg) {
 			ret = -ENOMEM;
-			goto err_suspend;
+			goto err_pm_disable;
 		}
 		dma_pcfg->dst_addr_incr = false;
 		dma_pcfg->src_addr_incr = false;
@@ -1154,42 +1156,38 @@ static int zhihe_i2s_probe(struct platform_device *pdev)
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
-		goto err_suspend;
+		goto err_pm_disable;
 	}
 
 	dai = devm_kmemdup(&pdev->dev, zhihe_i2s_soc_dai,
 			   sizeof(zhihe_i2s_soc_dai), GFP_KERNEL);
 	if (!dai) {
 		ret = -ENOMEM;
-		goto err_suspend;
+		goto err_pm_disable;
 	}
-	dai[DAI_I2S].name = i2s_priv->drvdata->i2s_dai_name;
-	dai[DAI_HDMI].name = i2s_priv->drvdata->hdmi_dai_name;
+	dai[DAI_I2S].name = i2s_priv->i2s_dai_name;
+	dai[DAI_HDMI].name = i2s_priv->hdmi_dai_name;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &zhihe_i2s_soc_component, dai,
 					      ARRAY_SIZE(zhihe_i2s_soc_dai));
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
-		goto err_suspend;
+		goto err_pm_disable;
 	}
 
 	/**
 	 * Notice: In the I2S3 interface, SD0 serves as the master channel for
 	 * register control, while SD1, SD2, and SD3 operate as slave channels.
 	 */
-	if (strstr(i2s_priv->drvdata->name, I2S3)) {
-		if (!strcmp(i2s_priv->drvdata->name, "i2s3-8ch-sd0"))
+	if (zhihe_i2s_is_i2s3(i2s_priv->id)) {
+		if (i2s_priv->id == ZHIHE_I2S3_8CH_SD0)
 			i2s3_host_regs = i2s_priv->regs;
 		i2s3_probe_flag++;
 
 	}
 
 	return ret;
-
-err_suspend:
-	if (!pm_runtime_status_suspended(&pdev->dev))
-		zhihe_i2s_rt_suspend(&pdev->dev);
 
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
@@ -1203,7 +1201,7 @@ static void zhihe_i2s_remove(struct platform_device *pdev)
 {
 	struct zhihe_i2s_priv *i2s_priv = dev_get_drvdata(&pdev->dev);
 
-	if (strstr(i2s_priv->drvdata->name, I2S3)) {
+	if (zhihe_i2s_is_i2s3(i2s_priv->id)) {
 		i2s3_probe_flag--;
 		if (!i2s_priv->regmap)
 			return;
@@ -1214,8 +1212,6 @@ static void zhihe_i2s_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		zhihe_i2s_rt_suspend(&pdev->dev);
-
-	clk_disable_unprepare(i2s_priv->pclk);
 }
 
 static const struct dev_pm_ops zhihe_i2s_pm_ops = {

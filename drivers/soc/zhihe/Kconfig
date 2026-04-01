@@ -12,7 +12,7 @@ config A210_POWER_DOMAIN
 	bool "A210 Power Domain driver"
 	depends on PM
 	select PM_GENERIC_DOMAINS
-	default y
+	default n
 	help
 	  This is the power domain driver that controls PCU/PPU for A210 Soc.
 

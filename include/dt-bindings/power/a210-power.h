@@ -25,6 +25,15 @@
 #define A210_PD_PERI1			16
 #define A210_PD_PERI2			17
 #define A210_PD_PERI3			18
-#define A210_POWER_DOMAINS_MAX		19
+#define A210_PD_CAN			19
+#define A210_PD_SPI			20
+#define A210_PD_QSPI			21
+#define A210_PD_UART			22
+#define A210_PD_PWM			23
+#define A210_PD_EMMC			24
+#define A210_PD_SDIO			25
+#define A210_PD_DMAC			26
+
+#define A210_POWER_DOMAINS_MAX		27
 
 #endif /* _DT_BINDINGS_POWER_A210_H_ */

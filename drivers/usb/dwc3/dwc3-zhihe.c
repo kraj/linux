@@ -26,7 +26,6 @@
 struct dwc3_zhihe {
 	struct device *dev;
 	struct regmap *usb31_sysreg;
-	struct reset_control *usb31_arst;
 	struct platform_device *dwc3;
 	struct platform_device *usb20_phy;
 	struct clk_bulk_data *clks;
@@ -56,12 +55,7 @@ static int dwc3_zhihe_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
 				     "failed to get DWC3 bulk clks\n");
-
 	zhihe->num_clocks = ret;
-
-	zhihe->usb31_arst = devm_reset_control_get_shared(&pdev->dev, "usb31-arst");
-	if(IS_ERR(zhihe->usb31_arst))
-		return PTR_ERR(zhihe->usb31_arst);
 
 	dwc3_np = of_get_compatible_child(np, "snps,dwc3");
 	if (!dwc3_np)
@@ -76,13 +70,16 @@ static int dwc3_zhihe_probe(struct platform_device *pdev)
 	if (!zhihe->dwc3)
 		return dev_err_probe(dev, -ENODEV, "failed to get dwc3 platform device\n");
 
-	ret = clk_bulk_prepare_enable(zhihe->num_clocks, zhihe->clks);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to enable DWC3 bulk clks\n");
-
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_get_noresume(dev);
+
+	ret = clk_bulk_prepare_enable(zhihe->num_clocks, zhihe->clks);
+	if (ret) {
+		pm_runtime_put_noidle(dev);
+		pm_runtime_disable(dev);
+		return dev_err_probe(dev, ret, "failed to enable DWC3 bulk clks\n");
+	}
 
 	return 0;
 }
@@ -94,11 +91,10 @@ static int dwc3_zhihe_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(zhihe->dev);
 
+	clk_bulk_disable_unprepare(zhihe->num_clocks, zhihe->clks);
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-
-	clk_bulk_disable_unprepare(zhihe->num_clocks, zhihe->clks);
 
 	return 0;
 }
@@ -112,25 +108,32 @@ MODULE_DEVICE_TABLE(of, dwc3_zhihe_of_match);
 #ifdef CONFIG_PM
 static int __maybe_unused dwc3_zhihe_suspend(struct device *dev)
 {
-	/* Keep clocks enabled, do nothing */
 	return 0;
 }
 
 static int __maybe_unused dwc3_zhihe_resume(struct device *dev)
 {
-	/* Clocks already enabled, do nothing */
 	return 0;
 }
 
 static int __maybe_unused dwc3_zhihe_runtime_suspend(struct device *dev)
 {
-	/* Keep clocks enabled, do nothing */
+	struct dwc3_zhihe *priv = dev_get_drvdata(dev);
+
+	clk_bulk_disable_unprepare(priv->num_clocks, priv->clks);
+
 	return 0;
 }
 
 static int __maybe_unused dwc3_zhihe_runtime_resume(struct device *dev)
 {
-	/* Clocks already enabled, do nothing */
+	struct dwc3_zhihe *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_bulk_prepare_enable(priv->num_clocks, priv->clks);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 

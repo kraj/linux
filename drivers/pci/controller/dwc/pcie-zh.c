@@ -17,6 +17,7 @@
 #include <linux/resource.h>
 #include <linux/types.h>
 #include <linux/reset.h>
+#include <linux/pm_runtime.h>
 
 #include "pcie-designware.h"
 
@@ -305,6 +306,12 @@ static int zhihe_pcie_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Enter into zh_pci platform!\n");
 
+	msleep(20);
+	pm_runtime_enable(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		return ret;
+
 	data = of_device_get_match_data(dev);
 	if (!data)
 		goto deinit_phy;
@@ -338,14 +345,19 @@ static int zhihe_pcie_probe(struct platform_device *pdev)
 
 deinit_phy:
 	zhihe_pcie_phy_deinit(pcie);
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 	return ret;
 }
 
 static int zhihe_pcie_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct zhihe_pcie *pcie = platform_get_drvdata(pdev);
 
 	dw_pcie_host_deinit(&pcie->pci.pp);
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 
 	return 0;
 }

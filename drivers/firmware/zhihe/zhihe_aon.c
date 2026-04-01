@@ -327,16 +327,6 @@ static int zhihe_aon_probe(struct platform_device *pdev)
 	char dir_name[32] = { 0x0 };
 	int ret;
 
-	ret = zhihe_aon_boot_img_by_name(pdev);
-	if (ret == -ETIMEDOUT) {
-		dev_warn(dev, "AON sync timeout, retrying...\n");
-		ret = zhihe_aon_boot_img_by_name(pdev);
-		if (ret) {
-			dev_err(dev, "AON bringup failed after retry (ret=%d)\n", ret);
-			return ret;
-		}
-	}
-
 	aon_ipc = devm_kzalloc(dev, sizeof(*aon_ipc), GFP_KERNEL);
 	if (!aon_ipc)
 		return -ENOMEM;
@@ -397,6 +387,17 @@ static int zhihe_aon_probe(struct platform_device *pdev)
 
 	zhihe_aon_ipc_handle[g_aon_ipc_handle_num] = aon_ipc;
 	g_aon_ipc_handle_num++;
+
+	ret = zhihe_aon_boot_img_by_name(pdev);
+	if (ret == -ETIMEDOUT) {
+		dev_warn(dev, "AON sync timeout, retrying...\n");
+		ret = zhihe_aon_boot_img_by_name(pdev);
+		if (ret) {
+			dev_err(dev, "AON bringup failed after retry (ret=%d)\n", ret);
+			return ret;
+		}
+	}
+
 	return devm_of_platform_populate(dev);
 }
 

@@ -14,6 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/types.h>
 #include <dt-bindings/clock/a210-clock.h>
+#include <linux/pm_runtime.h>
 
 #include "clk-helper.h"
 
@@ -105,10 +106,10 @@ static const char * const peri2_qspi_ssi_clk_parents[] = {"peri2_qspi_ssi_clk_di
 static const char * const peri1_tdm_src_clk_parents[] = {"audio1_pll_fout2", "audio0_pll_fout2"};
 static const char * const pdm_clk_mux_parents[] = {"audio1_pll_fout2", "audio0_pll_fout2"};
 static const char * const emmc_ref_clk_mux_parents[] = {"audio0_pll_foutvco", "video_pll_foutvco"};
-static const char * const pad_sensor_vclk0_mux_parents[] = {"dpu0_pll_foutvco", "dpu1_pll_foutvco",
-	"dpu2_pll_foutvco", "aon_osc_clk_logic"};
-static const char * const pad_sensor_vclk1_mux_parents[] = {"dpu0_pll_foutvco", "dpu1_pll_foutvco",
-	"dpu2_pll_foutvco", "aon_osc_clk_logic"};
+static const char * const pad_sensor_vclk0_mux_parents[] = {"dpu0_pll_foutpostdiv", "dpu1_pll_foutpostdiv",
+	"dpu2_pll_foutpostdiv", "aon_osc_clk_logic"};
+static const char * const pad_sensor_vclk1_mux_parents[] = {"dpu0_pll_foutpostdiv", "dpu1_pll_foutpostdiv",
+	"dpu2_pll_foutpostdiv", "aon_osc_clk_logic"};
 static const char * const vp_aclk_mux_parents[] = {"video_pll_foutvco", "audio0_pll_foutvco"};
 static const char * const g2d_cclk_mux_parents[] = {"audio0_pll_foutvco", "gmac_pll_foutvco", "video_pll_foutvco"};
 static const char * const vdec_cclk_mux_parents[] = {"audio0_pll_foutvco", "video_pll_foutvco", "gmac_pll_foutvco",
@@ -442,11 +443,11 @@ static struct zhihe_clk_info info_top[] = {
 	FIXED_FACTOR(PERI2_PWM_CLK, "peri2_pwm_clk", "gmac_pll_fout1ph0", 1, 10),
 	FIXED_FACTOR(I2C_IC_CLK, "i2c_ic_clk", "gmac_pll_foutpostdiv", 1, 10),
 	MUX(TOP_PAD_SENSOR_VCLK_MUX0, "pad_sensor_vclk0_mux", TOP_CRG, 0x2c, 16, 2,
-	    pad_sensor_vclk0_mux_parents, ARRAY_SIZE(pad_sensor_vclk0_mux_parents), CLK_SET_RATE_PARENT),
+	    pad_sensor_vclk0_mux_parents, ARRAY_SIZE(pad_sensor_vclk0_mux_parents), CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
 	DIV(TOP_PAD_SENSOR_VCLK0_DIV, "top_pad_sensor_vclk0_div", "pad_sensor_vclk0_mux", TOP_CRG, 0x2c, 0, 8,
 	    NO_DIV_EN, MUX_TYPE_DIV, 16, 255),
 	MUX(TOP_PAD_SENSOR_VCLK_MUX1, "pad_sensor_vclk1_mux", TOP_CRG, 0x2c, 18, 2,
-	    pad_sensor_vclk1_mux_parents, ARRAY_SIZE(pad_sensor_vclk1_mux_parents), CLK_SET_RATE_PARENT),
+	    pad_sensor_vclk1_mux_parents, ARRAY_SIZE(pad_sensor_vclk1_mux_parents), CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
 	DIV(TOP_PAD_SENSOR_VCLK1_DIV, "top_pad_sensor_vclk1_div", "pad_sensor_vclk1_mux", TOP_CRG, 0x2c, 8, 8,
 	    NO_DIV_EN, MUX_TYPE_DIV, 16, 255),
 	MUX(TOP_TEE_CLK_MUX, "tee_clk_mux", TOP_CRG, 0x30, 0, 1,
@@ -553,9 +554,9 @@ static struct zhihe_clk_info info_usb[] = {
 	GATE(USB31_PCLK_EN, "usb31_pclk", "usb_ss_gtc_clk", USB_CLK_EN, 0x8, 0),
 	GATE(C10PHY_SUSPEND_CLK_EN, "usb_c10phy_suspend_clk", "usb_ss_pad_osc_clk_1m", USB_CLK_EN, 0xc, 4),
 	GATE(C10PHY_PCLK_EN, "usb_c10phy_pclk", "usb_ss_gtc_clk", USB_CLK_EN, 0xc, 0),
-	FIXED_FACTOR(USB20_BUS_CLK, "usb20_bus_clk", "usb31_bus_clk", 1, 1),
 	FIXED_FACTOR(USB20_CORE_CLK, "usb20_core_clk", "aon_osc_clk_logic", 1, 1),
 	GATE(USB_SS_PERI2_CFG_ACLK_EN, "usb_peri2_cfg_aclk", "aon_osc_clk_logic", USB_CLK_EN, 0x20, 4),
+	GATE(USB20_BUS_CLK, "usb20_bus_clk", "clkgen_usb_ss_bus_clk", USB_CLK_EN, 0x10, 24),
 };
 
 static struct zhihe_clk_info info_vi[] = {
@@ -758,8 +759,8 @@ static struct zhihe_clk_info info_peri[] = {
 	GATE(PERI1_SPI0_PCLK_EN, "peri1_clkgen_spi0_pclk", "top_cfg_aclk", PERI1_SYSREG, 0, 22),
 	GATE(PERI1_QSPI0_SSI_CLK_EN, "peri1_clkgen_qspi0_ssi_clk", "peri1_qspi_ssi_clk", PERI1_SYSREG, 0, 21),
 	GATE(PERI1_QSPI0_PCLK_EN, "peri1_clkgen_qspi0_pclk", "top_cfg_aclk", PERI1_SYSREG, 0, 20),
-	GATE(PERI1_PWM0_PCLK_EN, "peri1_clkgen_pwm0_pclk", "top_cfg_aclk", PERI1_SYSREG, 0, 19),
-	GATE(PERI1_PWM0_CCLK_EN, "peri1_clkgen_pwm0_cclk", "peri1_pwm_clk", PERI1_SYSREG, 0, 18),
+	GATE(PERI1_PWM0_PCLK_EN, "peri1_clkgen_pwm0_pclk", "peri1_pwm_clk", PERI1_SYSREG, 0, 19),
+	GATE(PERI1_PWM0_CCLK_EN, "peri1_clkgen_pwm0_cclk", "peri1_clkgen_pwm0_pclk", PERI1_SYSREG, 0, 18),
 	GATE(PERI1_MST_BUS_PCLK_EN, "peri1_clkgen_mst_bus_pclk", "top_cfg_aclk", PERI1_SYSREG, 0, 17),
 	GATE(PERI1_MST_BUS_ACLK_EN, "peri1_clkgen_mst_bus_aclk", "peri1_mst_aclk", PERI1_SYSREG, 0, 16),
 	GATE(PERI1_I2S0_SRC_CLK_EN, "peri1_clkgen_i2s0_src_clk", "peri1_i2s0_src_clk", PERI1_SYSREG, 0, 15),
@@ -792,10 +793,10 @@ static struct zhihe_clk_info info_peri[] = {
 	GATE(PERI1_PDM0_MCLK_EN, "peri1_pdm0_mclk", "peri1_pdm_mclk", PERI1_SYSREG, 0x4, 14),
 	GATE(PERI1_CAN1_PCLK_EN, "peri1_can1_pclk", "top_cfg_aclk", PERI1_SYSREG, 0x4, 13),
 	GATE(PERI1_CAN1_OSC_CLK_EN, "peri1_can1_osc_clk", "peri1_hires_clk", PERI1_SYSREG, 0x4, 12),
-	GATE(PERI1_CAN1_HIRES_CLK_EN, "peri1_can1_hires_clk", "peri1_hires_clk", PERI1_SYSREG, 0x4, 11),
+	GATE(PERI1_CAN1_HIRES_CLK_EN, "peri1_can1_hires_clk", "peri1_can1_osc_clk", PERI1_SYSREG, 0x4, 11),
 	GATE(PERI1_CAN0_PCLK_EN, "peri1_can0_pclk", "top_cfg_aclk", PERI1_SYSREG, 0x4, 10),
 	GATE(PERI1_CAN0_OSC_CLK_EN, "peri1_can0_osc_clk", "peri1_hires_clk", PERI1_SYSREG, 0x4, 9),
-	GATE(PERI1_CAN0_HIRES_CLK_EN, "peri1_can0_hires_clk", "peri1_hires_clk", PERI1_SYSREG, 0x4, 8),
+	GATE(PERI1_CAN0_HIRES_CLK_EN, "peri1_can0_hires_clk", "peri1_can0_osc_clk", PERI1_SYSREG, 0x4, 8),
 	GATE(PERI1_PAD_CTRL_PCLK_EN, "peri1_pad_ctrl_pclk", "top_cfg_aclk", PERI1_SYSREG, 0x4, 7),
 	GATE(PERI1_DFMU_PTW_ACLK_EN, "peri1_dfmu_ptw_aclk", "peri1_mst_aclk", PERI1_SYSREG, 0x4, 6),
 	GATE(PERI1_DFMU_PCLK_EN, "peri1_dfmu_pclk", "top_cfg_aclk", PERI1_SYSREG, 0x4, 5),
@@ -836,7 +837,7 @@ static struct zhihe_clk_info info_peri[] = {
 	GATE(PERI2_SPI1_SSI_CLK_EN, "peri2_clkgen_spi1_ssi_clk", "peri2_spi_ssi_clk", PERI2_SYSREG, 0, 3),
 	GATE(PERI2_GPIO2_DBCLK_EN, "peri2_clkgen_gpio2_dbclk", "aon_rtc_clk", PERI2_SYSREG, 0, 2),
 	GATE(PERI2_CAN2_OSC_CLK_EN, "peri2_clkgen_can2_osc_clk", "peri2_hires_clk", PERI2_SYSREG, 0, 1),
-	GATE(PERI2_CAN2_HIRES_CLK_EN, "peri2_clkgen_can2_hires_clk", "peri2_hires_clk", PERI2_SYSREG, 0, 0),
+	GATE(PERI2_CAN2_HIRES_CLK_EN, "peri2_clkgen_can2_hires_clk", "peri2_clkgen_can2_osc_clk", PERI2_SYSREG, 0, 0),
 	GATE(PERI2_QSPI1_PCLK_EN, "peri2_clkgen_qspi1_pclk", "top_cfg_aclk", PERI2_SYSREG, 0x4, 11),
 	GATE(PERI2_QSPI1_SSI_CLK_EN, "peri2_clkgen_qspi1_ssi_clk", "peri2_qspi_ssi_clk", PERI2_SYSREG, 0x4, 10),
 	GATE(PERI2_UART9_PCLK_EN, "peri2_clkgen_uart9_pclk", "top_cfg_aclk", PERI2_SYSREG, 0x4, 9),
@@ -845,10 +846,10 @@ static struct zhihe_clk_info info_peri[] = {
 	GATE(PERI2_UART8_SCLK_EN, "peri2_clkgen_uart8_sclk", "uart_sclk", PERI2_SYSREG, 0x4, 6),
 	GATE(PERI2_UART7_PCLK_EN, "peri2_clkgen_uart7_pclk", "top_cfg_aclk", PERI2_SYSREG, 0x4, 5),
 	GATE(PERI2_UART7_SCLK_EN, "peri2_clkgen_uart7_sclk", "uart_sclk", PERI2_SYSREG, 0x4, 4),
-	GATE(PERI2_PWM2_PCLK_EN, "peri2_clkgen_pwm2_pclk", "top_cfg_aclk", PERI2_SYSREG, 0x4, 3),
-	GATE(PERI2_PWM2_CCLK_EN, "peri2_clkgen_pwm2_cclk", "peri2_pwm_clk", PERI2_SYSREG, 0x4, 2),
-	GATE(PERI2_PWM1_PCLK_EN, "peri2_clkgen_pwm1_pclk", "top_cfg_aclk", PERI2_SYSREG, 0x4, 1),
-	GATE(PERI2_PWM1_CCLK_EN, "peri2_clkgen_pwm1_cclk", "peri2_pwm_clk", PERI2_SYSREG, 0x4, 0),
+	GATE(PERI2_PWM2_PCLK_EN, "peri2_clkgen_pwm2_pclk", "peri2_pwm_clk", PERI2_SYSREG, 0x4, 3),
+	GATE(PERI2_PWM2_CCLK_EN, "peri2_clkgen_pwm2_cclk", "peri2_clkgen_pwm2_pclk", PERI2_SYSREG, 0x4, 2),
+	GATE(PERI2_PWM1_PCLK_EN, "peri2_clkgen_pwm1_pclk", "peri2_pwm_clk", PERI2_SYSREG, 0x4, 1),
+	GATE(PERI2_PWM1_CCLK_EN, "peri2_clkgen_pwm1_cclk", "peri2_clkgen_pwm1_pclk", PERI2_SYSREG, 0x4, 0),
 	/* PERI3 SS */
 	GATE(PERI3_PAD_CTRL_PCLK_EN, "peri3_clkgen_pad_ctrl_pclk", "top_cfg_aclk", PERI3_SYSREG, 0, 21),
 	GATE(PERI3_GPIO4_PCLK_EN, "peri3_clkgen_gpio4_pclk", "top_cfg_aclk", PERI3_SYSREG, 0, 20),
@@ -980,6 +981,8 @@ static int a210_clocks_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct zhihe_clk_subsys *priv;
 	int ret;
+
+	pm_runtime_enable(dev);
 
 	struct clk_onecell_data *clk_data = devm_kzalloc(dev, sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data) {

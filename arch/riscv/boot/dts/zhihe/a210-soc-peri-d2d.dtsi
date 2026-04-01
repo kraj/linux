@@ -22,18 +22,20 @@
 		};
 
 		peri1_padctrl_die1: peri1-padctrl@2002026000 {
-			compatible = "zhihe,a210-group1-pinctrl";
+			compatible = "zhihe,a210-pinctrl";
 			reg = <0x20 0x02026000 0x0 0x1000>;
 			clocks = <&clk_peri_die1 PERI1_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
+			zhihe,group-id = <1>;
 			status = "okay";
 		};
 
 		peri2_padctrl_die1: peri2-padctrl@2008411000 {
-			compatible = "zhihe,a210-group2-pinctrl";
+			compatible = "zhihe,a210-pinctrl";
 			reg = <0x20 0x08411000 0x0 0x1000>;
 			clocks = <&clk_peri_die1 PERI2_PAD_CTRL_PCLK_EN>;
 			clock-names = "pclk";
+			zhihe,group-id = <2>;
 			status = "okay";
 		};
 
@@ -184,6 +186,8 @@
 			reg-names = "interrupt_addr",
 				    "local_addr0",
 				    "remote_icu0";
+			clocks = <&clk_peri_die1 PERI0_MBOX0_PCLK_EN>, <&clk_peri_die1 PERI0_MBOX1_PCLK_EN>;
+			resets = <&rst_die1 PERI0_MBOX0_PRST>, <&rst_die1 PERI0_MBOX1_PRST>;
 			interrupt-parent = <&intc_die1>;
 			interrupts = <336 IRQ_TYPE_LEVEL_HIGH>;
 			icu_cpu_id = <1>;

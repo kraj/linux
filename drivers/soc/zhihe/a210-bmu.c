@@ -35,6 +35,7 @@
 #include <linux/sort.h>
 #include <asm/cache.h>
 #include "trace.h"
+#include <linux/pm_runtime.h>
 
 #define A210_100P_V1
 
@@ -1342,10 +1343,19 @@ static u64 ddr_perf_read_max_counter(struct ddr_pmu *pmu, int event_id,
 	return ret;
 }
 
-static int ddr_perf_event_init(struct perf_event *event)
+static void bmu_perf_event_destroy(struct perf_event *event)
+{
+ 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
+
+	pm_runtime_put_autosuspend(pmu->dev);
+}
+
+static int bmu_perf_event_init(struct perf_event *event)
 {
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
+
+	pm_runtime_get_sync(pmu->dev);
 
 	if (event->attr.type != event->pmu->type) {
 		dev_err(pmu->dev, "un-support event attr type 0x%x != 0x%x\n",
@@ -1361,11 +1371,12 @@ static int ddr_perf_event_init(struct perf_event *event)
 	event->cpu = pmu->cpu;
 	hwc->config = event->attr.config & ATTR_EVENT_MASK;
 	hwc->idx = -1;
+	event->destroy = bmu_perf_event_destroy;
 
 	return 0;
 }
 
-static void ddr_perf_event_update(struct perf_event *event)
+static void bmu_perf_event_update(struct perf_event *event)
 {
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -1416,7 +1427,7 @@ static void ddr_perf_event_update(struct perf_event *event)
 	}
 }
 
-static void ddr_perf_event_update_by_inst(struct perf_event *event, int inst)
+static void bmu_perf_event_update_by_inst(struct perf_event *event, int inst)
 {
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -2025,7 +2036,7 @@ static u32 bmu3_get_version(struct ddr_pmu *pmu, int inst)
 	return ver;
 }
 
-static void ddr_perf_event_start(struct perf_event *event, int flags)
+static void bmu_perf_event_start(struct perf_event *event, int flags)
 {
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -2191,7 +2202,7 @@ static void ddr_perf_event_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 }
 
-static int ddr_perf_event_add(struct perf_event *event, int flags)
+static int bmu_perf_event_add(struct perf_event *event, int flags)
 {
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -2237,12 +2248,12 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 	hwc->state |= PERF_HES_STOPPED;
 
 	if (flags & PERF_EF_START)
-		ddr_perf_event_start(event, flags);
+		bmu_perf_event_start(event, flags);
 
 	return 0;
 }
 
-static void ddr_perf_event_stop(struct perf_event *event, int flags)
+static void bmu_perf_event_stop(struct perf_event *event, int flags)
 {
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -2280,52 +2291,30 @@ static void ddr_perf_event_stop(struct perf_event *event, int flags)
 	}
 }
 
-static void ddr_perf_event_del(struct perf_event *event, int flags)
+static void bmu_perf_event_del(struct perf_event *event, int flags)
 {
 	//struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 
-	ddr_perf_event_stop(event, PERF_EF_UPDATE);
+	bmu_perf_event_stop(event, PERF_EF_UPDATE);
 	if (!ddr_perf_is_capture_masked(event))
-		ddr_perf_event_update(event);
+		bmu_perf_event_update(event);
 	hwc->state |= PERF_HES_STOPPED;
 	hwc->idx = -1;
 }
 
-static void ddr_perf_pmu_enable(struct pmu *pmu)
+static void bmu_perf_pmu_enable(struct pmu *pmu)
 {
 }
 
-static void ddr_perf_pmu_disable(struct pmu *pmu)
+static void bmu_perf_pmu_disable(struct pmu *pmu)
 {
-}
-
-#define VENCGPU_EFUSE_CFG_ADDR 0x27400000 + 0xE4
-static int vp_tee_init(void)
-{
-	size_t pa = VENCGPU_EFUSE_CFG_ADDR;
-	size_t sz = 4;
-	volatile u8 *vpss_sys_hwregs = NULL;
-	vpss_sys_hwregs = (volatile u8 __force *)ioremap(pa, sz);
-	if (vpss_sys_hwregs == NULL) {
-		pr_err("%s: vpss_sys_hwregs ioremap failed! pa = %lx, \
-			sz = %lx\n",
-		       __func__, pa, sz);
-		return -1;
-	}
-	iowrite32(0xFFFFFF00, ((void __iomem *)vpss_sys_hwregs));
-	udelay(1);
-	iounmap(vpss_sys_hwregs);
-	return 0;
 }
 
 static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base[],
 			 struct device *dev)
 {
 	int i, j;
-	u32 sys_reg1, sys_reg2, sys_reg3, sys_reg4, sys_reg5, sys_reg6;
-	u32 sys_reg7, sys_reg8, sys_reg9, sys_reg10, sys_reg11, sys_reg12;
-	u32 regid;
 	struct bmu3_para *private;
 
 	private = pmu->bmu_private;
@@ -2334,14 +2323,14 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base[],
 		//.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
 		.task_ctx_nr = perf_invalid_context,
 		.attr_groups = attr_groups,
-		.event_init = ddr_perf_event_init,
-		.add = ddr_perf_event_add,
-		.del = ddr_perf_event_del,
-		.start = ddr_perf_event_start,
-		.stop = ddr_perf_event_stop,
-		.read = ddr_perf_event_update,
-		.pmu_enable = ddr_perf_pmu_enable,
-		.pmu_disable = ddr_perf_pmu_disable,
+		.event_init = bmu_perf_event_init,
+		.add = bmu_perf_event_add,
+		.del = bmu_perf_event_del,
+		.start = bmu_perf_event_start,
+		.stop = bmu_perf_event_stop,
+		.read = bmu_perf_event_update,
+		.pmu_enable = bmu_perf_pmu_enable,
+		.pmu_disable = bmu_perf_pmu_disable,
 	};
 
 	for (i = 0; i < private->reg_group_num; i++) {
@@ -2354,315 +2343,27 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base[],
 			private->mod_id = BMU_DDR;
 			private->chn_id[0] = CHN0;
 			private->chn_id[1] = CHN1;
-			size_t pa = 0x04900050;
-			size_t sz = 4;
-			volatile u8 *ddr_broacast_en_reg = NULL;
-			ddr_broacast_en_reg =
-				(volatile u8 __force *)ioremap(pa, sz);
-			if (ddr_broacast_en_reg == NULL) {
-				pr_err("%s: ddr_broacast_en_reg ioremap failed! "
-				       "pa = %lx, sz = %lx\n",
-				       __func__, pa, sz);
-				return -1;
-			}
-			iowrite32(0x0, ((void __iomem *)ddr_broacast_en_reg));
-			/* delay 1ms before access any venc register */
-			udelay(100);
-			iounmap(ddr_broacast_en_reg);
-			regid = BMU_SYSREG_CFG;
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
 		} else if (!strcmp(private->name, "bmu_vp")) {
 			private->mod_id = BMU_VP;
 			private->chn_id[0] = CHN0;
-			vp_tee_init();
-			// bpc
-			writel(0x0, private->reg3_va[0] + 0x3000);
-			writel(0x10101, private->reg3_va[0] + 0x3004);
-			writel(0x0, private->reg3_va[0] + 0x6000);
-			writel(0x10101, private->reg3_va[0] + 0x6004);
-			writel(0x0, private->reg3_va[0] + 0x9000);
-			writel(0x10101, private->reg3_va[0] + 0x9004);
-			// pcu
-			writel(0x3f, private->reg3_va[0] + 0x2024);
-			writel(0x1f, private->reg3_va[0] + 0x200c);
-			writel(0x1, private->reg3_va[0] + 0x2008);
-			writel(0x3f, private->reg3_va[0] + 0x5024);
-			writel(0x1f, private->reg3_va[0] + 0x500c);
-			writel(0x1, private->reg3_va[0] + 0x5008);
-			writel(0x3f, private->reg3_va[0] + 0x8024);
-			writel(0x1f, private->reg3_va[0] + 0x800c);
-			writel(0x1, private->reg3_va[0] + 0x8008);
-			regid = BMU_VP_SYSREG_CLK_EN;
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg1 |= 0xffffffff;
-			writel(sys_reg1, (private->reg1_va[i] + regid));
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			regid = BMU_VP_SYSREG_RSTN_EN;
-			sys_reg2 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg2 |= 0xffffffff;
-			writel(sys_reg2, (private->reg1_va[i] + regid));
-			sys_reg2 = readl_relaxed(private->reg1_va[i] + regid);
-			private->mod_id = BMU_VP;
-			private->chn_id[0] = CHN0;
 		} else if (!strcmp(private->name, "bmu_vi")) {
-			int count = 0;
-			// bpc
 			private->mod_id = BMU_VI;
 			private->chn_id[0] = CHN0;
-			writel(0x0, private->reg3_va[0] + 0x3000);
-			writel(0x10101, private->reg3_va[0] + 0x3004);
-			writel(0x0, private->reg3_va[0] + 0x6000);
-			writel(0x10101, private->reg3_va[0] + 0x6004);
-			writel(0x0, private->reg3_va[0] + 0x9000);
-			writel(0x10101, private->reg3_va[0] + 0x9004);
-			// pcu
-			writel(0x3f, private->reg3_va[0] + 0x2024);
-			writel(0x1f, private->reg3_va[0] + 0x200c);
-			writel(0x1, private->reg3_va[0] + 0x2008);
-			writel(0x3f, private->reg3_va[0] + 0x5024);
-			writel(0x1f, private->reg3_va[0] + 0x500c);
-			writel(0x1, private->reg3_va[0] + 0x5008);
-			writel(0x3f, private->reg3_va[0] + 0x8024);
-			writel(0x1f, private->reg3_va[0] + 0x800c);
-			writel(0x1, private->reg3_va[0] + 0x8008);
-			private->mod_id = BMU_VI;
-			private->chn_id[0] = CHN0;
-			regid = BMU_VI_SYSREG_CLK_EN1;
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg1 |= 0xffffffff;
-			writel(sys_reg1, (private->reg1_va[i] + regid));
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			do {
-				regid = BMU_VI_SYSREG_CLK_EN1;
-				sys_reg1 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(1);
-			} while (((sys_reg1 & 0x1) != 0x1) && (count++ < 1000));
-			regid = BMU_VI_SYSREG_RSTN_EN1;
-			sys_reg3 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg3 |= 0xffffffff;
-			writel(sys_reg3, (private->reg1_va[i] + regid));
-			/*sys_reg3 = readl_relaxed(private->reg1_va[i] + regid); */
-			count = 0;
-			do {
-				regid = BMU_VI_SYSREG_RSTN_EN1;
-				sys_reg3 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(1);
-			} while (((sys_reg3 & 0x1) != 0x1) && (count++ < 1000));
 		} else if (!strcmp(private->name, "bmu_vo")) {
 			private->mod_id = BMU_VO;
 			private->chn_id[0] = CHN0;
-			regid = BMU_VO_SYSREG_REG13c;
-			sys_reg3 = 0x19;
-			writel(sys_reg3, (private->reg3_va[i] + regid));
-			sys_reg3 = readl_relaxed(private->reg3_va[i] + regid);
-			regid = BMU_VO_SYSREG_REG004;
-			sys_reg4 = 0x10101;
-			writel(sys_reg4, (private->reg3_va[i] + regid));
-			sys_reg4 = readl_relaxed(private->reg3_va[i] + regid);
-			udelay(10);
-			regid = BMU_VO_SYSREG_CLK_EN;
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg1 |= 0xffffffff;
-			writel(sys_reg1, (private->reg1_va[i] + regid));
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			udelay(10);
-			regid = BMU_VO_SYSREG_RSTN_EN;
-			sys_reg2 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg2 |= 0xffffffff;
-			writel(sys_reg2, (private->reg1_va[i] + regid));
-			sys_reg2 = readl_relaxed(private->reg1_va[i] + regid);
 		} else if (!strcmp(private->name, "bmu_gpu")) {
 			private->mod_id = BMU_GPU;
 			private->chn_id[0] = CHN0;
-			{
-				size_t pa = 0x2025c004;
-				size_t sz = 4;
-				volatile u8 *gpu_top_ccu_hwregs = NULL;
-				gpu_top_ccu_hwregs =
-					(volatile u8 __force *)ioremap(pa, sz);
-				if (gpu_top_ccu_hwregs == NULL) {
-					pr_debug(
-						"%s: gpu_top_ccu_hwregs ioremap failed!\
-						pa=%lx,sz = %lx\n",
-						__func__, pa, sz);
-					return -1;
-				}
-				iowrite32(0x1,
-					  ((void __iomem *)gpu_top_ccu_hwregs));
-				udelay(1);
-				iounmap(gpu_top_ccu_hwregs);
-			}
-			regid = BMU_GPU_TOP_BPC_REG04;
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			sys_reg1 &= 0x0;
-			writel(sys_reg1, (private->reg1_va[i] + regid));
-			udelay(50);
-			regid = BMU_GPU_TOP_BPC_REG13C;
-			sys_reg2 = 0x18;
-			writel(sys_reg2, (private->reg1_va[i] + regid));
-			udelay(50);
-			regid = BMU_GPU_TOP_CFG_ACLK_CCU_REG28;
-			sys_reg3 = 0x1;
-			writel(sys_reg3, (private->reg1_va[i] + regid));
-			udelay(10);
-			regid = BMU_GPU_TOP_ACLK_CCU_REG28;
-			sys_reg4 = 0x1;
-			writel(sys_reg4, (private->reg1_va[i] + regid));
-			udelay(10);
-			regid = BMU_GPU_TOP_PCLK_REG28;
-			sys_reg5 = 0x1;
-			writel(sys_reg5, (private->reg1_va[i] + regid));
-			udelay(10);
-			regid = BMU_GPU_ACLK_CCU_REG28;
-			sys_reg6 = 0x1;
-			writel(sys_reg6, (private->reg2_va[i] + regid));
-			udelay(10);
-			regid = BMU_GPU_CORE_CLK_CCU_REG28;
-			sys_reg7 = 0x1;
-			writel(sys_reg7, (private->reg2_va[i] + regid));
-			udelay(10);
-			regid = BMU_GPU_PCLK_CCU_REG28;
-			sys_reg8 = 0x1;
-			writel(sys_reg8, (private->reg2_va[i] + regid));
-			udelay(50);
-			regid = BMU_GPU_TOP_PCU_REG24;
-			sys_reg9 = 0x3f;
-			writel(sys_reg9, (private->reg1_va[i] + regid));
-			udelay(50);
-			regid = BMU_GPU_TOP_PCA_REG10;
-			sys_reg10 = 0x1;
-			writel(sys_reg10, (private->reg1_va[i] + regid));
-			udelay(50);
-			regid = BMU_GPU_TOP_PCU_REG0C;
-			sys_reg11 = 0x1f;
-			writel(sys_reg11, (private->reg1_va[i] + regid));
-			udelay(50);
-			regid = BMU_GPU_TOP_PCU_REG08;
-			sys_reg12 = 0x1;
-			writel(sys_reg12, (private->reg1_va[i] + regid));
-			udelay(50);
 		} else if (!strcmp(private->name, "bmu_npu")) {
-			int count = 0;
 			private->mod_id = BMU_NPU;
 			private->chn_id[0] = CHN0;
-			regid = BMU_NPU_PCTRL_PCU_REG24;
-			sys_reg1 = 0x3f;
-			writel(sys_reg1, (private->reg1_va[i] + regid));
-			sys_reg1 = readl_relaxed(private->reg1_va[i] + regid);
-			regid = BMU_NPU_PCTRL_PCA_REG20;
-			sys_reg2 = 0x0;
-			writel(sys_reg2, (private->reg1_va[i] + regid));
-			sys_reg2 = readl_relaxed(private->reg1_va[i] + regid);
-			regid = BMU_NPU_PCTRL_BPC_REG00;
-			sys_reg3 = 0x0;
-			writel(sys_reg3, (private->reg1_va[i] + regid));
-			sys_reg3 = readl_relaxed(private->reg1_va[i] + regid);
-			regid = BMU_NPU_PCU_SW_LPS_REG0C;
-			sys_reg4 = 0x1f;
-			writel(sys_reg4, (private->reg1_va[i] + regid));
-			sys_reg4 = readl_relaxed(private->reg1_va[i] + regid);
-			regid = BMU_NPU_PCU_SW_LPR_REG08;
-			sys_reg5 = 0x1;
-			writel(sys_reg5, (private->reg1_va[i] + regid));
-			sys_reg5 = readl_relaxed(private->reg1_va[i] + regid);
-			regid = BMU_NPU_PCU_ICR_REG28;
-			sys_reg6 = 0x3f;
-			writel(sys_reg6, (private->reg1_va[i] + regid));
-			sys_reg6 = readl_relaxed(private->reg1_va[i] + regid);
-			do {
-				regid = BMU_NPU_PCU_ISR_REG30;
-				sys_reg7 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg7 & 0x1) != 0x1) && (count++ < 1000));
-			regid = BMU_NPU_CRG_REG200;
-			sys_reg8 = 0x7ffff;
-			writel(sys_reg8, (private->reg2_va[i] + regid));
-			sys_reg8 = readl_relaxed(private->reg2_va[i] + regid);
-			regid = BMU_NPU_CRG_REG210;
-			sys_reg9 = 0x7ffffff;
-			writel(sys_reg9, (private->reg2_va[i] + regid));
-			sys_reg9 = readl_relaxed(private->reg2_va[i] + regid);
 		} else if (!strcmp(private->name, "bmu_d2d")) {
-			int count = 0;
 			private->mod_id = BMU_D2D;
 			private->chn_id[0] = CHN0;
-			do {
-				regid = BMU_D2D_PCU_REG24;
-				sys_reg3 = 0x3f;
-				writel(sys_reg3, (private->reg1_va[i] + regid));
-				sys_reg3 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg3 & 0x1) != 0x1) && (count++ < 1000));
-			count = 0;
-			do {
-				regid = BMU_D2D_BPC_REG200;
-				sys_reg4 = 0x0;
-				writel(sys_reg4, (private->reg1_va[i] + regid));
-				sys_reg4 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg4 & 0x1) != 0x0) && (count++ < 1000));
-			count = 0;
-			do {
-				regid = BMU_D2D_PCUEN_REG0C;
-				sys_reg1 = 0x1f;
-				writel(sys_reg1, (private->reg1_va[i] + regid));
-				sys_reg1 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg1 & 0x1) != 0x1) && (count++ < 1000));
-			count = 0;
-			do {
-				regid = BMU_D2D_SW_LPREQ_REG08;
-				sys_reg2 = 0x1;
-				writel(sys_reg2, (private->reg1_va[i] + regid));
-				sys_reg2 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg2 & 0x1) != 0x1) && (count++ < 1000));
 		} else if (!strcmp(private->name, "bmu_usb")) {
-			int count = 0;
 			private->mod_id = BMU_USB;
 			private->chn_id[0] = CHN0;
-			do {
-				regid = BMU_USB_PCU_PCA_REG24;
-				sys_reg3 = 0x3f;
-				writel(sys_reg3, (private->reg1_va[i] + regid));
-				sys_reg3 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg3 & 0x1) != 0x1) && (count++ < 1000));
-			count = 0;
-			do {
-				regid = BMU_USB_BPC_REG0;
-				sys_reg4 = 0x0;
-				writel(sys_reg4, (private->reg1_va[i] + regid));
-				sys_reg4 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg4 & 0x1) != 0x0) && (count++ < 1000));
-			count = 0;
-			do {
-				regid = BMU_USB_PCU_SW_LPS_REG0C;
-				sys_reg1 = 0x1f;
-				writel(sys_reg1, (private->reg1_va[i] + regid));
-				sys_reg1 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg1 & 0x1) != 0x1) && (count++ < 1000));
-			count = 0;
-			do {
-				regid = BMU_USB_PCU_SW_LPREQ_REG08;
-				sys_reg2 = 0x1;
-				writel(sys_reg2, (private->reg1_va[i] + regid));
-				sys_reg2 = readl_relaxed(private->reg1_va[i] +
-							 regid);
-				udelay(3);
-			} while (((sys_reg2 & 0x1) != 0x1) && (count++ < 1000));
 		} else if (!strcmp(private->name, "bmu_pcie")) {
 			private->mod_id = BMU_PCIE;
 			private->chn_id[0] = CHN0;
@@ -4867,7 +4568,7 @@ static irqreturn_t bmu_irq_handler(int irq, void *p)
 				if (ddr_perf_is_misc_masked(event))
 					continue;
 				hwc = &event->hw;
-				ddr_perf_event_update_by_inst(event, i);
+				bmu_perf_event_update_by_inst(event, i);
 				if (pmu_trace.trace_enable == 1) {
 					char tmp[30];
 					tp.reg_offset =
@@ -4897,7 +4598,7 @@ static irqreturn_t bmu_irq_handler(int irq, void *p)
 				event = pmu->events[i][DDR_EVENT_CAPTURE_R_DATA];
 				private->cnt_proc1_data[i].vrd_tgtdat_cnt++;
 				if (event) {
-					ddr_perf_event_update(event);
+					bmu_perf_event_update(event);
 				} else {
 					dev_err(pmu->dev, "%s bmu inst<%d>: \
 					found null event CAP_RDATA\n",
@@ -4907,7 +4608,7 @@ static irqreturn_t bmu_irq_handler(int irq, void *p)
 				event = pmu->events[i][DDR_EVENT_CAPTURE_W_DATA];
 				private->cnt_proc1_data[i].vwr_tgtdat_cnt++;
 				if (event) {
-					ddr_perf_event_update(event);
+					bmu_perf_event_update(event);
 				} else {
 					dev_err(pmu->dev, "%s bmu inst<%d>: \
 				found null event CAP_WDATA\n",
@@ -4920,7 +4621,7 @@ static irqreturn_t bmu_irq_handler(int irq, void *p)
 		    (status & IRQ_SRC_TARGET_ADDR_W_OCCUR)) {
 			event = pmu->events[i][DDR_EVENT_CAPTURE_ADDR];
 			if (event) {
-				ddr_perf_event_update(event);
+				bmu_perf_event_update(event);
 				if (status & IRQ_SRC_TARGET_ADDR_R_OCCUR) {
 					private->cnt_proc1_data[i]
 						.vrd_addr_cnt++;
@@ -4938,7 +4639,7 @@ static irqreturn_t bmu_irq_handler(int irq, void *p)
 		if (status & IRQ_SRC_READ_ERROR_RESP_OCCUR) {
 			event = pmu->events[i][DDR_EVENT_CAPTURE_ERROR_RESP_R];
 			if (event) {
-				ddr_perf_event_update(event);
+				bmu_perf_event_update(event);
 			} else
 				dev_err(pmu->dev, "%s bmu inst<%d>: \
 					found null event ERROR_RESP_R\n",
@@ -4948,7 +4649,7 @@ static irqreturn_t bmu_irq_handler(int irq, void *p)
 		if (status & IRQ_SRC_WRITE_ERROR_RESP_OCCUR) {
 			event = pmu->events[i][DDR_EVENT_CAPTURE_ERROR_RESP_W];
 			if (event) {
-				ddr_perf_event_update(event);
+				bmu_perf_event_update(event);
 			} else
 				dev_err(pmu->dev, "%s bmu inst<%d>: \
 					found null event ERROR_RESP_W\n",
@@ -5429,7 +5130,6 @@ static int bmu_parse_dt(struct platform_device *pdev, struct ddr_pmu *pmu)
 			dev_err(&pdev->dev, "%s, \
 				kmalloc irq_name failed\n", __func__);
 			return -ENOMEM;
-			return -ENOMEM;
 		}
 		sprintf(irq_name, "%s%d", bmu_name, i * 2);
 		ret = devm_request_irq(&pdev->dev, irq, bmu_irq_handler,
@@ -5488,6 +5188,10 @@ static int bmu_perf_probe(struct platform_device *pdev)
 		pr_err("%s, pdev null\n", __func__);
 		return -EINVAL;
 	}
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
+	pm_runtime_use_autosuspend(&pdev->dev);
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu) {

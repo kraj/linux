@@ -182,6 +182,7 @@ struct auxdisp_crtc {
     struct clk *aclk;            /* AXI 总线时钟 */
     struct clk *pclk;            /* APB 配置时钟 */
     struct clk *pixclk;          /* 像素时钟 */
+    struct clk *current_pixclk;   /* 当前使用的像素时钟 */
     struct clk *hdmi_pixclk;     /* HDMI 输出像素时钟 */
     struct clk *mipi_pixclk;     /* MIPI 输出像素时钟 */
     struct clk *dptx_pixclk;     /* DPTX 输出像素时钟 */
@@ -524,7 +525,6 @@ static void auxdisp_configure_timing(struct auxdisp_crtc *auxdisp)
 static int auxdisp_configure_clocks(struct auxdisp_crtc *auxdisp, unsigned long pixel_clock_hz)
 {
     int ret;
-
     ret = clk_set_rate(auxdisp->pixclk, pixel_clock_hz);
     if (ret) {
         dev_err(auxdisp->dev, "Failed to set pixel clock rate: %d\n", ret);
@@ -636,41 +636,15 @@ static void auxdisp_crtc_disable(struct drm_crtc *crtc,
                                 struct drm_atomic_state *state)
 {
     struct auxdisp_crtc *auxdisp = to_auxdisp_crtc(crtc);
-    u32 idle_status;
-    int timeout = 100;
 
     auxdisp_write(auxdisp, AUXDISP_INT_ENABLE, 0);
-
     auxdisp_write(auxdisp, AUXDISP_EN, 0);
     auxdisp->display_enabled = false;
-
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, AUXDISP_ABNORMAL_STOP);
-
-    while (timeout--) {
-        idle_status = auxdisp_read(auxdisp, AUXDISP_IDLE);
-        if (idle_status & 0x1) {
-            break;
-        }
-        usleep_range(100, 200);
-    }
-
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, 0);
-
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, AUXDISP_ABNORMAL_RESET);
-    usleep_range(10, 20);
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, 0);
-
     auxdisp_write(auxdisp, AUXDISP_INT_CLEAR, 0xFFFFFFFF);
-
-    auxdisp_write(auxdisp, AUXDISP_CFG_DONE, 1);
-
     auxdisp->pending_timing.valid = false;
     auxdisp->pending_timing.fb_configured = false;
 
     drm_crtc_vblank_off(crtc);
-
-    if (__clk_is_enabled(auxdisp->pixclk))
-        clk_disable_unprepare(auxdisp->pixclk);
 
     spin_lock_irq(&crtc->dev->event_lock);
     if (crtc->state->event && !crtc->state->active) {
@@ -703,12 +677,12 @@ static void auxdisp_set_display_path(struct drm_crtc *crtc, struct drm_atomic_st
         default:
             return;
     }
-
-    if (!output_clk) {
+    auxdisp->current_pixclk = output_clk;
+    if (auxdisp->current_pixclk == NULL) {
         return;
     }
 
-    ret = clk_set_parent(output_clk, auxdisp->pixclk);
+    ret = clk_set_parent(auxdisp->current_pixclk, auxdisp->pixclk);
     if (ret) {
         dev_err(auxdisp->dev, "Failed to set %s clock parent: %d\n", if_name, ret);;
     }
@@ -925,7 +899,7 @@ static void auxdisp_plane_atomic_update(struct drm_plane *plane,
     if (!fb || !new_state->crtc)
         return;
 
-    mutex_lock(&auxdisp->config_lock); 
+    mutex_lock(&auxdisp->config_lock);
     initial_config_done = auxdisp->pending_timing.fb_configured &&
                           (auxdisp->pending_timing.fb_width == fb->width) &&
                           (auxdisp->pending_timing.fb_height == fb->height) &&
@@ -996,7 +970,7 @@ static void auxdisp_plane_atomic_update(struct drm_plane *plane,
     }
 
 end:
-    mutex_unlock(&auxdisp->config_lock); 
+    mutex_unlock(&auxdisp->config_lock);
 }
 
 static const struct drm_plane_helper_funcs auxdisp_plane_helper_funcs = {
@@ -1067,7 +1041,7 @@ static void auxdisp_crtc_unbind(struct device *dev, struct device *master, void 
     if (!auxdisp->bound)
         return;
 
-    mutex_lock(&auxdisp->config_lock); 
+    mutex_lock(&auxdisp->config_lock);
     if (auxdisp->crtc.port) {
         of_node_put(auxdisp->crtc.port);
         auxdisp->crtc.port = NULL;
@@ -1075,7 +1049,7 @@ static void auxdisp_crtc_unbind(struct device *dev, struct device *master, void 
 
     auxdisp->bound = false;
     auxdisp->drm_dev = NULL;
-    mutex_unlock(&auxdisp->config_lock); 
+    mutex_unlock(&auxdisp->config_lock);
 }
 
 static const struct component_ops auxdisp_crtc_component_ops = {
@@ -1207,8 +1181,6 @@ MODULE_DEVICE_TABLE(of, auxdisp_crtc_dt_ids);
 static int auxdisp_crtc_suspend(struct device *dev)
 {
     struct auxdisp_crtc *auxdisp = dev_get_drvdata(dev);
-    u32 idle_status;
-    int timeout = 100;
 
     if (!auxdisp || !auxdisp->bound) {
         return 0;
@@ -1228,23 +1200,6 @@ static int auxdisp_crtc_suspend(struct device *dev)
 
     auxdisp_write(auxdisp, AUXDISP_EN, 0);
     auxdisp->display_enabled = false;
-
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, AUXDISP_ABNORMAL_STOP);
-
-    while (timeout--) {
-        idle_status = auxdisp_read(auxdisp, AUXDISP_IDLE);
-        if (idle_status & 0x1) {
-            break;
-        }
-        usleep_range(100, 200);
-    }
-
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, 0);
-
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, AUXDISP_ABNORMAL_RESET);
-    usleep_range(10, 20);
-    auxdisp_write(auxdisp, AUXDISP_ABNORMAL_CTRL, 0);
-
     auxdisp_write(auxdisp, AUXDISP_INT_CLEAR, 0xFFFFFFFF);
 
     if (__clk_is_enabled(auxdisp->pixclk))
@@ -1272,11 +1227,10 @@ static int auxdisp_crtc_runtime_suspend(struct device *dev)
 {
     struct auxdisp_crtc *auxdisp = dev_get_drvdata(dev);
 
-    if (!auxdisp)
-        return 0;
-
+    if (auxdisp->current_pixclk) {
+        clk_disable_unprepare(auxdisp->current_pixclk);
+    }
     clk_disable_unprepare(auxdisp->pclk);
-
     clk_disable_unprepare(auxdisp->aclk);
 
     return 0;
@@ -1286,10 +1240,6 @@ static int auxdisp_crtc_runtime_resume(struct device *dev)
 {
     struct auxdisp_crtc *auxdisp = dev_get_drvdata(dev);
     int ret;
-
-    if (!auxdisp)
-        return 0;
-
     ret = clk_prepare_enable(auxdisp->aclk);
     if (ret) {
         dev_err(dev, "Failed to enable aclk in runtime resume: %d\n", ret);
@@ -1302,7 +1252,15 @@ static int auxdisp_crtc_runtime_resume(struct device *dev)
         clk_disable_unprepare(auxdisp->aclk);
         return ret;
     }
-
+    if (auxdisp->current_pixclk) {
+        ret = clk_prepare_enable(auxdisp->current_pixclk);
+        if (ret) {
+            dev_err(dev, "Failed to enable current_pixclk in runtime resume: %d\n", ret);
+            clk_disable_unprepare(auxdisp->pclk);
+            clk_disable_unprepare(auxdisp->aclk);
+            return ret;
+        }
+    }
     return 0;
 }
 static const struct dev_pm_ops auxdisp_crtc_pm_ops = {

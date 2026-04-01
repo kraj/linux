@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
+#include <linux/reset.h>
 
 #include "zhihe-pcm.h"
 #include "zhihe-tdm.h"
@@ -314,15 +315,31 @@ static int __maybe_unused zhihe_tdm_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(tdm_priv->regmap, true);
 
+	clk_disable_unprepare(tdm_priv->sclk);
+	clk_disable_unprepare(tdm_priv->pclk);
+
 	return 0;
 }
 
 static int __maybe_unused zhihe_tdm_runtime_resume(struct device *dev)
 {
+	int ret;
 	struct zhihe_tdm_priv *tdm_priv = dev_get_drvdata(dev);
 
 	if (!tdm_priv->regmap)
 		return -EINVAL;
+
+	ret = clk_prepare_enable(tdm_priv->sclk);
+	if (ret) {
+		dev_err(dev, "Failed to enable sclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(tdm_priv->pclk);
+	if (ret) {
+		dev_err(dev, "Failed to enable pclk\n");
+		return ret;
+	}
 
 	regcache_cache_only(tdm_priv->regmap, false);
 
@@ -535,18 +552,33 @@ static int zhihe_tdm_probe(struct platform_device *pdev)
 			return PTR_ERR(tdm_priv->sys_regmap);
 		}
 
-		/* prepare source clocks */
+		/* Prepare source clocks */
 		tdm_priv->sclk = devm_clk_get(&pdev->dev, "sclk");
 		if (IS_ERR(tdm_priv->sclk)) {
 			dev_err(&pdev->dev, "Can't retrieve tdm sclk clock\n");
 			return PTR_ERR(tdm_priv->sclk);
 		}
 
+		tdm_priv->pclk = devm_clk_get(&pdev->dev, "pclk");
+		if (IS_ERR(tdm_priv->pclk)) {
+			dev_err(&pdev->dev, "Can't retrieve tdm pclk clock\n");
+			return PTR_ERR(tdm_priv->pclk);
+		}
+	
+		tdm_priv->reset = devm_reset_control_get_optional(&pdev->dev,"rst");
+		if (IS_ERR(tdm_priv->reset)) {
+			dev_err(&pdev->dev, "Can't retrieve tdm rst\n");
+			return PTR_ERR(tdm_priv->reset);
+		}
+		reset_control_deassert(tdm_priv->reset);
+
 		/* Request IRQ. */
 		tdm_priv->irq = platform_get_irq(pdev, 0);
 		if (tdm_priv->irq <= 0)
 			return tdm_priv->irq < 0 ? tdm_priv->irq : -ENODEV;
 
+		/* PM enable */
+		pm_runtime_set_suspended(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
 	}
 

@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
+#include <linux/reset.h>
 
 #include "zhihe-pdm.h"
 
@@ -338,6 +339,8 @@ static int zhihe_pdm_runtime_suspend(struct device *dev)
 		clk_disable_unprepare(pdm_priv->mclk);
 	}
 
+	clk_disable_unprepare(pdm_priv->pclk);
+
 	return 0;
 }
 
@@ -346,12 +349,16 @@ static int zhihe_pdm_runtime_resume(struct device *dev)
 	struct zhihe_pdm_priv *pdm_priv = dev_get_drvdata(dev);
 	int ret;
 
+	ret = clk_prepare_enable(pdm_priv->pclk);
+	if (ret) {
+		dev_err(pdm_priv->dev, "pclk enable failed %d\n", ret);
+		return ret;
+	}
+
 	if (!pdm_priv->mclk_keepon) {
 		ret = clk_prepare_enable(pdm_priv->mclk);
 		if (ret) {
-			dev_err(pdm_priv->dev, 
-				"clock enable failed %d\n", 
-				ret);
+			dev_err(pdm_priv->dev, "mclk enable failed %d\n", ret);
 			return ret;
 		}
 
@@ -448,27 +455,39 @@ static int zhihe_pdm_probe(struct platform_device *pdev)
 		if (!res || (int)irq <= 0)
 			return -ENODEV;
 
-		/* prepare master clocks */
+		/* Prepare pdm clocks */
 		pdm_priv->mclk = devm_clk_get(&pdev->dev, "mclk");
 		if (IS_ERR(pdm_priv->mclk)) {
-			dev_err(&pdev->dev, "Can't retrieve tdm master clock\n");
+			dev_err(&pdev->dev, "Can't retrieve pdm mclk\n");
 			return PTR_ERR(pdm_priv->mclk);
 		}
 
-		/* prepare master clocks */
 		pdm_priv->pclk = devm_clk_get(&pdev->dev, "pclk");
 		if (IS_ERR(pdm_priv->pclk)) {
-			dev_err(&pdev->dev, "Can't retrieve tdm master clock\n");
+			dev_err(&pdev->dev, "Can't retrieve pdm  pclk\n");
 			return PTR_ERR(pdm_priv->pclk);
 		}
-		ret = clk_prepare_enable(pdm_priv->pclk);
-		if (ret) {
-			dev_err(&pdev->dev, "pclk enable failed %d\n", ret);
-			return ret;
+
+		if (pdm_priv->mclk_keepon) {
+			ret = clk_prepare_enable(pdm_priv->pclk);
+			if (ret) {
+				dev_err(&pdev->dev, "pclk enable failed %d\n", ret);
+				return ret;
+			}
 		}
+
+		/* Prepare pdm resets */
+		pdm_priv->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
+		if (IS_ERR(pdm_priv->resets)) {
+			dev_err(&pdev->dev, "Can't retrieve pdm rst\n");
+			return PTR_ERR(pdm_priv->resets);
+		}
+		reset_control_deassert(pdm_priv->resets);
 
 		zhihe_pdm_reg_init(pdm_priv);
 
+		/* PM enable */
+		pm_runtime_set_suspended(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
 	}
 
@@ -533,7 +552,7 @@ static int zhihe_pdm_probe(struct platform_device *pdev)
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(pdm_priv->pclk);
-
+	clk_disable_unprepare(pdm_priv->mclk);
 	return ret;
 }
 
@@ -547,6 +566,8 @@ static int zhihe_pdm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		zhihe_pdm_runtime_suspend(&pdev->dev);
+
+	clk_disable_unprepare(pdm_priv->pclk);
 	clk_disable_unprepare(pdm_priv->mclk);
 
 	return 0;

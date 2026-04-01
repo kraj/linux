@@ -145,22 +145,6 @@
 		SOUND_CARD_LINK(1, i2s, i2s1, 0, es7210_adc1, 0);
 	};
 
-	wcn_wifi: wireless-wlan {
-		compatible = "wlan-platdata";
-		WIFI,vcc1-gpios = <&aw9535_1 11 GPIO_ACTIVE_HIGH>;
-		WIFI,vcc2-gpios = <&aw9535_1 12 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
-		power_on_after_init;
-		power_on_when_resume;
-		status = "okay";
-	};
-
-	wcn_bt: wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		BT,power-gpios = <&ao_gpio1 4 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-
 	lcd0_backlight: pwm-backlight@0 {
 		compatible = "pwm-backlight";
 		status = "okay";
@@ -222,6 +206,24 @@
 		status = "okay";
 	};
 
+	reg_usb2_0_vbus: regulator-usb2-0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb2_0_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&aw9535_1 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_usb2_1_vbus: regulator-usb2-1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb2_1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&aw9535_1 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reg_usb_typec_vbus: regulator-typec-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_typec_vbus";
@@ -230,6 +232,32 @@
 		gpio = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		status = "okay";
+	};
+
+	wifi_vdd_3v3: wifi-3v3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_vdd_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&aw9535_1 11 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <1000>;
+	};
+
+	wifi_vdd_1v8: wifi-1v8-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_vdd_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&aw9535_1 12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <1000>;
+	};
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <200>;
 	};
 
 	gpio-keys {
@@ -244,14 +272,14 @@
 };
 
 &ao_gpio0 {
-	pwoer-5v-en-hog {
+	power-5v-en-hog {
 		gpio-hog;
 		gpios = <29 GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "power_5v_en";
 	};
 
-	pwoer-3v3-en-hog {
+	power-3v3-en-hog {
 		gpio-hog;
 		gpios = <26 GPIO_ACTIVE_HIGH>;
 		output-high;
@@ -438,10 +466,10 @@
 			pins = "AOI2C1_SCL", "AOI2C1_SDA";
 			function = "aoi2c1";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	usbc0_int: usbc0-int {
@@ -452,6 +480,26 @@
 			drive-strength = <13>;
 			input-enable;
 			input-schmitt-enable;  /* 启用施密特触发器以稳定低电平中断信号 */
+			slew-rate = <0>;
+		};
+	};
+	bt_aogpios {
+		bt_reset: bt-reset {
+			pins = "AOGPIO1_4"; /* enable-gpios */
+			function = "aogpio0";
+			bias-pull-up;
+			drive-strength = <7>;
+			input-disable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+		bt_wake_host: bt-wake-host {
+			pins = "AOGPIO0_30"; /* host-wake-gpios */
+			function = "aogpio0";
+			bias-pull-up;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
 			slew-rate = <0>;
 		};
 	};
@@ -595,6 +643,17 @@
 			slew-rate = <0>;
 		};
 	};
+	bt_gpios {
+		bt_wake_dev: bt-wake-dev {
+			pins = "GPIO0_17"; /* device-wake-gpios */
+			function = "gpio0";
+			bias-pull-up;
+			drive-strength = <7>;
+			input-disable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
 };
 
 &peri2_padctrl {
@@ -624,10 +683,10 @@
 			pins = "GPIO2_28", "GPIO2_29";
 			function = "i2c5";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	uart5_pins: uart5-1 {
@@ -656,10 +715,10 @@
 			pins = "GPIO2_8", "GPIO2_9";
 			function = "i2c6";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	i2s1_pins: i2s1-0 {
@@ -677,10 +736,10 @@
 			pins = "GPIO2_10", "GPIO2_11";
 			function = "i2c7";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	i2c4_pins: i2c4-2 {
@@ -688,10 +747,10 @@
 			pins = "GPIO2_26", "GPIO2_27";
 			function = "i2c4";
 			bias-disable;
-			drive-strength = <7>;
+			drive-strength = <25>;
 			input-enable;
 			input-schmitt-enable;
-			slew-rate = <0>;
+			slew-rate = <1>;
 		};
 	};
 	pwm1_pins: pwm1-1 {
@@ -793,14 +852,14 @@
 	cs-gpios = <&gpio0 19 0>;
 	rx-sample-dly = <2>;
 	spi-swap-data = <1>;
-	spi-max-frequency = <55000000>;
+	spi-max-frequency = <42000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi0_pins>;
 	status = "disabled";
 
 	spi_norflash@0 {
 		compatible = "jedec,spi-nor";
-		spi-max-frequency = <55000000>;
+		spi-max-frequency = <42000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-tx-bus-width = <4>;
@@ -851,6 +910,7 @@
 		channels-max = <2>;
 		mclk-sclk-ratio = <4>;
 		sound-name-prefix = "ES7210_ADC0";
+		mono-to-stereo;
 		status = "okay";
 	};
 
@@ -965,33 +1025,33 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-    aw9535_0: gpio@20 {
-        compatible = "awinic,aw9535";
-        reg = <0x20>;
-        gpio-controller;
-        #gpio-cells = <2>;
-        ngpios = <16>;
-        interrupt-parent = <&ao_gpio1>;
-        interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
-        gpio-line-names =
-		    "CSI1_PWDN_IO0", "CSI1_RST_IO1", "CSI1_FSIN_IO2", "CSI0_PWDN_IO3",                  // index 0..3
-		    "CSI0_RST_IO4", "CSI0_FSIN_IO5", "MINPCIE_1V5POWER_EN_I06", "MINPCIE_3V3_PWREN_I07",// index 4..7
-		    "NULL_I08", "M2_SATA_EN_IO9", "AUDIO_ADC0_INT_IO10", "HP_CTL_H_IO11",               // index 8..11
-		    "PI6C557_EN_IO12","DISP_RST_IO13","M2_SATA_3V3_PWREN_IO14","MINPCIE_PERST_IO15";    // index 12..15
-    };
+	aw9535_0: gpio@20 {
+		compatible = "awinic,aw9535";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <16>;
+		interrupt-parent = <&ao_gpio1>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		gpio-line-names =
+			"CSI1_PWDN_IO0", "CSI1_RST_IO1", "CSI1_FSIN_IO2", "CSI0_PWDN_IO3",                  // index 0..3
+			"CSI0_RST_IO4", "CSI0_FSIN_IO5", "MINPCIE_1V5POWER_EN_I06", "MINPCIE_3V3_PWREN_I07",// index 4..7
+			"NULL_I08", "M2_SATA_EN_IO9", "AUDIO_ADC0_INT_IO10", "HP_CTL_H_IO11",               // index 8..11
+			"PI6C557_EN_IO12","DISP_RST_IO13","M2_SATA_3V3_PWREN_IO14","MINPCIE_PERST_IO15";    // index 12..15
+	};
 
-    aw9535_1: gpio@21 {
-        compatible = "awinic,aw9535";
-        reg = <0x21>;
-        gpio-controller;
-        #gpio-cells = <2>;
-        ngpios = <16>;
-        gpio-line-names =
-		    "PCIE_ETH_PERSTB_IO0", "AUDIO_3V3_PWREN_IO1", "AUDIO_1V8_PWREN_IO2", "MIPI_CSI0_PWREN_IO3", // index 0..3
-		    "MIPI_CSI1_PWREN_IO4", "MIPI_TP_PWREN_IO5", "PCIE_ETH_3V3_PWREN_IO6", "NULL_IO7",           // index 4..7
-		    "USBCON_PWREN_IO8", "USBCON1_PWREN_IO9", "NULL_IO10", "SDIO_3V3_PWREN_IO11",                // index 8..11
-		    "SDIO_1V8_PWREN_IO12","PI6C557_PWREN_IO13","MIPI_DSI_PWREN_IO14","BL_EN_IO15";              // index 12..15
-    };
+	aw9535_1: gpio@21 {
+		compatible = "awinic,aw9535";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <16>;
+		gpio-line-names =
+			"PCIE_ETH_PERSTB_IO0", "AUDIO_3V3_PWREN_IO1", "AUDIO_1V8_PWREN_IO2", "MIPI_CSI0_PWREN_IO3", // index 0..3
+			"MIPI_CSI1_PWREN_IO4", "MIPI_TP_PWREN_IO5", "PCIE_ETH_3V3_PWREN_IO6", "NULL_IO7",           // index 4..7
+			"USBCON_PWREN_IO8", "USBCON1_PWREN_IO9", "NULL_IO10", "SDIO_3V3_PWREN_IO11",                // index 8..11
+			"SDIO_1V8_PWREN_IO12","PI6C557_PWREN_IO13","MIPI_DSI_PWREN_IO14","BL_EN_IO15";              // index 12..15
+	};
 
 	fusb302: typec-portc@22 {
 		compatible = "fcs,fusb302";
@@ -1048,6 +1108,13 @@
 						remote-endpoint = <&usbdp_phy0_orientation_switch>;
 					};
 				};
+
+				port@1 {
+					reg = <1>;
+					dp_altmode_mux: endpoint {
+						remote-endpoint = <&usbdp_phy0_dp_altmode_mux>;
+					};
+				};
 			};
 		};
 	};
@@ -1061,6 +1128,16 @@
 &uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart5_pins>;
+/*
+	bluetooth {
+		compatible = "realtek,rtl8822cs-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_reset>, <&bt_wake_host>, <&bt_wake_dev>;
+		enable-gpios = <&ao_gpio1 4 GPIO_ACTIVE_HIGH>;
+		host-wake-gpios = <&ao_gpio0 30 GPIO_ACTIVE_HIGH>;
+		device-wake-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+	};
+*/
 };
 
 &uart8 {
@@ -1089,6 +1166,7 @@
 	#io-channel-cells = <1>;
 	sampling-frequency = <1000000>;
 	resolution = <12>;
+	fclk-div = <6>;
 };
 
 &pwm0 {
@@ -1113,6 +1191,7 @@
 &emmc {
 	max-frequency = <196608000>;
 	non-removable;
+	mmc-hs400-enhanced-strobe;
 	mmc-hs400-1_8v;
 	mmc-hs200-1_8v;
 	io_fixed_1v8;
@@ -1139,14 +1218,24 @@
 	post-power-on-delay-ms = <200>;
 	wprtn_ignore;
 	wakeup-source;
+
+	vmmc-supply = <&wifi_vdd_3v3>;
+	vqmmc-supply = <&wifi_vdd_1v8>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+
+	rtl8822cs: wifi@1 {
+		interrupt-parent = <&ao_gpio1>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "host-wake";
+	};
 };
 
-&usb20phy0 {
-	pwren-gpios = <&aw9535_1 8 GPIO_ACTIVE_HIGH>;
+&usb2_0 {
+	vbus-supply = <&reg_usb2_0_vbus>;
 };
 
-&usb20phy1 {
-	pwren-gpios = <&aw9535_1 9 GPIO_ACTIVE_HIGH>;
+&usb2_1 {
+	vbus-supply = <&reg_usb2_1_vbus>;
 };
 
 &sata {
@@ -1174,6 +1263,13 @@
 			0x00 0x063a0020 0x0 0x4
 			0x00 0x063a0024 0x0 0x4
 			0x00 0x063a0028 0x0 0x4>;
+	//combination 4lane mode: csi1_pclk, aphy_cfg_clk, bphy_cfg_clk, csi1_pclk, csi1_fpclk
+	clocks = <&clk_vi VI_MIPI0_CSI1_PIXCLK_EN>,
+		<&clk_vi VI_MIPI0A_CFGCLK_EN>,
+		<&clk_vi VI_MIPI0B_CFGCLK_EN>,
+		<&clk_vi VI_MIPI0CSI1_PCLK_EN>,
+		<&clk_vi VI_MIPI0CSI1_FPCLK_EN>;
+	clock-names =  "pixclk", "aphy_cfg_clk", "bphy_cfg_clk", "pclk", "fpclk";
 	phy_name = "CSI_4LANE"; //combination 4lane
 };
 
@@ -1269,10 +1365,18 @@
 	};
 };
 
+&dp0 {
+	force-hpd = <1>;
+	extcon = <&usb31_c10phy>;
+};
+
 /* USB3.1/DP Combo PHY0 */
 &usb31_c10phy {
 	orientation-switch;
+	mode-switch;
 	status = "okay";
+	svid = <0xff01>;
+	#extcon-cells = <0>;
 
 	port {
 		#address-cells = <1>;
@@ -1280,6 +1384,11 @@
 		usbdp_phy0_orientation_switch: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&usbc0_orien_sw>;
+		};
+
+		usbdp_phy0_dp_altmode_mux: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_altmode_mux>;
 		};
 	};
 };

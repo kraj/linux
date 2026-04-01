@@ -16,6 +16,9 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include <linux/reset.h>
+#include <linux/pm_runtime.h>
+#include <linux/of_clk.h>
 
 #define ZHIHE_MBOX_V1			0x0
 #define ZHIHE_MBOX_V2			0x1
@@ -99,7 +102,9 @@ struct zhihe_mbox_priv {
 	struct mbox_chan		mbox_chans[ZHIHE_MBOX_CHANS];
 
 	struct zhihe_mbox_con_priv	con_priv[ZHIHE_MBOX_CHANS];
-	struct clk			*clk;
+	struct clk_bulk_data 		*clks;
+	u32 				num_clks;
+	struct reset_control		*reset;
 	int				irq;
 	int				version;
 #ifdef CONFIG_PM_SLEEP
@@ -304,6 +309,7 @@ static irqreturn_t zhihe_mbox_isr(int irq, void *p)
 	}
 	if (!info0_data && !info7_data)
 		return IRQ_NONE;
+
 	return IRQ_HANDLED;
 }
 
@@ -316,6 +322,7 @@ static int zhihe_mbox_send_data(struct mbox_chan *chan, void *data)
 		zhihe_mbox_chan_wr_data(cp, data, true);
 	zhihe_mbox_chan_rmw(cp, ZHIHE_MBOX_GEN, ZHIHE_MBOX_GEN_RX_DATA, 0,
 			     true);
+
 	return 0;
 }
 
@@ -326,6 +333,9 @@ static int zhihe_mbox_startup(struct mbox_chan *chan)
 	u32 data[8] = {0};
 	struct zhihe_mbox_con_priv *cp = chan->con_priv;
 	struct zhihe_mbox_priv *priv = to_zhihe_mbox_priv(chan->mbox);
+
+	pm_runtime_get_sync(priv->dev);
+
 	/* clear local and remote generate and info0~info7 */
 	zhihe_mbox_chan_rmw(cp, ZHIHE_MBOX_GEN, 0x0, 0xff, true);
 	zhihe_mbox_chan_rmw(cp, ZHIHE_MBOX_GEN, 0x0, 0xff, false);
@@ -362,6 +372,8 @@ static void zhihe_mbox_shutdown(struct mbox_chan *chan)
 	zhihe_mbox_rmw(priv, ZHIHE_MBOX_MASK, 0, BIT(mask_bit));
 
 	free_irq(priv->irq, chan);
+
+	pm_runtime_put_sync(priv->dev);
 }
 
 static const struct mbox_chan_ops zhihe_mbox_ops = {
@@ -377,9 +389,6 @@ static int zhihe_mbox_init_generic(struct zhihe_mbox_priv *priv)
 	if (!priv->ctx)
 		return -ENOMEM;
 #endif
-	/* Set default configuration */
-	zhihe_mbox_write(priv, 0xff, ZHIHE_MBOX_CLR);
-	zhihe_mbox_write(priv, 0x0, ZHIHE_MBOX_MASK);
 	return 0;
 }
 
@@ -433,9 +442,12 @@ static int zhihe_mbox_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
+	pm_runtime_enable(dev);
+
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+	platform_set_drvdata(pdev, priv);
 
 	ret = of_property_read_u32(np, "version", &priv->version);
 	if (ret) {
@@ -558,17 +570,32 @@ static int zhihe_mbox_probe(struct platform_device *pdev)
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0)
 		return priv->irq;
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		if (PTR_ERR(priv->clk) != -ENOENT)
-			return PTR_ERR(priv->clk);
-		priv->clk = NULL;
+
+	priv->num_clks = of_clk_get_parent_count(np);
+	if (priv->num_clks) {
+		priv->clks = devm_kcalloc(dev, priv->num_clks,
+					     sizeof(*priv->clks), GFP_KERNEL);
+		if (!priv->clks) {
+			return -ENOMEM;
+		}
+
+		for (int i = 0; i < priv->num_clks; i++) {
+			priv->clks[i].clk = of_clk_get(np, i);
+			if (IS_ERR(priv->clks[i].clk)) {
+				ret = PTR_ERR(priv->clks[i].clk);
+				dev_err(dev,
+					"failed to get clk at index %d: err:%d\n", i, ret);
+				return -EINVAL;
+			}
+		}
 	}
-	ret = clk_prepare_enable(priv->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable clock\n");
-		return ret;
+
+	priv->reset = of_reset_control_array_get_optional_exclusive(np);
+	if (IS_ERR(priv->reset)) {
+		dev_err(dev, "failed to get reset return %ld\n", PTR_ERR(priv->reset));
+		return PTR_ERR(priv->reset);
 	}
+
 	/* init the chans */
 	if (priv->version == ZHIHE_MBOX_V1) {
 		for (i = 0; i < ZHIHE_MBOX_CHANS; i++) {
@@ -611,8 +638,6 @@ static int zhihe_mbox_probe(struct platform_device *pdev)
 	priv->mbox.of_xlate = zhihe_mbox_xlate;
 	priv->mbox.txdone_irq = true;
 
-	platform_set_drvdata(pdev, priv);
-
 	ret = zhihe_mbox_init_generic(priv);
 	if (ret) {
 		dev_err(dev, "Failed to init mailbox context\n");
@@ -623,10 +648,6 @@ static int zhihe_mbox_probe(struct platform_device *pdev)
 
 static int zhihe_mbox_remove(struct platform_device *pdev)
 {
-	struct zhihe_mbox_priv *priv = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(priv->clk);
-
 	return 0;
 }
 
@@ -673,7 +694,8 @@ static int __maybe_unused zhihe_mbox_runtime_suspend(struct device *dev)
 {
 	struct zhihe_mbox_priv *priv = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(priv->clk);
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+	reset_control_assert(priv->reset);
 
 	return 0;
 }
@@ -681,12 +703,11 @@ static int __maybe_unused zhihe_mbox_runtime_suspend(struct device *dev)
 static int __maybe_unused zhihe_mbox_runtime_resume(struct device *dev)
 {
 	struct zhihe_mbox_priv *priv = dev_get_drvdata(dev);
-	int ret = clk_prepare_enable(priv->clk);
 
-	if (ret)
-		dev_err(dev, "failed to enable clock\n");
+	clk_bulk_prepare_enable(priv->num_clks, priv->clks);
+	reset_control_deassert(priv->reset);
 
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops zhihe_mbox_pm_ops = {

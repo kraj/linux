@@ -88,6 +88,7 @@ struct es7210_priv {
         int pcm_format;
         int mclk_sclk_ratio; // mclk_sclk_ratio=1 is when mclk hardwired to sclk.
         int sclk_lrck_ratio;
+        bool mono_to_stereo;
 
         u8 suspend_reg00[4];
         u8 suspend_reg01[4];

@@ -38,10 +38,10 @@ struct zhihe_usb2_phy_priv {
 	struct phy *phy;
 	struct regmap *regs;
 	enum phy_mode mode;
+	u32 phy_id;
 	int num_clks;
 	struct clk_bulk_data *clks;
 	struct reset_control *phy_rst;
-	struct gpio_desc *pwren;
 	struct usb2_phy_seq *init_seq;
 	int num_init_seq;
 	void (*usb_phy_config)(struct zhihe_usb2_phy_priv *priv);
@@ -69,10 +69,6 @@ static int zhihe_usb2_phy_init(struct phy *phy)
 {
 	struct zhihe_usb2_phy_priv *priv = phy_get_drvdata(phy);
 	int ret;
-
-	/* Set PHY power enable */
-	if (priv->pwren)
-		gpiod_set_value(priv->pwren, 1);
 
 	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
 	if (ret)
@@ -111,9 +107,6 @@ static int zhihe_usb2_phy_exit(struct phy *phy)
 
 	/* Assert reset to power down PHY */
 	reset_control_assert(priv->phy_rst);
-	/* Set PHY power disable */
-	if (priv->pwren)
-		gpiod_set_value(priv->pwren, 0);
 
 	return 0;
 }
@@ -146,10 +139,22 @@ static int zhihe_usb2_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->dev = dev;
-	priv->usb_phy_config = device_get_match_data(&pdev->dev);
+
+	ret = of_property_read_u32(dev->of_node, "zhihe,phy-id", &priv->phy_id);
+	if (ret)
+		return dev_err_probe(dev, ret, "missing zhihe,phy-id\n");
+
+	switch (priv->phy_id) {
+	case 0:
+		priv->usb_phy_config = usb_phy0_config;
+		break;
+	case 1:
+		priv->usb_phy_config = usb_phy1_config;
+		break;
+	}
 
 	/* Check if this PHY shares registers with USB31 controller */
-	if (of_device_is_compatible(dev->of_node, "zhihe,a210-usb2-phy2")) {
+	if (priv->phy_id == 2) {
 		priv->regs = syscon_regmap_lookup_by_phandle(np, "syscon");
 		if (IS_ERR(priv->regs))
 			return dev_err_probe(dev, PTR_ERR(priv->regs), "Failed to get regmap\n");
@@ -166,14 +171,10 @@ static int zhihe_usb2_phy_probe(struct platform_device *pdev)
 	}
 
 	/* Get PHY reset control */
-	priv->phy_rst = devm_reset_control_get_shared(dev, "phy-rst");
+	priv->phy_rst = devm_reset_control_get_optional_exclusive(dev, "phy-rst");
 	if (IS_ERR(priv->phy_rst))
 		return dev_err_probe(dev, PTR_ERR(priv->phy_rst),
 				     "Couldn't get phy-rst\n");
-	priv->pwren = devm_gpiod_get_optional(&pdev->dev, "pwren", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->pwren))
-		return dev_err_probe(dev, PTR_ERR(priv->pwren),
-				     "Failed to get pwren GPIO\n");
 
 	size = of_property_count_u32_elems(dev->of_node, "zhihe,init-seq");
 	if (size < 0)
@@ -207,9 +208,7 @@ static int zhihe_usb2_phy_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id zhihe_usb2_phy_of_match[] = {
-	{ .compatible = "zhihe,a210-usb2-phy0", .data = usb_phy0_config},
-	{ .compatible = "zhihe,a210-usb2-phy1", .data = usb_phy1_config},
-	{ .compatible = "zhihe,a210-usb2-phy2", },
+	{ .compatible = "zhihe,a210-usb2-phy", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, zhihe_usb2_phy_of_match);

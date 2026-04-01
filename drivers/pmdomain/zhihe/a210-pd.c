@@ -133,7 +133,7 @@ static int a210_pd_power_off(struct generic_pm_domain *domain)
 #endif
 
 	if (a210_pd->num_clks)
-		clk_bulk_disable_unprepare(a210_pd->num_clks, a210_pd->clks);
+		clk_bulk_disable(a210_pd->num_clks, a210_pd->clks);
 
 	ret = reset_control_assert(a210_pd->reset);
 	if (ret)
@@ -151,15 +151,15 @@ static int a210_pd_power_on(struct generic_pm_domain *domain)
 	if (ret)
 		return ret;
 
-	if (a210_pd->num_clks) {
-		ret = clk_bulk_prepare_enable(a210_pd->num_clks, a210_pd->clks);
-		if (ret)
-			return ret;
-	}
-
 	ret = reset_control_deassert(a210_pd->reset);
 	if (ret)
 		return ret;
+
+	if (a210_pd->num_clks) {
+		ret = clk_bulk_enable(a210_pd->num_clks, a210_pd->clks);
+		if (ret)
+			return ret;
+	}
 
 #ifdef CONFIG_ZH_IOPMP
 	if(a210_pd->device_ids_count > 0)
@@ -415,7 +415,12 @@ static int a210_add_one_domain(struct platform_device *pdev, struct device_node 
 					i, ret, np->name);
 				goto clk_fail;
 			}
+		}
 
+		ret = clk_bulk_prepare(a210_pd->num_clks, a210_pd->clks);
+		if (ret) {
+			clk_bulk_put(a210_pd->num_clks, a210_pd->clks);
+			goto clk_fail;
 		}
 	}
 

@@ -114,6 +114,14 @@
 	status = "disabled";
 };
 
+&qspi0 {
+	status = "disabled";
+};
+
+&qspi1 {
+	status = "disabled";
+};
+
 &i2c0 {
 	status = "disabled";
 };
@@ -314,15 +322,23 @@
 	status = "disabled";
 };
 
-/* DIE1 */
-&uart4_die1 {
-	status = "disabled";
-};
-
 &auxdisp {
 	status = "disabled";
 };
 
 &dpu_enc0 {
+	status = "disabled";
+};
+
+/* DIE1 */
+&qspi0_die1 {
+	status = "disabled";
+};
+
+&qspi1_die1 {
+	status = "disabled";
+};
+
+&uart4_die1 {
 	status = "disabled";
 };

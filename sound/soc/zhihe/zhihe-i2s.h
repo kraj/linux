@@ -25,6 +25,18 @@
 #define AUDIO_I2S1		"audio-i2s1"
 #define AUDIO_I2S2		"audio-i2s2"
 
+enum zhihe_i2s_id {
+	ZHIHE_I2S0 = 0,
+	ZHIHE_I2S1,
+	ZHIHE_I2S2,
+	ZHIHE_I2S3_8CH_SD0,
+	ZHIHE_I2S3_8CH_SD1,
+	ZHIHE_I2S3_8CH_SD2,
+	ZHIHE_I2S3_8CH_SD3,
+	ZHIHE_AP_I2S,
+	ZHIHE_I2S_MAX,
+};
+
 #define IIS_SRC_CLK		294912000
 #define AUDIO_IIS_SRC0_CLK	147456000
 #define AUDIO_IIS_SRC1_CLK	135475200
@@ -54,6 +66,7 @@ enum {
 
 #define I2S_DMA_TX_THRESHOLD	16
 #define I2S_DMA_RX_THRESHOLD	16
+#define I2S_DMA_RX_WATERMARK	0x4
 
 #define ZHIHE_I2S_RATES		SNDRV_PCM_RATE_8000_384000
 #define ZHIHE_I2S_FMTS		(SNDRV_PCM_FMTBIT_FLOAT_LE | \
@@ -64,14 +77,21 @@ enum {
 #define ZHIHE_I2S_HDMI_FMTS	(SNDRV_PCM_FMTBIT_S24_LE | \
 				 SNDRV_PCM_FMTBIT_S16_LE)
 
-#define I2S0 "i2s0"
-#define I2S1 "i2s1"
-#define I2S2 "i2s2"
-#define I2S3 "i2s3"
-#define AUDIO_I2S_8CH_SD0	"i2s_8ch_sd0"
-#define AUDIO_I2S_8CH_SD1	"i2s_8ch_sd1"
-#define AUDIO_I2S_8CH_SD2	"i2s_8ch_sd2"
-#define AUDIO_I2S_8CH_SD3	"i2s_8ch_sd3"
+
+static inline bool zhihe_i2s_is_i2s3(enum zhihe_i2s_id id)
+{
+	return id >= ZHIHE_I2S3_8CH_SD0 && id <= ZHIHE_I2S3_8CH_SD3;
+}
+
+static inline bool zhihe_i2s_is_ap(enum zhihe_i2s_id id)
+{
+	return id == ZHIHE_AP_I2S;
+}
+
+static inline int zhihe_i2s3_sd_index(enum zhihe_i2s_id id)
+{
+	return id - ZHIHE_I2S3_8CH_SD0;
+}
 
 #define ZHIHE_IIS_48000_SRC_CLK	294912000
 #define	ZHIHE_IIS_44100_SRC_CLK	316108800
@@ -287,6 +307,8 @@ enum {
 
 /* RXFLR, offset: 0x28 */
 #define RXFLR_RXTFL_Pos			(0U)
+/* RX FIFO level per channel: 6 bits each, bits [6*(n+1)-1 : 6*n] */
+#define RXFLR_CH_LEVEL(val, n)	(((val) >> (6 * (n))) & 0x3f)
 
 /* SR, offset: 0x2C */
 #define SR_RXBUSY_Pos			(0U)
@@ -468,6 +490,8 @@ enum {
 #define ISR_IFSCS_STATUS		ISR_IFSCS_Msk
 
 /* RISR, offset: 0x38 */
+/* Per-channel interrupt bit position: base + 6*n */
+#define RXOIR_CH_BIT(n)			(4 + 6 * (n))
 #define RISR_RWADES_Pos			(0U)
 #define RISR_RWADES_Msk			(0x1U << RISR_RWADES_Pos)
 #define RISR_RWADES_RAW			RISR_RWADES_Msk
@@ -509,6 +533,8 @@ enum {
 #define RISR_RIFSCS_RAW			RISR_RIFSCS_Msk
 
 /* ICR, offset: 0x3C */
+/* Per-channel interrupt clear bit position: base + 6*n */
+#define RXOIC_CH_BIT(n)			(4 + 6 * (n))
 #define ICR_CWADEC_Pos			(0U)
 #define ICR_CWADEC_Msk			(0x1U << ICR_CWADEC_Pos)
 #define ICR_CWADEC_CLEAR		ICR_CWADEC_Msk
@@ -605,13 +631,6 @@ typedef enum {
 	TRANSFER_PORT_UNKNOWN,
 } transfer_port_t;
 
-struct zhihe_i2s_soc_drvdata {
-	char name[32];
-	char i2s_dai_name[32];
-	char hdmi_dai_name[32];
-	unsigned int tx_dr;
-	unsigned int rx_dr;
-};
 
 struct zhihe_i2s_priv {
 	struct clk *pclk;
@@ -624,7 +643,13 @@ struct zhihe_i2s_priv {
 	struct reset_control *rst;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
-	const struct zhihe_i2s_soc_drvdata *drvdata;
+
+	enum zhihe_i2s_id id;
+	char name[32];
+	char i2s_dai_name[32];
+	char hdmi_dai_name[32];
+	unsigned int tx_dr;
+	unsigned int rx_dr;
 
 	int irq;
 	bool alolrc_high;

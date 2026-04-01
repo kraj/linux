@@ -22,6 +22,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/err.h>
+#include <linux/bitfield.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -29,23 +32,45 @@
 
 #include "th1520-adc.h"
 
+/*
+ * ADC default feature init
+ */
 static inline void th1520_adc_cfg_init(struct th1520_adc *info)
 {
 	struct th1520_adc_feature *adc_feature = &info->adc_feature;
 
 	/* set default Configuration for ADC controller */
-	adc_feature->selres_sel = TH1520_ADC_SELRES_12BIT;
+	adc_feature->resolution = 12;
 	adc_feature->input_mode = TH1520_ADC_SINGLE_ENDED_INPUTS;
 	adc_feature->vol_ref = TH1520_ADC_VOL_VREF;
-	adc_feature->offset_mode = TH1520_ADC_OFFSET_DIS;
+	//adc_feature->offset_mode = TH1520_ADC_OFFSET_DIS;
 	adc_feature->conv_mode = TH1520_ADC_MODE_SINGLE;
-	adc_feature->clk_sel = TH1520_ADC_FCLK_TYP_1M;
+	adc_feature->sampling_freq = TH1520_ADC_FCLK_1M_HZ; //1MSPS
 
-	adc_feature->int_actual = TH1520_ADC_ACTUAL_ALL;
-	adc_feature->int_detal = TH1520_ADC_DETAL_ALL;
+	adc_feature->fclk_div = 4;
 
-	info->ch0_offmeas = 0;
-	info->ch1_offmeas = 0;
+	//adc_feature->int_actual = TH1520_ADC_ACTUAL_ALL;
+	//adc_feature->int_detal = TH1520_ADC_DETAL_ALL;
+
+	//info->ch0_offmeas = 0;
+	//info->ch1_offmeas = 0;
+}
+
+/*
+ * ADC reset, include reset phy smampling fclk 
+ */
+static void th1520_adc_reset(struct th1520_adc *info)
+{
+	u32 tmp = readl(info->regs + TH1520_ADC_PHY_CTRL);
+
+	tmp |= TH1520_ADC_PHY_CTRL_RST_EN;
+	writel(tmp, info->regs + TH1520_ADC_PHY_CTRL);
+
+	usleep_range(10, 15);
+
+	/* After reset, the phy enters standby mode. */
+	tmp &= ~TH1520_ADC_PHY_CTRL_RST_EN;
+	writel(tmp, info->regs + TH1520_ADC_PHY_CTRL);
 }
 
 static void th1520_adc_reg_set(struct th1520_adc *info)
@@ -55,17 +80,17 @@ static void th1520_adc_reg_set(struct th1520_adc *info)
 	struct th1520_adc_feature *adc_feature = &info->adc_feature;
 
 	/* phy_cfg */
-	switch (adc_feature->selres_sel) {
-	case TH1520_ADC_SELRES_6BIT:
+	switch (adc_feature->resolution) {
+	case 6:
 		phy_cfg |= TH1520_ADC_PHY_CFG_SELRES_6BIT;
 		break;
-	case TH1520_ADC_SELRES_8BIT:
+	case 8:
 		phy_cfg |= TH1520_ADC_PHY_CFG_SELRES_8BIT;
 		break;
-	case TH1520_ADC_SELRES_10BIT:
+	case 10:
 		phy_cfg |= TH1520_ADC_PHY_CFG_SELRES_10BIT;
 		break;
-	case TH1520_ADC_SELRES_12BIT:
+	case 12:
 		phy_cfg |= TH1520_ADC_PHY_CFG_SELRES_12BIT;
 		break;
 	default:
@@ -122,51 +147,77 @@ static void th1520_adc_reg_set(struct th1520_adc *info)
 		       info->regs + TH1520_ADC_PHY_CTRL);
 }
 
-static void th1520_adc_fclk_set(struct th1520_adc *info)
+static int th1520_adc_sampling_freq_set(struct th1520_adc *info, int sampling_freq)
 {
-	int fclk_ctrl = 0;
-	int start_time = 0;
+	unsigned long apb_clk;
 	int sample_time = 0;
 	struct th1520_adc_feature *adc_feature = &info->adc_feature;
 
-	switch (adc_feature->clk_sel) {
-	case TH1520_ADC_FCLK_TYP_1M:
-		fclk_ctrl = TH1520_ADC_FCLK_CTRL_TYP_1M;
-		start_time = TH1520_ADC_START_TIME_TYP_1M;
-		break;
-	case TH1520_ADC_FCLK_TYP_2_5M:
-		fclk_ctrl = TH1520_ADC_FCLK_CTRL_TYP_2_5M;
-		start_time = TH1520_ADC_START_TIME_TYP_2_5M;
-		break;
-	default:
-		break;
+	if (sampling_freq < 0) {
+		sampling_freq = adc_feature->sampling_freq;
 	}
 
-	if (adc_feature->selres_sel == TH1520_ADC_SELRES_6BIT)
-		sample_time = TH1520_ADC_SAMPLE_TIME_TYP_6BIT;
-	else if (adc_feature->selres_sel == TH1520_ADC_SELRES_8BIT)
-		sample_time = TH1520_ADC_SAMPLE_TIME_TYP_8BIT;
-	else if (adc_feature->selres_sel == TH1520_ADC_SELRES_10BIT)
-		sample_time = TH1520_ADC_SAMPLE_TIME_TYP_10BIT;
-	else if (adc_feature->selres_sel == TH1520_ADC_SELRES_12BIT)
-		sample_time = TH1520_ADC_SAMPLE_TIME_TYP_12BIT;
-	else {
-		pr_err("[%s,%d]invalid selres select\n",
-				__func__, __LINE__);
-		return;
+	if (sampling_freq == TH1520_ADC_FCLK_1M_HZ || sampling_freq == TH1520_ADC_FCLK_2_5M_HZ) {
+		apb_clk = clk_get_rate(info->clk);
+
+		int fclk_freq = DIV_ROUND_CLOSEST(apb_clk, adc_feature->fclk_div);
+
+		/* cal sampling div */
+		sample_time = DIV_ROUND_CLOSEST(fclk_freq, sampling_freq) - 1;
+
+		writel(sample_time, info->regs + TH1520_ADC_SAMPLE_TIME);
+
+		/* update current sampling_freq */
+		adc_feature->sampling_freq = sampling_freq;
+	} else {
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static void th1520_adc_fclk_set(struct th1520_adc *info)
+{
+	unsigned long apb_clk;
+
+	int fclk_ctrl = 0;
+	int start_time = 0;
+	struct th1520_adc_feature *adc_feature = &info->adc_feature;
+
+	fclk_ctrl = adc_feature->fclk_div;
+	fclk_ctrl |= FIELD_PREP(TH1520_ADC_FCLK_CTRL_PHASE_SEL, TH1520_ADC_FCLK_CTRL_PHASE_SEL_VAL);
+
+	apb_clk = clk_get_rate(info->clk);
+
+	/* start delay > 5us, base fclk */
+	int fclk_freq = DIV_ROUND_CLOSEST(apb_clk, adc_feature->fclk_div);
+	start_time = 5 * DIV_ROUND_UP(fclk_freq, 1000000);
 
 	writel(fclk_ctrl, info->regs + TH1520_ADC_FCLK_CTRL);
 	writel(start_time, info->regs + TH1520_ADC_START_TIME);
-	writel(sample_time, info->regs + TH1520_ADC_SAMPLE_TIME);
 }
 
 static void th1520_adc_hw_init(struct th1520_adc *info)
 {
 	th1520_adc_reg_set(info);
 	th1520_adc_fclk_set(info);
+
+	/* -1, use default freq */
+	th1520_adc_sampling_freq_set(info, -1);
 }
 
+static irqreturn_t th1520_adc_isr(int irq, void *dev_id)
+{
+	struct iio_dev *indio_dev = dev_id;
+	struct th1520_adc *info = iio_priv(indio_dev);
+	/* TBD */
+	complete(&info->completion);
+	return IRQ_HANDLED;
+}
+
+/*
+ * IIO base ops
+ */
 static const struct iio_chan_spec th1520_adc_iio_channels[] = {
 	TH1520_ADC_CHAN(0, IIO_VOLTAGE),
 	TH1520_ADC_CHAN(1, IIO_VOLTAGE),
@@ -187,25 +238,18 @@ static const struct iio_chan_spec a210_adc_iio_channels[] = {
 	/* sentinel */
 };
 
-static irqreturn_t th1520_adc_isr(int irq, void *dev_id)
-{
-	struct iio_dev *indio_dev = dev_id;
-	struct th1520_adc *info = iio_priv(indio_dev);
-	/* TBD */
-	complete(&info->completion);
-	return IRQ_HANDLED;
-}
-
 static int th1520_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long mask)
 {
 	int tmp;
 	long ret;
+	struct device *dev = indio_dev->dev.parent;
 	struct th1520_adc *info = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		pm_runtime_get_sync(dev);
 		mutex_lock(&info->mlock);
 
 		if (info->adc_feature.conv_mode == TH1520_ADC_MODE_SINGLE) {
@@ -222,6 +266,7 @@ static int th1520_read_raw(struct iio_dev *indio_dev,
 					TH1520_ADC_OP_CTRL_CH_EN_ALL);
 			writel(op_ctrl, info->regs + TH1520_ADC_OP_CTRL);
 
+			/* Enable phy */
 			writel(TH1520_ADC_PHY_CTRL_ENADC_EN,
 			       info->regs + TH1520_ADC_PHY_CTRL);
 
@@ -246,6 +291,7 @@ static int th1520_read_raw(struct iio_dev *indio_dev,
 					break;
 			}
 
+			/* Standby phy */
 			phy_ctrl = readl(info->regs + TH1520_ADC_PHY_CTRL);
 			phy_ctrl &= ~TH1520_ADC_PHY_CTRL_ENADC_EN;
 			writel(phy_ctrl, info->regs + TH1520_ADC_PHY_CTRL);
@@ -292,19 +338,23 @@ static int th1520_read_raw(struct iio_dev *indio_dev,
 				       TH1520_ADC_SAMPLE_DATA_CH1_OFF;
 		}
 
-		// Process the raw value bit mask based on selres_sel.
-		*val &= GENMASK(info->adc_feature.selres_sel - 1, 0);
+		/* 
+		 * The hardware normalizes the sampled value to 12 bits;
+		 * restore the original value based on the actual bit resolution.
+		 */
+		*val >>= (12 - info->adc_feature.resolution);
 
 		mutex_unlock(&info->mlock);
+		pm_runtime_put_sync(dev);
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
 		*val = info->vref_uv / 1000;
-		*val2 = info->adc_feature.selres_sel;
+		*val2 = info->adc_feature.resolution;
 		return IIO_VAL_FRACTIONAL_LOG2;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		*val = info->current_clk;
+		*val = info->adc_feature.sampling_freq;
 		*val2 = 0;
 		return IIO_VAL_INT;
 
@@ -315,56 +365,89 @@ static int th1520_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static void th1520_adc_reset(struct th1520_adc *info)
-{
-	u32 tmp = readl(info->regs + TH1520_ADC_PHY_CTRL);
-
-	tmp |= TH1520_ADC_PHY_CTRL_RST_EN;
-	writel(tmp, info->regs + TH1520_ADC_PHY_CTRL);
-
-	usleep_range(10, 15);
-
-	tmp &= ~TH1520_ADC_PHY_CTRL_RST_EN;
-	writel(tmp, info->regs + TH1520_ADC_PHY_CTRL);
-}
-
-static void th1520_adc_set_clk(struct th1520_adc *info, int val)
-{
-	u32 count;
-	u32 apb_clk;
-	int fclk_ctrl;
-
-	apb_clk = clk_get_rate(info->clk);
-	count = DIV_ROUND_UP(apb_clk, val);
-	info->current_clk = apb_clk / count;
-
-	fclk_ctrl = readl(info->regs + TH1520_ADC_FCLK_CTRL);
-	fclk_ctrl &= ~TH1520_ADC_FCLK_CTRL_FCLLK_DIV;
-	fclk_ctrl |= count;
-	writel(fclk_ctrl, info->regs + TH1520_ADC_FCLK_CTRL);
-}
-
 static int th1520_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long mask)
 {
+	int ret;
+	struct device *dev = indio_dev->dev.parent;
 	struct th1520_adc *info = iio_priv(indio_dev);
 
 	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
 		return -EINVAL;
 
+	pm_runtime_get_sync(dev);
 	mutex_lock(&info->mlock);
-	th1520_adc_set_clk(info, val);
+	ret = th1520_adc_sampling_freq_set(info, val);
 	mutex_unlock(&info->mlock);
+	pm_runtime_put_sync(dev);
 
-	return 0;
+	return ret;
 }
+
+/*
+ * IIO custom attr
+ * Add device attr to extend adc resolution config. 
+ */
+static ssize_t resolution_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct th1520_adc *info = iio_priv(indio_dev);
+
+	/* buf size = PAGE_SIZE */
+	return sprintf(buf, "%u\n", info->adc_feature.resolution);
+}
+
+static ssize_t resolution_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t size)
+{
+	unsigned long res;
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct th1520_adc *info = iio_priv(indio_dev);
+
+	if (kstrtoul(buf, 0, &res))
+		return -EINVAL;
+
+	switch (res) {
+	case 6:
+	case 8:
+	case 10:
+	case 12:
+		info->adc_feature.resolution = res;
+#ifndef CONFIG_PM
+		th1520_adc_resume(dev);
+#endif
+		break;
+	default:
+		dev_err(dev, "Resolution %ldbit not support. Configure it to 12, 10, 8, or 6.\n", res);
+		return -EINVAL;
+	}
+
+	return size;
+}
+
+static DEVICE_ATTR_RW(resolution);
+
+static struct attribute *th1520_attrs[] = {
+    &dev_attr_resolution.attr,
+    NULL,
+};
+
+static const struct attribute_group th1520_attribute_group = {
+    .attrs = th1520_attrs,
+};
 
 static const struct iio_info th1520_adc_iio_info = {
 	.read_raw = &th1520_read_raw,
 	.write_raw = &th1520_write_raw,
+	.attrs = &th1520_attribute_group,
 };
 
+/*
+ * Driver match & probe
+ */
 static int a210_adc_init(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -384,88 +467,12 @@ static int th1520_adc_init(struct platform_device *pdev)
 
 	return 0;
 }
-
 static const struct of_device_id th1520_adc_match[] = {
 	{ .compatible = "thead,th1520-adc", .data = th1520_adc_init},
 	{ .compatible = "zhihe,a210-adc", .data = a210_adc_init},
 	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(of, th1520_adc_match);
-
-static ssize_t th1520_adc_res_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	size_t bufpos = 0, count = 5;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct th1520_adc *info = iio_priv(indio_dev);
-
-	snprintf(buf + bufpos, count - bufpos, "%.*x: ", 4,
-		 info->adc_feature.selres_sel);
-	bufpos += 4;
-	buf[bufpos++] = '\n';
-
-	return bufpos;
-}
-
-static ssize_t th1520_adc_res_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	unsigned long res;
-	char *start = (char *)buf;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct th1520_adc *info = iio_priv(indio_dev);
-
-	if (kstrtoul(start, 0, &res))
-		return -EINVAL;
-
-	switch (res) {
-	case TH1520_ADC_SELRES_6BIT:
-	case TH1520_ADC_SELRES_8BIT:
-	case TH1520_ADC_SELRES_10BIT:
-	case TH1520_ADC_SELRES_12BIT:
-		info->adc_feature.selres_sel = res;
-		th1520_adc_reset(info);
-		th1520_adc_hw_init(info);
-		break;
-	default:
-		dev_err(dev, "not support res\n");
-		return -EINVAL;
-	}
-
-	return size;
-}
-
-static inline enum selres_sel resolution_to_selres_sel(struct platform_device *pdev, u32 resolution)
-{
-	switch (resolution) {
-		case TH1520_ADC_SELRES_6BIT:
-		case TH1520_ADC_SELRES_8BIT:
-		case TH1520_ADC_SELRES_10BIT:
-		case TH1520_ADC_SELRES_12BIT:
-			return resolution;
-		default:
-			dev_err(&pdev->dev, "Invalid resolution: %u , use 12BIT default\n", resolution);
-			return TH1520_ADC_SELRES_12BIT;
-	}
-}
-
-static inline enum clk_sel frequency_to_clk_sel(struct platform_device *pdev, u32 frequency)
-{
-	switch (frequency) {
-		case TH1520_ADC_FCLK_1M_HZ:
-			return TH1520_ADC_FCLK_TYP_1M;
-		case TH1520_ADC_FCLK_2_5M_HZ:
-			return TH1520_ADC_FCLK_TYP_2_5M;
-		default:
-			dev_err(&pdev->dev, "Invalid frequency: %u , use 1MSPS default\n", frequency);
-			return TH1520_ADC_FCLK_TYP_1M;
-	}
-}
-
-static DEVICE_ATTR_RW(th1520_adc_res);
 
 static int th1520_adc_probe(struct platform_device *pdev)
 {
@@ -474,7 +481,7 @@ static int th1520_adc_probe(struct platform_device *pdev)
 	struct resource *mem;
 	struct th1520_adc *info;
 	struct iio_dev *indio_dev;
-	u32 sampling_freq, resolution;
+	u32 sampling_freq, resolution, fclk_div;
 	struct device_node *np = pdev->dev.of_node;
 	int (*init_func)(struct platform_device *pdev);
 
@@ -515,11 +522,12 @@ static int th1520_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->vref))
 		return PTR_ERR(info->vref);
 
-	ret = regulator_enable(info->vref);
-	if (ret)
-		return ret;
-
 	info->vref_uv = regulator_get_voltage(info->vref);
+
+	info->reset = of_reset_control_get_optional_exclusive(np, NULL);
+	if (IS_ERR(info->reset)) {
+		return PTR_ERR(info->reset);
+	}
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -532,29 +540,33 @@ static int th1520_adc_probe(struct platform_device *pdev)
 	indio_dev->info = &th1520_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
-		goto error_adc_clk_enable;
-	}
-
 	th1520_adc_cfg_init(info);
 
 	if (!of_property_read_u32(np, "resolution", &resolution)) {
-		info->adc_feature.selres_sel = resolution_to_selres_sel(pdev, resolution);
+		if (resolution == 6 || resolution == 8 || resolution == 10 || resolution == 12) {
+			info->adc_feature.resolution = resolution;
+		} else {
+			dev_warn(&pdev->dev, "ADC resolution unspported, use 12BIT default.\n");
+		}
 	} else {
 		dev_info(&pdev->dev, "ADC resolution missing in DT, use 12BIT default.\n");
 	}
 
 	if (!of_property_read_u32(np, "sampling-frequency", &sampling_freq)) {
-		info->adc_feature.clk_sel = frequency_to_clk_sel(pdev, sampling_freq);
+		if (sampling_freq == TH1520_ADC_FCLK_1M_HZ || sampling_freq == TH1520_ADC_FCLK_2_5M_HZ) {
+			info->adc_feature.sampling_freq = sampling_freq;
+		} else {
+			dev_info(&pdev->dev, "ADC sampling-frequency unsupported in DT, use 1MSPS default.\n");
+		}
 	} else {
 		dev_info(&pdev->dev, "ADC sampling-frequency missing in DT, use 1MSPS default.\n");
 	}
 
-	th1520_adc_reset(info);
-	th1520_adc_hw_init(info);
+	if (!of_property_read_u32(np, "fclk-div", &fclk_div)) {
+		info->adc_feature.fclk_div = fclk_div;
+	} else {
+		dev_info(&pdev->dev, "ADC fclk-div missing in DT, use 4 default.\n");
+	}
 
 	init_func = device_get_match_data(&pdev->dev);
 	if (init_func) {
@@ -569,20 +581,24 @@ static int th1520_adc_probe(struct platform_device *pdev)
 		goto error_iio_device_register;
 	}
 
-	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_th1520_adc_res.attr);
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_resolution.attr);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to create adc debug sysfs.\n");
 		goto error_iio_device_register;
 	}
 
+#ifdef CONFIG_PM
+	/* Enalbe pm runtime & set suspened status */
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+#else
+	th1520_adc_resume(&pdev->dev);
+#endif
+
 	dev_info(&pdev->dev, "THEAD TH1520 adc registered.\n");
 	return 0;
 
 error_iio_device_register:
-	clk_disable_unprepare(info->clk);
-error_adc_clk_enable:
-	regulator_disable(info->vref);
-
 	return ret;
 }
 
@@ -591,7 +607,7 @@ static int th1520_adc_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct th1520_adc *info = iio_priv(indio_dev);
 
-	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_th1520_adc_res.attr);
+	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_resolution.attr);
 	iio_device_unregister(indio_dev);
 	regulator_disable(info->vref);
 	clk_disable_unprepare(info->clk);
@@ -603,14 +619,10 @@ static int __maybe_unused th1520_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct th1520_adc *info = iio_priv(indio_dev);
-	int phy_ctrl;
-
-	phy_ctrl = readl(info->regs + TH1520_ADC_PHY_CTRL);
-	phy_ctrl &= ~TH1520_ADC_PHY_CTRL_ENADC_EN;
-	writel(phy_ctrl, info->regs + TH1520_ADC_PHY_CTRL);
 
 	clk_disable_unprepare(info->clk);
 	regulator_disable(info->vref);
+	reset_control_assert(info->reset);
 
 	return 0;
 }
@@ -621,6 +633,8 @@ static int __maybe_unused th1520_adc_resume(struct device *dev)
 	struct th1520_adc *info = iio_priv(indio_dev);
 	int ret;
 
+	reset_control_deassert(info->reset);
+
 	ret = regulator_enable(info->vref);
 	if (ret)
 		return ret;
@@ -630,7 +644,6 @@ static int __maybe_unused th1520_adc_resume(struct device *dev)
 		goto disable_reg;
 
 	th1520_adc_reset(info);
-	th1520_adc_set_clk(info, info->current_clk);
 	th1520_adc_hw_init(info);
 
 	return 0;
@@ -640,8 +653,8 @@ disable_reg:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(th1520_adc_pm_ops,
-			 th1520_adc_suspend, th1520_adc_resume);
+static DEFINE_RUNTIME_DEV_PM_OPS(th1520_adc_pm_ops,
+			 th1520_adc_suspend, th1520_adc_resume, NULL);
 
 static struct platform_driver th1520_adc_driver = {
 	.probe          = th1520_adc_probe,
@@ -649,7 +662,7 @@ static struct platform_driver th1520_adc_driver = {
 	.driver         = {
 		.name   = DRIVER_NAME,
 		.of_match_table = th1520_adc_match,
-		.pm     = &th1520_adc_pm_ops,
+		.pm     = pm_ptr(&th1520_adc_pm_ops),
 	},
 };
 module_platform_driver(th1520_adc_driver);

@@ -30,12 +30,14 @@
 #define  PHY_RES_ACK_OUT		BIT(20)
 
 struct e16phy_seq {
+	int id;
 	u32 addr;
 	u32 val;
 };
 
 struct zhihe_e16phy_priv {
-	void __iomem *mmio;
+	void __iomem *mmio[3];
+	void __iomem *sys_reg;
 	int mode;
 	struct reset_control *apb_rst;
 	struct reset_control *phy_rst;
@@ -85,9 +87,9 @@ static int zhihe_e16phy_init(struct phy *phy)
 
 	for (i = 0; i < priv->num_init_seq; i++) {
 		struct e16phy_seq *seq = &priv->init_seq[i];
-		writel(seq->val, priv->mmio + seq->addr);
-		dev_info(&phy->dev, "[0x%03x] = 0x%08x\n",
-			seq->addr, seq->val);
+		writel(seq->val, priv->mmio[seq->id] + seq->addr);
+		dev_info(&phy->dev, "[%d][0x%05x] = 0x%08x\n",
+			seq->id, seq->addr, seq->val);
 	}
 
 	reset_control_deassert(priv->phy_rst);
@@ -95,7 +97,7 @@ static int zhihe_e16phy_init(struct phy *phy)
 	/* Wait for PHY RTUNE acknowledgment */
 	timeout = 100;
 	while (timeout--) {
-		val = readl(priv->mmio + E16PHY_RES_RTUNE_REG);
+		val = readl(priv->sys_reg + E16PHY_RES_RTUNE_REG);
 		if (val & PHY_RTUNE_ACK)
 			break;
 		udelay(1);
@@ -107,7 +109,7 @@ static int zhihe_e16phy_init(struct phy *phy)
 		goto err_disable_clks;
 	}
 
-	e16phy_dump_mmio(&phy->dev, priv->mmio, 0x100);
+	e16phy_dump_mmio(&phy->dev, priv->sys_reg, 0x100);
 	mdelay(200);
 
 	return 0;
@@ -180,9 +182,12 @@ static int zhihe_e16phy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(priv->mmio))
-		return PTR_ERR(priv->mmio);
+	for (int i = 0; i < 3; i++) {
+		priv->mmio[i] = devm_platform_get_and_ioremap_resource(pdev, i, NULL);
+		if (IS_ERR(priv->mmio[i]))
+			return PTR_ERR(priv->mmio[i]);
+	}
+	priv->sys_reg = priv->mmio[0];
 
 	priv->phy = devm_phy_create(dev, NULL, &zhihe_e16phy_ops);
 	if (IS_ERR(priv->phy)) {
@@ -217,7 +222,7 @@ static int zhihe_e16phy_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, size, "failed to find property '%s'\n", prop_name);
 	}
 
-	priv->num_init_seq = size / 2;
+	priv->num_init_seq = size / 3;
 	priv->init_seq = devm_kmalloc_array(dev, priv->num_init_seq,
 					    sizeof(*priv->init_seq), GFP_KERNEL);
 	if (!priv->init_seq)

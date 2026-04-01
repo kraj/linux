@@ -29,6 +29,7 @@ static int riscv_iommu_platform_probe(struct platform_device *pdev)
 	struct riscv_iommu_device *iommu = NULL;
 	struct resource *res = NULL;
 	struct device_node *np = dev->of_node;
+	const char *pd_name;
 	u32 fctl = 0;
 	int irq = 0;
 	int ret = 0;
@@ -55,6 +56,9 @@ static int riscv_iommu_platform_probe(struct platform_device *pdev)
 			iommus->pd_devs[i] = dev_pm_domain_attach_by_id(dev, i);
 			if (IS_ERR(iommus->pd_devs[i]))
 				return PTR_ERR(iommus->pd_devs[i]);
+			if (!of_property_read_string_index(np, "power-domain-names", i, &pd_name)) {
+				dev_set_name(iommus->pd_devs[i], "genpd:%u:%s", i, pd_name);
+			}
 			device_link_add(dev, iommus->pd_devs[i], DL_FLAG_PM_RUNTIME | DL_FLAG_STATELESS);
 		}
 	}
@@ -75,8 +79,10 @@ static int riscv_iommu_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	for (int i = 0;i < count;i++) {
+		pm_runtime_enable(iommus->pd_devs[i]);
+		pm_runtime_get_sync(iommus->pd_devs[i]);
+	}
 
 	for (int i = 0; i < pdev->num_resources; i++) {
 		const char *name;
@@ -172,6 +178,10 @@ static int riscv_iommu_platform_probe(struct platform_device *pdev)
 		iommu_domain.pscid = 0;
 		iommu_domain.domain.ops = iommus->iommu.ops->default_domain_ops;
 		iommu_flush_iotlb_all(&iommu_domain.domain);
+	}
+
+	for (int i = 0;i < count;i++) {
+		pm_runtime_put_sync(iommus->pd_devs[i]);
 	}
 
  fail:

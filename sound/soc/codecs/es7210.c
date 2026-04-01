@@ -1069,6 +1069,12 @@ static int es7210_probe(struct snd_soc_component *component)
 
         es7210_tdm_init_codec(es7210->tdm_mode);
 
+        /* Route ADC1 (MIC1) data to both L and R channels on SD1 */
+        if (es7210->mono_to_stereo) {
+                for (cnt = 0; cnt < ADC_DEV_MAXNUM; cnt++)
+                        es7210_write(ES7210_ADC12_HPF2_REG22, 0x46, i2c_clt1[cnt]);
+        }
+
 exit_i2c_check_id_failed:
         return 0;
 }
@@ -2087,6 +2093,8 @@ static int es7210_i2c_probe(struct i2c_client *i2c_client)
         if (of_property_read_u32(np, "mclk-sclk-ratio", &es7210->mclk_sclk_ratio) != 0) {
                 es7210->mclk_sclk_ratio = 1;
         }
+
+        es7210->mono_to_stereo = of_property_read_bool(np, "mono-to-stereo");
 
         i2c_set_clientdata(i2c_client, es7210);
         if (i2c_id->driver_data < ADC_DEV_MAXNUM) {
